@@ -1,3 +1,4 @@
+using Dating.Api.Features.AccountLifecycle;
 using Dating.Api.Features.Notifications;
 using Dating.Api.Features.Chat;
 using Dating.Api.Features.Matching;
@@ -15,6 +16,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     public DbSet<AuthSession> Sessions => Set<AuthSession>();
     public DbSet<RefreshCredential> RefreshCredentials => Set<RefreshCredential>();
     public DbSet<AuthEmail> AuthEmails => Set<AuthEmail>();
+    public DbSet<AccountDeletionJob> AccountDeletionJobs => Set<AccountDeletionJob>();
+    public DbSet<DeletionTombstone> DeletionTombstones => Set<DeletionTombstone>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -99,5 +102,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
         modelBuilder.Entity<RefreshCredential>().Property(r => r.Hash).HasMaxLength(64);
         modelBuilder.Entity<RefreshCredential>().HasOne(r => r.Session).WithMany().HasForeignKey(r => r.SessionId);
         modelBuilder.Entity<AuthEmail>().HasIndex(e => e.NextAttemptAt);
+
+        modelBuilder.Entity<AccountDeletionJob>().HasKey(j => j.Id);
+        modelBuilder.Entity<AccountDeletionJob>().HasIndex(j => j.NextAttemptAt).HasFilter("\"CompletedAt\" IS NULL");
+        modelBuilder.Entity<AccountDeletionJob>().HasIndex(j => j.UserId);
+        modelBuilder.Entity<AccountDeletionJob>().Property(j => j.State).HasMaxLength(32);
+        modelBuilder.Entity<AccountDeletionJob>().Property(j => j.LastError).HasMaxLength(1024);
+
+        modelBuilder.Entity<DeletionTombstone>().HasKey(t => t.UserId);
+        modelBuilder.Entity<DeletionTombstone>().HasIndex(t => t.EmailHash);
+        modelBuilder.Entity<DeletionTombstone>().Property(t => t.EmailHash).HasMaxLength(64);
     }
 }

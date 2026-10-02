@@ -53,6 +53,8 @@ builder.Services.AddScoped<Dating.Api.Features.Notifications.PushQueue>();
 builder.Services.AddScoped<Dating.Api.Features.Notifications.PushOutbox>();
 builder.Services.AddHttpClient<Dating.Api.Features.Notifications.IPushProvider,Dating.Api.Features.Notifications.ExpoPushProvider>(c=>{c.Timeout=TimeSpan.FromSeconds(3);c.MaxResponseContentBufferSize=65536;}).RemoveAllLoggers();
 builder.Services.AddHostedService<Dating.Api.Features.Notifications.PushWorker>();
+builder.Services.AddScoped<Dating.Api.Features.AccountLifecycle.AccountLifecycleService>();
+builder.Services.AddHostedService<Dating.Api.Features.AccountLifecycle.AccountPurgeWorker>();
 var app = builder.Build();
 if (args.Length > 0 && args[0] == "staff") { await StaffCommand.Run(app.Services,args); return; }
 app.UseMiddleware<SafeRequestMiddleware>();

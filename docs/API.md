@@ -99,3 +99,16 @@ Report: {kind: profile/message, category: harassment/spam/impersonation/underage
 | POST /api/notifications/resolve | {notificationId}; verifies recipient/current conversation, returns {conversationId} |
 
 Bearer auth, no-store and inherited per-account request policy apply. Device payload maximum 4 KiB; other writes 1 KiB. Invalid metadata 400; installation proof/revision/token-owner conflicts 409; more than ten active devices 429; unconfigured provider registration 503; inaccessible notification target 404. No token/hash/proof/ciphertext/ticket is returned. Payload is only {notificationId, version: 1}, with generic lock-screen text. [Push protocol, provider setup and physical checks](PUSH.md).
+
+## Prompt 11 additions — Account lifecycle & data controls
+
+| Method/path | Behavior |
+|---|---|
+| POST /api/account/delete | In-app deletion with recent password check; immediately hides profile, revokes tokens/sessions/hub, deactivates matches, cancels push outbox, writes tombstone, queues purge worker; 204 |
+| DELETE /api/account | In-app deletion alias with password check; 204 |
+| GET /api/account/deletion-status | Own deletion status `{userId, state, requestedAt, completedAt}`; 200 |
+| POST /api/account/discoverability-pause | `{paused: boolean}`; toggles profile visibility and bumps revision without losing matches or chat; 204 |
+| POST /api/account/public-deletion-request | `{email: string}`; returns 202 Accepted without leaking whether account exists; enqueues verification token to registered address |
+| POST /api/account/confirm-deletion | `{email: string, token: string}`; validates protected token within 24h lifetime and executes deletion; 204 |
+| GET /account/delete | Store-compliant public web page serving self-service deletion request form |
+

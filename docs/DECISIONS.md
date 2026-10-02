@@ -103,3 +103,13 @@ User authorized Prompt 8 after Prompt 7 completion; Prompt 9 remains unstarted.
 - Both preferences default off. Generic bodies only. Strict payload validation followed by authenticated server target resolution and normal chat authorization. Foreground/background/cold-start handling and serialized mobile registration/preferences.
 - Default-disabled provider is honest missing-configuration behavior, not a fake push service. Test providers exist only in tests. Physical delivery, owner credentials and native signing remain external verification requirements.
 - Detailed operation, proof-loss limitation, rotation and iPhone/Android checklists: PUSH.md.
+
+## Prompt 11 decisions (current)
+
+- Immediate deletion: Profile hidden, user anonymized (DisplayName = "Deleted Account", email randomized to `deleted_<guid>@deleted.local`), sessions revoked, matches deactivated (`Active = false`), push outbox deadlettered, push devices cleared, SignalR hub evicted.
+- Asynchronous purge worker: `AccountPurgeWorker` physically purges photo objects from storage with exponential backoff and idempotency; sets `ObjectsDeleted = true` and `Deleted = true`.
+- Data retention reconciliation: Surviving match partner keeps message history (author displayed as "Deleted Account"); reports/evidence retained for 180 days for safety; audit logs retained.
+- Backup safeguard: Automated backups expire at 30 days. `DeletionTombstones` table records SHA-256 hashes of deleted emails to prevent silent resurrection on backup restore.
+- Store compliance: `GET /account/delete` public web page; `POST /api/account/public-deletion-request` returns 202 without leaking account existence; token confirmed via `POST /api/account/confirm-deletion`.
+- Complete draft privacy policy in `docs/PRIVACY.md` marked for owner review, without claiming non-existent E2EE or governmental verification.
+

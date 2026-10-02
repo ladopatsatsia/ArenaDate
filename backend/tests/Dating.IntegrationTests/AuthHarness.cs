@@ -60,7 +60,7 @@ internal sealed class AuthHarness : IAsyncDisposable
                     services.AddSingleton<IPushProvider>(push);
                 }
                 services.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(counter));
-                foreach (var item in services.Where(d => d.ImplementationType == typeof(Dating.Api.Features.Notifications.PushWorker) || d.ImplementationType == typeof(Dating.Api.Features.Safety.SafetyCleanup) || d.ImplementationType == typeof(Dating.Api.Features.Chat.ChatOutboxWorker) || d.ImplementationType == typeof(Dating.Api.Features.Matching.MatchOutboxWorker) || d.ImplementationType == typeof(AuthEmailWorker) || d.ImplementationType == typeof(Dating.Api.Features.Profiles.MediaCleanup)).ToArray()) services.Remove(item);
+                foreach (var item in services.Where(d => d.ImplementationType == typeof(Dating.Api.Features.Notifications.PushWorker) || d.ImplementationType == typeof(Dating.Api.Features.Safety.SafetyCleanup) || d.ImplementationType == typeof(Dating.Api.Features.Chat.ChatOutboxWorker) || d.ImplementationType == typeof(Dating.Api.Features.Matching.MatchOutboxWorker) || d.ImplementationType == typeof(AuthEmailWorker) || d.ImplementationType == typeof(Dating.Api.Features.Profiles.MediaCleanup) || d.ImplementationType == typeof(Dating.Api.Features.AccountLifecycle.AccountPurgeWorker)).ToArray()) services.Remove(item);
             });
         }
     }

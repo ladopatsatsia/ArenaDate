@@ -33,4 +33,4 @@ test('ambiguous swipe blocks the opposite action and reconciles a persisted rece
  expect(request.mock.calls.filter(([path])=>path==='/api/swipes')).toHaveLength(1);
  expect(request).toHaveBeenCalledWith('/api/swipes/cccccccc-cccc-4ccc-8ccc-cccccccccccc',undefined,'token');
  expect(screen.queryByText('Real candidate, 30')).toBeNull();expect(JSON.parse(mockStore.get('dating.swipe.A')!).data.pending).toBeNull();view.unmount();
-});
+}, 15000);

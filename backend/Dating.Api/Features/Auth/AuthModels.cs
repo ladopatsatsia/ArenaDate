@@ -7,6 +7,8 @@ public sealed class AppUser : IdentityUser<Guid>
 {
     public DateOnly DateOfBirth { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }
 public sealed class AuthSession
 {

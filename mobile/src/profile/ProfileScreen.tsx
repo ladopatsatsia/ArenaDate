@@ -1,5 +1,4 @@
-import { Link } from '../components/UI';
-import { Button, Text } from '../components/UI';
+import { Button, Link, Text, TextInput } from '../components/UI';
 import { useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { Alert, Linking, View } from 'react-native';
@@ -24,11 +23,34 @@ export default function ProfileScreen() {
   const choices = useQuery({ queryKey: ['account', state.account?.id, 'profile-choices'], queryFn: api.choices });
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState('');
   const [pending, setPending] = useState<{ requestId: string; bytes: Blob } | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
   async function action(fn: () => Promise<unknown>) {
     setBusy(true); setMessage('');
     try { await fn(); await cache.invalidateQueries({ queryKey: key }); }
     catch { setMessage('profile_action_failed'); }
     finally { setBusy(false); }
+  }
+  async function togglePause() {
+    if (!profile.data) return;
+    const targetPaused = profile.data.visible;
+    await action(async () => {
+      await api.pauseDiscoverability(targetPaused);
+      cache.setQueryData(key, { ...profile.data, visible: !targetPaused });
+      setMessage(targetPaused ? 'discoverability_paused' : 'discoverability_resumed');
+    });
+  }
+  async function deleteAccount() {
+    if (!deletePassword) return;
+    setBusy(true); setMessage('');
+    try {
+      await api.deleteAccount(deletePassword);
+      await manager.clear('account_deleted');
+    } catch {
+      setMessage('account_delete_failed');
+    } finally {
+      setBusy(false);
+    }
   }
   async function upload(value: { requestId: string; bytes: Blob }) {
     await uploadPhoto(api, value.requestId, value.bytes); setPending(null); setMessage('photo_received');
@@ -83,7 +105,32 @@ export default function ProfileScreen() {
     {message && <Text accessibilityRole="alert">{t(message)}</Text>}
     {(message === 'photo_permission_denied' || message === 'photo_permission_limited') &&
       <Button title={t('open_settings')} onPress={() => { void Linking.openSettings().catch(() => setMessage('profile_action_failed')); }} />}
+    <Button title={t(data.visible ? 'discoverability_pause' : 'discoverability_resumed')} disabled={busy} onPress={() => { void togglePause(); }} />
     <Button testID="profile-logout" title={t('logout')} disabled={busy} onPress={() => { void logout(false); }} />
     <Button title={t('logout_all')} disabled={busy} onPress={() => { void logout(true); }} />
+    {!showDelete ? (
+      <Button testID="delete-account-button" title={t('account_delete')} disabled={busy} onPress={() => setShowDelete(true)} />
+    ) : (
+      <View style={{ gap: 8, padding: 12, borderWidth: 1, borderColor: '#826675', borderRadius: 8, marginTop: 8 }}>
+        <Text style={{ fontWeight: 'bold' }}>{t('account_delete_confirm_title')}</Text>
+        <Text>{t('account_delete_confirm_desc')}</Text>
+        <TextInput
+          testID="delete-account-password"
+          accessibilityLabel={t('account_delete_password')}
+          placeholder={t('account_delete_password')}
+          secureTextEntry
+          value={deletePassword}
+          onChangeText={setDeletePassword}
+          style={{ borderWidth: 1, borderColor: '#826675', padding: 10, color: '#432d37' }}
+        />
+        <Button
+          testID="delete-account-confirm"
+          title={t('account_delete_action')}
+          disabled={busy || !deletePassword}
+          onPress={() => { void deleteAccount(); }}
+        />
+        <Button title={t('cancel')} disabled={busy} onPress={() => { setShowDelete(false); setDeletePassword(''); }} />
+      </View>
+    )}
   </Screen>;
 }

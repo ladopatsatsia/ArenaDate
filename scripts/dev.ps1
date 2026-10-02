@@ -1,4 +1,4 @@
-param([ValidateSet('api','admin-api','staff','migrate','test','build','check-migrations')][string]$Task = 'api', [switch]$AutoApprovePhotos, [string[]]$StaffArguments)
+param([ValidateSet('api','admin-api','staff','migrate','test','build','check-migrations','add-migration','script-migration')][string]$Task = 'api', [string]$MigrationName = 'AccountLifecycleAndDeletion', [switch]$AutoApprovePhotos, [string[]]$StaffArguments, [string]$TestFilter)
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 if (Test-Path '.tools/dotnet/dotnet.exe') {
@@ -33,7 +33,16 @@ switch ($Task) {
     'api' { $env:ASPNETCORE_ENVIRONMENT = 'Development'; dotnet run --project backend/Dating.Api }
     'migrate' { dotnet ef database update --project backend/Dating.Api }
     'check-migrations' { dotnet ef migrations has-pending-model-changes --project backend/Dating.Api --no-build }
-    'test' { $env:TEST_DATABASE_CONNECTION = $env:ConnectionStrings__Database; dotnet test backend/Dating.slnx --no-restore }
+    'add-migration' { dotnet ef migrations add $MigrationName --project backend/Dating.Api }
+    'script-migration' { dotnet ef migrations script --idempotent --project backend/Dating.Api --output artifacts/migration.sql }
+    'test' {
+        $env:TEST_DATABASE_CONNECTION = $env:ConnectionStrings__Database
+        if ($TestFilter) {
+            dotnet test backend/Dating.slnx --no-restore --filter $TestFilter
+        } else {
+            dotnet test backend/Dating.slnx --no-restore
+        }
+    }
     'build' { dotnet build backend/Dating.slnx --no-restore }
 }
 exit $LASTEXITCODE
