@@ -2,17 +2,29 @@ import { developmentAuthEnv } from './auth-env.mjs';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { getReadiness } from '../mobile/src/api/client.ts';
 
 // Real transport check in Node; this is not physical-device evidence.
 globalThis.__DEV__ = true;
+if (!process.env.ConnectionStrings__Database) {
+  if (existsSync(resolve('infra/.env'))) {
+    const envContent = await readFile(resolve('infra/.env'), 'utf8');
+    const match = envContent.match(/^POSTGRES_PASSWORD=(.*)$/m);
+    if (match) {
+      process.env.ConnectionStrings__Database = `Host=127.0.0.1;Port=55432;Database=dating;Username=dating;Password=${match[1].trim()}`;
+    }
+  }
+}
 if (!process.env.ConnectionStrings__Database) throw new Error('Set ConnectionStrings__Database first.');
 const reservation = createServer();
 await new Promise((resolve, reject) => { reservation.once('error', reject); reservation.listen(0, '127.0.0.1', resolve); });
 const port = reservation.address().port;
 await new Promise(resolve => reservation.close(resolve));
 const base = 'http://127.0.0.1:' + port;
-const child = spawn(process.env.DOTNET_COMMAND || 'dotnet',
+const dotnet = process.env.DOTNET_COMMAND || (existsSync(resolve('.tools/dotnet/dotnet.exe')) ? resolve('.tools/dotnet/dotnet.exe') : 'dotnet');
+const child = spawn(dotnet,
   [resolve('backend/Dating.Api/bin/Debug/net10.0/Dating.Api.dll')],
   { cwd: resolve('backend/Dating.Api'), env: { ...process.env, ...developmentAuthEnv(), ASPNETCORE_ENVIRONMENT: 'Development', ASPNETCORE_URLS: base }, stdio: 'ignore' });
 let failed;

@@ -22,7 +22,7 @@ test('controls expose selected/disabled state, a 48-point target and wrapping la
 test('reduced motion follows the system and cleans up its accessibility subscription',async()=>{
  let update:(value:boolean)=>void=()=>{};const remove=jest.fn();
  const initial=jest.spyOn(AccessibilityInfo,'isReduceMotionEnabled').mockResolvedValue(true);
- const listener=jest.spyOn(AccessibilityInfo,'addEventListener').mockImplementation((event:string,callback:unknown)=>{if(event==='reduceMotionChanged')update=callback as (v:boolean)=>void;return {remove} as ReturnType<typeof AccessibilityInfo.addEventListener>;});
+ const listener=jest.spyOn(AccessibilityInfo,'addEventListener').mockImplementation((event:string,callback:unknown)=>{if(event==='reduceMotionChanged')update=callback as (v:boolean)=>void;return {remove} as unknown as ReturnType<typeof AccessibilityInfo.addEventListener>;});
  function Probe(){return <Text>{useReducedMotion()?'reduced':'animated'}</Text>;}
  const view=render(<Probe/>);await waitFor(()=>expect(screen.getByText('reduced')).toBeTruthy());
  act(()=>update(false));expect(screen.getByText('animated')).toBeTruthy();view.unmount();expect(remove).toHaveBeenCalled();initial.mockRestore();listener.mockRestore();

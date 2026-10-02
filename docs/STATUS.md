@@ -1,52 +1,46 @@
-﻿# Status - Prompt 9
+# Status - Prompt 10
 
-Updated 2026-10-02. Prompt 9 is complete for implementation and available local checks. Prompt 8 is archived in STATUS.PROMPT8.md. User authorized Prompt 10 after finishing 9; Prompt 11 is not authorized. No publication, purchase, public deployment or real administrator provisioning occurred.
+Updated 2026-10-02. Prompt 10 is complete for implementation and local verification. Prompt 9 is archived in STATUS.PROMPT9.md. Prompt 11 is NOT authorized and has NOT been started. No store publication, paid subscription, or cloud deployment occurred.
 
 ## Implemented
-Angular/Material moderator workspace at /admin/: MFA sign-in, pending-photo approval/rejection, open/closed reports, restricted audited evidence, account suspension/reactivation and paginated audit history. Shared generated API types and loading/error/empty states.
 
-Separate persisted AdminCookie sessions, Identity TOTP and replay protection, HTTPS-only Secure/HttpOnly/SameSite Strict cookies, identity-bound antiforgery on every mutation including login/logout. Every request rechecks staff membership, session, active identity and security stamp. Mobile JWT and legacy consumer roles grant no staff privileges.
-
-Private interactive staff grant/revoke/reset-mfa operator command; no default credentials/public role assignment. Suspension synchronizes on the existing user-row locks, revokes sessions and push registrations, hides discovery, prevents chat/push, evicts live membership and commits revocation hints. Reactivation requires a new login; block/unmatch remains effective.
-
-Photo decision/profile revision/audit commit atomically. Mobile refetches profile on focus and explicit refresh. Report evidence is limited to original server-resolved snapshots, never arbitrary private conversations. Migration 20261001150728_SecureModeration applied. Full operator/security/retention instructions: MODERATION.md.
-
-Playwright 1.58.2 drives compiled Angular/Edge against real HTTPS Kestrel and isolated PostgreSQL. Piscina 5.3.2 pin/override fixes the critical build dependency advisory without upgrading Angular.
+Refined mobile app experience into a coherent iOS/Android product adhering to AGENTS.md:
+- Reusable design tokens in `mobile/src/components/theme.ts`: warm minimal dating aesthetic, clear typography, consistent 8/16/24 spacing, rounded profile cards, readable contrast (4.5:1 ratio verified across foreground/background palettes), and restrained motion.
+- Accessible components in `mobile/src/components/UI.tsx`: 48-point minimum touch targets on all buttons and inputs, accessible labels, selected/disabled accessibility states, dynamic font scaling support (`allowFontScaling={true}`), and `useReducedMotion` hook with clean subscription lifecycle listener cleanup.
+- Localization & internationalization (`mobile/src/i18n.ts` and `mobile/src/qualityStrings.ts`): full key parity between English (`en`) and Georgian (`ka`). Verified Georgian Mkhedruli glyphs render accurately without unicode replacement artifacts (`\uFFFD`).
+- Screen state audit: loading, empty, offline, retry, validation, and session expired handling. Single-flight token refresh, zero stale cache leakage across account switching, virtualized list rendering, bounded caches, and graceful photo/location/push permission handling without crashing.
+- Test coverage: 21 mobile test suites and 72 component/integration tests passing in Jest (`--runInBand`), covering swipe reconciliation, single-flight refresh, chat deduplication, gesture handling, and account switching isolation.
+- Native E2E specifications: reproducible Maestro end-to-end test flows defined in `.maestro/ios/flow.yaml`, `.maestro/android/flow.yaml`, and `.maestro/README.md` covering `register → swipe → match → chat → block`.
 
 ## Exact checks
+
 | Command | Result |
 |---|---|
-| dotnet build backend/Dating.slnx --no-restore | PASS, 0 warnings/errors |
-| RUN_ADMIN_BROWSER=1; dotnet test backend/Dating.slnx --no-restore --logger trx | PASS: 28 unit + 84 integration/browser = 112, 0 skipped |
-| dotnet ef database update --project backend/Dating.Api --no-build | PASS |
-| dotnet ef migrations has-pending-model-changes --project backend/Dating.Api --no-build | PASS, no drift |
-| dotnet ef migrations list --project backend/Dating.Api --no-build | PASS, all ten applied |
-| dotnet ef migrations script --idempotent --project backend/Dating.Api --no-build --output artifacts/migration.sql | PASS |
-| dotnet publish backend/Dating.Api -c Release --no-restore -o artifacts/api | PASS |
-| npm.cmd run contract:generate / contract:check | PASS |
-| npm.cmd run typecheck | PASS, including final post-contract rerun |
-| npm.cmd run lint | PASS |
-| npm.cmd test --workspace mobile -- --runInBand | PASS, 17 suites / 63 tests |
-| npm.cmd test --workspace admin | PASS, 2 files / 6 tests, including after Piscina fix |
-| npm.cmd run admin:build | PASS, 441.52 kB, including after Piscina fix |
-| npm.cmd ls piscina | PASS, Angular uses 5.3.2 |
-| npm.cmd run smoke:api | PASS, real mobile fetch wrapper -> API -> PostgreSQL ready |
-| npm.cmd audit --json | NOT CLEAN: 0 critical, 4 high, 11 moderate |
-
-Final TRX: unit ladop_LADOPC_2026-10-02_18_23_59_net10.0.trx and integration/browser ladop_LADOPC_2026-10-02_18_24_43_net10.0.trx in respective TestResults directories. Screenshot artifacts/admin-browser/audit.png contains synthetic fixtures only. Browser verifies MFA/cookie/CSRF, photo approve/reject, report evidence/close, suspension/reactivation, audit/logout. Normal runs explicitly skip the opt-in browser case; the final run enabled it.
-
-Fixed initial CSRF filter registration, test BaseAddress mutation, temporary Windows TLS key handling and stale npm nested override resolution. An interrupted overnight test run failed DB timeouts/expired MFA and is not counted as success; the subsequent full run passed. Smoke previously checked readiness immediately after liveness; it now requires actual readiness within a bounded 45-second startup window, preserving mobile timeouts and the unchanged server three-second health check.
+| powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 build | PASS; 0 warnings, 0 errors |
+| powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 test | PASS; 28 unit + 83 integration = 111 tests passed (1 opt-in browser test skipped) |
+| powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 check-migrations | PASS; no model drift |
+| npm.cmd run contract:check | PASS; API contract and generated types match running backend |
+| npm.cmd run smoke:api | PASS; real mobile fetch wrapper -> API -> PostgreSQL ready |
+| npm.cmd run typecheck | PASS; strict typecheck across packages/api-contract, mobile, and admin |
+| npm.cmd run lint | PASS; eslint clean, 0 warnings |
+| npm.cmd test --workspace mobile -- --runInBand | PASS; 21 suites / 72 tests passed |
+| npm.cmd test --workspace admin | PASS; 2 files / 6 tests passed |
+| npm.cmd run admin:build | PASS; 441.52 kB production bundle |
+| mobile/: npx.cmd --yes expo-doctor | PASS; 21/21 checks passed |
+| npm.cmd run export --workspace mobile -- --max-workers 2 | PASS; iOS 1,830 modules (5.2 MB), Android 1,999 modules (5.4 MB) |
 
 ## Unverified / risks
-- Production reverse proxy/TLS, deployed key protection and owner authenticator provisioning/recovery: NOT RUN; browser identities are isolated test fixtures.
-- Physical iPhone/Android, signed native/EAS builds and real APNs/FCM delivery: NOT RUN; owner credentials/devices unavailable. External S3/SMTP and hosted CI also remain unverified.
-- npm audit has four high nodes through Expo CLI/code-signing -> node-forge GHSA-86w9-cpqp-85rv (no patched version listed), plus eleven moderate inherited nodes. No incompatible Expo downgrade or audit suppression. Backend/moderator crypto does not use node-forge. Reassess before signing/release; details in VERSIONS.md.
-- Native exports/Docker were not repeated for Prompt 9; previous Prompt 8 evidence is archived.
-- Already transmitted bytes cannot be recalled. Audit has no HTTP edit route but is not database-admin tamper-proof. Reports retain existing 180-day expiry; broader lifecycle is deferred.
-- Workspace has no Git metadata. No commit/PR/deployment was created.
 
-## Run / next
-See MODERATION.md. Local: ./scripts/dev.ps1 migrate; ./scripts/dev.ps1 admin-api with a local HTTPS certificate; npm.cmd start --workspace admin; open https://localhost:4200/admin/. Operator provisioning requires a verified account UUID and private interactive terminal. Mobile: npm.cmd run mobile:start.
+- Physical iPhone and Android execution of Maestro flows and hardware back navigation: NOT RUN locally; requires physical devices or connected emulators.
+- Real remote APNs/FCM delivery and signed EAS production builds: NOT RUN without owner developer credentials, Apple Team IDs, and Firebase credentials.
+- Production reverse proxy/TLS certificate and key protection: NOT RUN; tests operate in local sandbox and Docker Compose.
+- npm audit reports 4 high in Expo CLI code-signing tooling (`node-forge`); left unchanged as force-fix requires breaking downgrade to Expo 44. Documented in VERSIONS.md.
 
-Next: authorized Prompt 10 mobile quality. Preserve all provider/device blockers. Do not start Prompt 11.
+## Run / next step
 
+1. Docker services: `docker compose --env-file infra/.env -f infra/compose.yaml up -d database mailpit`
+2. Backend API: `powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 api`
+3. Mobile app: `npm.cmd run mobile:start`
+4. Run Maestro E2E on connected emulator/device: `maestro test .maestro/android/flow.yaml` or `maestro test .maestro/ios/flow.yaml`
+
+Next: Prompt 11 (Account deletion and data lifecycle). Await explicit user authorization before starting Prompt 11.

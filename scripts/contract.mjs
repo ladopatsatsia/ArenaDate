@@ -2,6 +2,7 @@ import { developmentAuthEnv } from './auth-env.mjs';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import openapiTS, { astToString } from 'openapi-typescript';
 
@@ -11,7 +12,8 @@ await new Promise((resolve, reject) => { reservation.once('error', reject); rese
 const port = reservation.address().port;
 await new Promise(resolve => reservation.close(resolve));
 const base = 'http://127.0.0.1:' + port;
-const child = spawn(process.env.DOTNET_COMMAND || 'dotnet', [
+const dotnet = process.env.DOTNET_COMMAND || (existsSync(resolve('.tools/dotnet/dotnet.exe')) ? resolve('.tools/dotnet/dotnet.exe') : 'dotnet');
+const child = spawn(dotnet, [
   resolve('backend/Dating.Api/bin/Debug/net10.0/Dating.Api.dll')
 ], { cwd: resolve('backend/Dating.Api'), env: { ...process.env, ...developmentAuthEnv(), ASPNETCORE_ENVIRONMENT: 'Development', ASPNETCORE_URLS: base,
   ConnectionStrings__Database: process.env.ConnectionStrings__Database || 'Host=localhost;Database=contract;Username=unused;Password=unused' },

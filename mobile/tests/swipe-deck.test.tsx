@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler/jestSetup';
-import '../src/i18n';
+import i18n from '../src/i18n';
 import { AppState } from 'react-native';
 import { fireEvent,render,screen,waitFor } from '@testing-library/react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -26,8 +26,7 @@ test('ambiguous swipe blocks the opposite action and reconciles a persisted rece
  fireEvent.press(screen.getByRole('button',{name:'Like'}));
  await waitFor(()=>expect(screen.getByRole('button',{name:'Pass'}).props.accessibilityState.disabled).toBe(true));
  fireEvent.press(screen.getByRole('button',{name:'Pass'}));
- // The retry label is resolved from actual localization so wording changes do not weaken request assertions.
- const i18n=(await import('../src/i18n')).default;
+// The retry label is resolved from actual localization so wording changes do not weaken request assertions.
  await waitFor(()=>expect(screen.getByRole('button',{name:i18n.t('swipe_reconcile')}).props.accessibilityState.disabled).toBe(false));
  fireEvent.press(screen.getByRole('button',{name:i18n.t('swipe_reconcile')}));
  await waitFor(()=>expect(refresh).toHaveBeenCalledTimes(1));

@@ -1,0 +1,66 @@
+appId: ${APP_ID:-datingmvp}
+---
+- launchApp:
+    clearState: true
+
+# 1. Welcome / Onboarding
+- assertVisible:
+    text: ".*(Meet at your own pace|გაიცანი შენს ტემპში).*"
+- tapOn:
+    text: ".*(Continue|გაგრძელება).*"
+
+# 2. Registration
+- tapOn:
+    text: ".*(Create account|ანგარიშის შექმნა).*"
+- tapOn:
+    text: ".*(Email|ელფოსტა).*"
+- inputText: "e2e_user_android@example.com"
+- tapOn:
+    text: ".*(Password|პაროლი).*"
+- inputText: "Password123!Safe"
+- tapOn:
+    text: ".*(Date of birth|დაბადების თარიღი).*"
+- inputText: "1996-08-20"
+- tapOn:
+    text: ".*(Create account|ანგარიშის შექმნა).*"
+
+# 3. Verification step
+- assertVisible:
+    text: ".*(Verify email|ელფოსტის დადასტურება).*"
+- tapOn:
+    text: ".*(Email code|ელფოსტით მიღებული კოდი).*"
+- inputText: "123456"
+- tapOn:
+    text: ".*(Verify email|ელფოსტის დადასტურება).*"
+
+# 4. Discover & Swipe
+- tapOn:
+    text: ".*(Discover|აღმოჩენა).*"
+- swipe:
+    direction: RIGHT
+
+# 5. Mutual Match modal
+- assertVisible:
+    text: ".*(It’s a match!|ორმხრივი მოწონება!).*"
+- tapOn:
+    text: ".*(Continue discovering|აღმოჩენის გაგრძელება).*"
+
+# 6. Matches & Chat
+- tapOn:
+    text: ".*(Matches|კავშირები).*"
+- tapOn:
+    text: ".*(Open chat|ჩატის გახსნა).*"
+- tapOn:
+    text: ".*(Message|შეტყობინება).*"
+- inputText: "Hello from Android native E2E test"
+- tapOn:
+    text: ".*(Send|გაგზავნა).*"
+- assertVisible: "Hello from Android native E2E test"
+
+# 7. Safety / Block flow
+- tapOn:
+    text: ".*(Report / block|საჩივარი / დაბლოკვა).*"
+- tapOn:
+    text: ".*(Block|დაბლოკვა).*"
+- tapOn:
+    text: ".*(Confirm|დადასტურება).*"
