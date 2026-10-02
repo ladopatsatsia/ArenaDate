@@ -1,4 +1,4 @@
-param([ValidateSet('api','admin-api','staff','migrate','test','build','check-migrations','add-migration','script-migration')][string]$Task = 'api', [string]$MigrationName = 'AccountLifecycleAndDeletion', [switch]$AutoApprovePhotos, [string[]]$StaffArguments, [string]$TestFilter)
+param([ValidateSet('api','admin-api','staff','migrate','test','build','check-migrations','add-migration','script-migration','check-packages')][string]$Task = 'api', [string]$MigrationName = 'AccountLifecycleAndDeletion', [switch]$AutoApprovePhotos, [string[]]$StaffArguments, [string]$TestFilter)
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 if (Test-Path '.tools/dotnet/dotnet.exe') {
@@ -44,5 +44,6 @@ switch ($Task) {
         }
     }
     'build' { dotnet build backend/Dating.slnx --no-restore }
+    'check-packages' { dotnet list backend/Dating.slnx package --vulnerable }
 }
 exit $LASTEXITCODE

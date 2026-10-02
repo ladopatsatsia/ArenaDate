@@ -36,11 +36,13 @@ public class AccountLifecycleTests
         var convId = Guid.NewGuid();
         await h.Db(async db =>
         {
+            var firstId = userA.Account.Id.CompareTo(userB.Account.Id) < 0 ? userA.Account.Id : userB.Account.Id;
+            var secondId = userA.Account.Id.CompareTo(userB.Account.Id) < 0 ? userB.Account.Id : userA.Account.Id;
             db.Set<DatingMatch>().Add(new DatingMatch
             {
                 Id = matchId,
-                FirstId = userA.Account.Id,
-                SecondId = userB.Account.Id,
+                FirstId = firstId,
+                SecondId = secondId,
                 Active = true,
                 CreatedAt = now
             });
