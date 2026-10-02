@@ -1,0 +1,53 @@
+name: Foundation
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    services:
+      mailpit:
+        image: axllent/mailpit:v1.27.8@sha256:6abc8e633df15eaf785cfcf38bae48e66f64beecdc03121e249d0f9ec15f0707
+        ports: ['1025:1025', '8025:8025']
+      postgres:
+        image: postgis/postgis:17-3.5@sha256:01a6a70e41e6c4467c8f55f6063555ed72db2d6662cd0d571040d42eadaeb6f6
+        env:
+          POSTGRES_USER: dating
+          POSTGRES_PASSWORD: ci-disposable-only
+          POSTGRES_DB: dating
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U dating -d dating"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      ConnectionStrings__Database: Host=127.0.0.1;Port=5432;Database=dating;Username=dating;Password=ci-disposable-only
+      TEST_DATABASE_CONNECTION: Host=127.0.0.1;Port=5432;Database=dating;Username=dating;Password=ci-disposable-only
+      EXPO_NO_TELEMETRY: '1'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --global npm@11.6.2
+      - run: npm ci
+      - run: dotnet tool restore
+      - run: dotnet restore backend/Dating.slnx --locked-mode
+      - run: dotnet build backend/Dating.slnx --no-restore
+      - run: dotnet test backend/Dating.slnx --no-build --logger trx
+      - run: dotnet ef migrations has-pending-model-changes --project backend/Dating.Api
+      - run: dotnet ef database update --project backend/Dating.Api
+      - run: dotnet ef migrations script --idempotent --project backend/Dating.Api --output migration.sql
+      - run: npm run contract:check
+      - run: npm run smoke:api
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run admin:build
+      - run: npx expo install --check
+        working-directory: mobile
+      - run: npm run export --workspace mobile

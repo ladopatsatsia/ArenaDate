@@ -1,0 +1,25 @@
+node_modules/
+.expo/
+dist/
+coverage/
+bin/
+obj/
+.tools/
+.env
+.env.*
+!.env.example
+*.user
+*.log
+mobile/android/
+mobile/ios/
+artifacts/
+TestResults/
+.angular/
+
+# Owner push/signing configuration
+google-services.json
+GoogleService-Info.plist
+*.p8
+*.p12
+*.mobileprovision
+credentials/

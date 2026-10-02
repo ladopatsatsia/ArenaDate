@@ -1,0 +1,48 @@
+<main>
+ <h1>DatingMVP moderation</h1>
+ @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
+ @if (notice()) { <p role="status">{{ notice() }}</p> }
+ @if (busy()) { <p role="status">Loading…</p> }
+ @if (!api.identity()) {
+  <p>Staff access requires an operator-provisioned account and an authenticator code.</p>
+  <form [formGroup]="loginForm" (ngSubmit)="login()">
+   <mat-form-field><mat-label>Email</mat-label><input matInput formControlName="email" type="email" autocomplete="username"></mat-form-field>
+   <mat-form-field><mat-label>Password</mat-label><input matInput formControlName="password" type="password" autocomplete="current-password"></mat-form-field>
+   <mat-form-field><mat-label>Authenticator code</mat-label><input matInput formControlName="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></mat-form-field>
+   <button mat-flat-button type="submit" [disabled]="busy() || loginForm.invalid">Sign in</button>
+  </form>
+ } @else {
+  <p>Signed in as {{ api.identity()?.role }}. Session expires after 30 minutes.</p>
+  <nav aria-label="Moderation sections">
+   <button mat-button (click)="change('photos')" [disabled]="busy()">Pending photos</button>
+   <button mat-button (click)="change('reports')" [disabled]="busy()">Reports</button>
+   <button mat-button (click)="change('users')" [disabled]="busy()">Account status</button>
+   <button mat-button (click)="change('audit')" [disabled]="busy()">Audit</button>
+   <button mat-button (click)="logout()" [disabled]="busy()">Sign out</button>
+  </nav>
+  @if (tab() !== 'users') { <button mat-button (click)="refresh()" [disabled]="busy()">Refresh / first page</button> }
+  @if (tab() !== 'audit') { <mat-form-field><mat-label>Decision reason (required)</mat-label><textarea matInput [formControl]="reason" maxlength="500"></textarea><mat-hint>Use a concise moderation rationale; omit contact details and copied messages.</mat-hint></mat-form-field> }
+  @if (tab() === 'photos') {
+   <h2>Pending photos</h2>
+   @for (photoItem of photos(); track photoItem.id) {
+    <mat-card><p class="muted">Photo {{ photoItem.id }} · {{ photoItem.createdAt | date:'medium' }}</p>
+     <img [src]="'/api/moderation/photos/' + photoItem.id + '/content'" alt="Pending profile photo for moderation" loading="lazy">
+     <div class="actions"><button mat-flat-button (click)="photo(photoItem.id, 'approved')" [disabled]="busy() || reason.invalid">Approve</button><button mat-button (click)="photo(photoItem.id, 'rejected')" [disabled]="busy() || reason.invalid">Reject</button><button mat-button (click)="lookup(photoItem.userId)" [disabled]="busy()">Account status</button></div>
+    </mat-card>
+   } @empty { <p>No pending photos on this page.</p> }
+  }
+  @if (tab() === 'reports') {
+   <h2>{{ closed() ? 'Closed' : 'Open' }} reports</h2><button mat-button (click)="toggleClosed()" [disabled]="busy()">Show {{ closed() ? 'open' : 'closed' }}</button>
+   @for (report of reports(); track report.id) {
+    <mat-card><p>{{ report.category }} · {{ report.createdAt | date:'medium' }}</p><p class="muted">Report {{ report.id }}</p><div class="actions"><button mat-button (click)="inspect(report)" [disabled]="busy()">Review evidence</button><button mat-button (click)="lookup(report.subjectId)" [disabled]="busy()">Reported account</button></div></mat-card>
+   } @empty { <p>No reports on this page.</p> }
+   @if (selected()) { <mat-card><h3>Report evidence</h3><p>Access is audited. Only the retained report snapshot is shown.</p><pre>{{ evidence() | json }}</pre>@if (!selected()?.closed) { <button mat-flat-button (click)="close()" [disabled]="busy() || reason.invalid">Close report with reason</button> }</mat-card> }
+  }
+  @if (tab() === 'users') {
+   <h2>Account status</h2><mat-form-field><mat-label>Account UUID (from a report or photo)</mat-label><input matInput [formControl]="userId"></mat-form-field><button mat-button (click)="lookup()" [disabled]="busy() || userId.invalid">Find account</button>
+   @if (user(); as current) { <mat-card><h3>{{ current.displayName || 'No profile name' }}</h3><p>{{ current.active ? 'Active' : 'Suspended' }}</p><p>Suspension ends current sessions and blocks discovery, chat and push. Reactivation requires a new login.</p><button mat-flat-button (click)="account(!current.active)" [disabled]="busy() || reason.invalid">{{ current.active ? 'Suspend account' : 'Reactivate account' }}</button></mat-card> }
+  }
+  @if (tab() === 'audit') { <h2>Audit history</h2>@for (row of audit(); track row.id) { <mat-card><p>{{ row.at | date:'medium' }} · {{ row.action }}</p><p class="muted">Actor {{ row.actorId }} · Target {{ row.targetId }}</p><p>{{ row.reason }}</p></mat-card> } @empty { <p>No audit entries on this page.</p> } }
+  @if (more()) { <button mat-button (click)="refresh(true)" [disabled]="busy()">Next page</button> }
+ }
+</main>

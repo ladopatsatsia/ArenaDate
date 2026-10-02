@@ -1,0 +1,53 @@
+name: dating-mvp
+services:
+  database:
+    image: postgis/postgis:17-3.5@sha256:01a6a70e41e6c4467c8f55f6063555ed72db2d6662cd0d571040d42eadaeb6f6
+    environment:
+      POSTGRES_DB: dating
+      POSTGRES_USER: dating
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in infra/.env}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dating -d dating"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.27.8@sha256:6abc8e633df15eaf785cfcf38bae48e66f64beecdc03121e249d0f9ec15f0707
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+  api:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: backend/Dating.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Auth__KeyRingPath: /app/auth-keyring
+      Push__Enabled: ${PUSH_ENABLED:-false}
+      Push__ProjectId: ${PUSH_PROJECT_ID:-}
+      Push__AccessToken: ${PUSH_ACCESS_TOKEN:-}
+      Push__CurrentKeyId: ${PUSH_CURRENT_KEY_ID:-}
+      Push__Keys__v1: ${PUSH_ENCRYPTION_KEY_V1:-}
+      Email__Host: mailpit
+      Media__LocalPath: /app/private-media
+      Media__AutoApprove: ${DEV_AUTO_APPROVE_PHOTOS:-false}
+      ConnectionStrings__Database: Host=database;Database=dating;Username=dating;Password=${POSTGRES_PASSWORD}
+    volumes:
+      - ../.tools/auth/config.json:/app/appsettings.Development.json:ro
+      - auth-keyring:/app/auth-keyring
+      - private-media:/app/private-media
+    ports:
+      - "127.0.0.1:5180:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+volumes:
+  private-media:
+  auth-keyring:
+  database:

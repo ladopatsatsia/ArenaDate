@@ -1,0 +1,14 @@
+**/node_modules
+**/bin
+**/obj
+.tools
+.git
+**/.env
+artifacts
+
+**/google-services.json
+**/GoogleService-Info.plist
+**/*.p8
+**/*.p12
+**/*.mobileprovision
+**/credentials

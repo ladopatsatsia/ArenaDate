@@ -1,0 +1,1 @@
+{"name":"@dating/api-contract","version":"0.1.0","private":true,"types":"src/schema.d.ts","exports":{".":{"types":"./src/schema.d.ts"}},"scripts":{"typecheck":"tsc --noEmit --strict --skipLibCheck src/schema.d.ts"}}

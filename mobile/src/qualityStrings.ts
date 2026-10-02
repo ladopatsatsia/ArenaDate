@@ -1,0 +1,14 @@
+export const qualityStrings={
+ en:{filters_hide:'Hide preferences',safety_empty_blocks:'You have not blocked anyone.', 'safety_empty_prior-conversations':'No closed conversations to report.',
+  welcome_note:'Good conversations start with being yourself.',welcome_privacy:'Your pace. Your boundaries. You can block or report at any time.',profile_refresh:'Refresh photo status',distance_km:'{{count}} km',photos_empty:'Add a photo that feels like you.',
+  push_development_build:'Notifications are not available in this version of the app.',push_project_mismatch:'Notifications need an app update. Please contact support.',push_not_configured:'Notifications are currently unavailable. You can still use matches and chat.',
+  push_privacy:'Choose which notifications you want. Lock-screen alerts use a general message and never include chat text. You can change this anytime.',
+  photo_received:'Photo uploaded. Check its review status below.',profile_age:'Age',profile_photos:'Your photos · up to 6',refresh:'Refresh',photo_load_retry:'Retry photo',
+ },
+ ka:{filters_hide:'პარამეტრების დამალვა',safety_empty_blocks:'დაბლოკილი ანგარიშები არ გაქვს.','safety_empty_prior-conversations':'დახურული საუბრები ჯერ არ არის.',
+  welcome_note:'კარგი საუბარი გულწრფელობით იწყება.',welcome_privacy:'შენი ტემპი, შენი საზღვრები. დაბლოკვა და საჩივრის გაგზავნა ნებისმიერ დროს შეგიძლია.',profile_refresh:'ფოტოს სტატუსის განახლება',distance_km:'{{count}} კმ',photos_empty:'დაამატე ფოტო, რომელიც შენ გამოგხატავს.',
+  push_development_build:'აპის ამ ვერსიაში შეტყობინებები ხელმისაწვდომი არ არის.',push_project_mismatch:'შეტყობინებებისთვის საჭიროა აპის განახლება. დაუკავშირდი მხარდაჭერას.',push_not_configured:'შეტყობინებები ამჟამად მიუწვდომელია. წყვილებითა და ჩატით სარგებლობა შეგიძლია.',
+  push_privacy:'აირჩიე სასურველი შეტყობინებები. ჩაკეტილ ეკრანზე მხოლოდ ზოგადი ტექსტი გამოჩნდება, ჩატის შიგთავსის გარეშე. არჩევანს ნებისმიერ დროს შეცვლი.',
+  photo_received:'ფოტო აიტვირთა. შემოწმების სტატუსი ქვემოთ ნახე.',profile_age:'ასაკი',profile_photos:'შენი ფოტოები · მაქსიმუმ 6',refresh:'განახლება',photo_load_retry:'ფოტოს ხელახლა ჩატვირთვა',
+ }
+};

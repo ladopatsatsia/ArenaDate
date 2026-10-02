@@ -1,0 +1,32 @@
+import 'react-native-gesture-handler/jestSetup';
+import '../src/i18n';
+import { Text } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { GestureHandlerRootView, State, type PanGesture } from 'react-native-gesture-handler';
+import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
+import { SwipeCard } from '../src/matching/SwipeCard';
+jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+test('accessible buttons send the selected decision and disabled buttons cannot submit', async () => {
+ const decide=jest.fn();
+ const view=render(<GestureHandlerRootView><SwipeCard disabled={false} decide={decide}><Text>Real card</Text></SwipeCard></GestureHandlerRootView>);
+ await act(async()=>{});
+ fireEvent.press(screen.getByRole('button',{name:'Like'}));expect(decide).toHaveBeenLastCalledWith('like');
+ fireEvent.press(screen.getByRole('button',{name:'Pass'}));expect(decide).toHaveBeenLastCalledWith('pass');
+ view.rerender(<GestureHandlerRootView><SwipeCard disabled decide={decide}><Text>Real card</Text></SwipeCard></GestureHandlerRootView>);
+ fireEvent.press(screen.getByRole('button',{name:'Like'}));expect(decide).toHaveBeenCalledTimes(2);
+});
+test('gesture threshold, cancellation and direction select only completed deliberate swipes', async () => {
+ const decide=jest.fn();
+ render(<GestureHandlerRootView><SwipeCard disabled={false} decide={decide}><Text>Real card</Text></SwipeCard></GestureHandlerRootView>);
+ await act(async()=>{});
+ const gesture=getByGestureTestId('discovery-swipe');
+ act(() => fireGestureHandler<PanGesture>(gesture,[{state:State.ACTIVE,translationX:60},{state:State.END,translationX:60}]));
+ expect(decide).not.toHaveBeenCalled();
+ act(() => fireGestureHandler<PanGesture>(gesture,[{state:State.ACTIVE,translationX:140},{state:State.CANCELLED,translationX:140}]));
+ expect(decide).not.toHaveBeenCalled();
+ act(() => fireGestureHandler<PanGesture>(gesture,[{state:State.ACTIVE,translationX:140},{state:State.END,translationX:140}]));
+ expect(decide).toHaveBeenLastCalledWith('like');
+ act(() => fireGestureHandler<PanGesture>(gesture,[{state:State.ACTIVE,translationX:-140},{state:State.END,translationX:-140}]));
+ expect(decide).toHaveBeenLastCalledWith('pass');expect(decide).toHaveBeenCalledTimes(2);
+});

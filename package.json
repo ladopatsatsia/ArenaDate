@@ -1,0 +1,39 @@
+{
+  "name": "dating-mvp",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": "22.22.3",
+    "npm": "11.6.2"
+  },
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "mobile",
+    "admin",
+    "packages/api-contract"
+  ],
+  "scripts": {
+    "contract:generate": "node scripts/contract.mjs",
+    "contract:check": "node scripts/contract.mjs --check",
+    "mobile:start": "npm start --workspace mobile",
+    "lint": "npm run lint --workspace mobile",
+    "typecheck": "npm run typecheck --workspace packages/api-contract && npm run typecheck --workspace mobile && npm run typecheck --workspace admin",
+    "test": "npm test --workspace mobile && npm test --workspace admin",
+    "admin:build": "npm run build --workspace admin",
+    "smoke:api": "node --experimental-strip-types scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "piscina": "5.3.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native-gesture-handler": "2.32.0",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native-gesture-handler": "2.32.0",
+    "piscina": "5.3.2"
+  }
+}
