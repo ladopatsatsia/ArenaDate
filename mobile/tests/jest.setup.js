@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 jest.mock('react-native/Libraries/Core/Devtools/getDevServer', () => () => ({
   url: 'http://localhost:8081/',
   bundleLoadedFromServer: false,
