@@ -22,6 +22,11 @@ public class FoundationTests
             builder.UseEnvironment(environment);
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
                 TestAuthSettings.Configuration(connection, environment == "Production")));
+            builder.ConfigureTestServices(services =>
+            {
+                foreach (var item in services.Where(d => d.ImplementationType?.Name.EndsWith("Worker") == true || d.ImplementationType?.Name.EndsWith("Cleanup") == true).ToArray())
+                    services.Remove(item);
+            });
         }
     }
 
