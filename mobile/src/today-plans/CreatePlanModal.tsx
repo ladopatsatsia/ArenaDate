@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from '../components/theme';
 import { Text, Button, TextInput } from '../components/UI';
 import { CITIES, POPULAR_CITIES, formatCityName, type CityItem } from '../components/cities';
-import { CalendarPicker, formatDateToIsoString } from '../components/CalendarPicker';
+import { CalendarPicker } from '../components/CalendarPicker';
 import {
   TODAY_PLAN_ACTIVITIES,
   computeQuickTimePreset,

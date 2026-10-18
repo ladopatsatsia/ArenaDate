@@ -42,8 +42,6 @@ const AGE_PRESETS = [
   { label: '18–55+', min: 18, max: 55 },
 ] as const;
 
-const RADIUS_OPTIONS = [10, 25, 50, 100] as const;
-
 export function Filters({
   settings,
   api,

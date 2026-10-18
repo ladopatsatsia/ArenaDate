@@ -1,7 +1,7 @@
 import { Link } from '../components/UI';
 import { Button, DiscoveryCardSkeleton, Text } from '../components/UI';
 import { useCallback, useState } from 'react';
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,6 @@ import { theme } from '../components/theme';
 import { ProfileApi } from '../profile/api';
 import { SwipeDeck } from '../matching/SwipeDeck';
 import { DiscoveryApi, type Settings } from './api';
-import { foregroundFix } from './location';
 import { Filters } from './Filters';
 
 export default function DiscoveryScreen() {
@@ -27,7 +26,7 @@ export default function DiscoveryScreen() {
   const feed = useInfiniteQuery({ queryKey: ['account', accountId, 'discovery', settings.data?.revision], initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => api.page(pageParam), getNextPageParam: page => page.nextCursor ?? undefined,
     enabled: !!settings.data && !!profile.data?.complete && profile.data.visible, retry: false, maxPages: 5 });
-  const [busy, setBusy] = useState(false); const [message, setMessage] = useState('');
+  const [busy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useFocusEffect(useCallback(() => {
@@ -41,21 +40,10 @@ export default function DiscoveryScreen() {
     await cache.resetQueries({ queryKey: ['account', accountId, 'discovery'] });
   }
   function saved(value: Settings) {
-    cache.setQueryData(settingsKey, value); setMessage('discovery_saved');
+    cache.setQueryData(settingsKey, value);
     void cache.invalidateQueries({ queryKey: ['account', accountId, 'profile'] });
     cache.removeQueries({ queryKey: ['account', accountId, 'discovery'] });
     setSettingsOpen(false);
-  }
-  async function locate() {
-    setBusy(true); setMessage('');
-    try { const point = await foregroundFix(true); saved(await api.location(point.latitude, point.longitude)); setMessage('location_saved'); }
-    catch (error) { setMessage(error instanceof ApiError && error.status === 429 ? 'discovery_rate_limited' :
-      error instanceof Error && error.message === 'location_denied' ? 'location_denied' : 'location_unavailable'); }
-    finally { setBusy(false); }
-  }
-  async function clearLocation() {
-    setBusy(true);
-    try { saved(await api.clearLocation()); } catch { setMessage('discovery_save_failed'); } finally { setBusy(false); }
   }
 
   const settingsButton = (

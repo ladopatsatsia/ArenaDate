@@ -977,7 +977,6 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
       : currentRound?.spinnerUserId;
 
   const pairPartnerMember = snapshot?.members.find((m) => m.userId === pairPartnerId);
-  const myMember = snapshot?.members.find((m) => m.userId === currentUserId);
   const pairPartnerName = pairPartnerMember?.displayName ?? t('game_partner', 'მეწყვილე');
   const hasDecidedKiss = currentRound?.kissRecipientUserId != null || currentRound?.kissSkipped || hasLocallyDecidedKiss;
 

@@ -3649,7 +3649,28 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
+        delete: {
+            parameters: {
+                query?: {
+                    reason?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;

@@ -238,9 +238,10 @@ export function TodayPlansScreen() {
         });
       }
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       console.error('[TodayPlansScreen] Accept applicant error:', err);
-      const code = err?.code || err?.message || 'request_failed';
+      const errObj = err as { code?: string; message?: string } | undefined;
+      const code = errObj?.code || errObj?.message || 'request_failed';
       let message = t('today_plans_accept_error') || 'დათანხმება ვერ მოხერხდა';
       if (code === 'plan_already_matched') {
         message = 'გეგმა უკვე დაკავებულია ან დათანხმებული.';

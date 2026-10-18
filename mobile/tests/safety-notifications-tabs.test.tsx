@@ -107,7 +107,7 @@ describe('Blocked Accounts, Notifications, and Terms Tab Routes', () => {
     jest.mocked(useAuth).mockReturnValue({
       state: { status: 'signedIn', account: { id: 'test-user', email: 'test@arena.dating' } },
       api: { request: apiRequest },
-      manager: { snapshot: () => ({ account: { id: 'test-user' } }), withAccess: (fn: any) => fn('test-token'), clear: jest.fn() },
+      manager: { snapshot: () => ({ account: { id: 'test-user' } }), withAccess: (fn: (token: string) => unknown) => fn('test-token'), clear: jest.fn() },
     } as unknown as ReturnType<typeof useAuth>);
 
     render(

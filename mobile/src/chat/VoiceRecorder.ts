@@ -8,17 +8,35 @@ export interface VoiceRecordingResult {
 
 export type DurationListener = (seconds: number) => void;
 
+interface WebStreamTrack {
+  stop: () => void;
+}
+interface WebStream {
+  getTracks: () => WebStreamTrack[];
+}
+interface WebMediaRecorder {
+  ondataavailable: ((event: { data: Blob }) => void) | null;
+  onstop: (() => void) | null;
+  mimeType?: string;
+  start: (timeslice?: number) => void;
+  stop: () => void;
+}
+interface NativeAudioRecorder {
+  stop: () => Promise<void>;
+  uri?: string;
+}
+
 export class UniversalVoiceRecorder {
-  private mediaRecorder: any = null;
+  private mediaRecorder: WebMediaRecorder | null = null;
   private audioChunks: Blob[] = [];
-  private stream: any = null;
-  private timer: any = null;
+  private stream: WebStream | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
   private durationSeconds = 0;
   private durationListeners: DurationListener[] = [];
   private isCurrentlyRecording = false;
 
   // Native expo-audio recorder reference if on native mobile
-  private nativeRecorder: any = null;
+  private nativeRecorder: NativeAudioRecorder | null = null;
 
   onDuration(listener: DurationListener): () => void {
     this.durationListeners.push(listener);
@@ -71,10 +89,11 @@ export class UniversalVoiceRecorder {
       }
 
       const options = mimeType ? { mimeType } : undefined;
-      const recorder = new (window as any).MediaRecorder(stream, options);
+      const win = window as unknown as { MediaRecorder: new (s: unknown, o?: unknown) => WebMediaRecorder };
+      const recorder = new win.MediaRecorder(stream, options);
       this.mediaRecorder = recorder;
 
-      recorder.ondataavailable = (event: any) => {
+      recorder.ondataavailable = (event: { data: Blob }) => {
         if (event.data && event.data.size > 0) {
           this.audioChunks.push(event.data);
         }
@@ -94,7 +113,7 @@ export class UniversalVoiceRecorder {
     // Native Mobile (iOS / Android)
     if (Platform.OS !== 'web') {
       try {
-        const ExpoAudio = require('expo-audio');
+        const ExpoAudio = await import('expo-audio');
         if (ExpoAudio && ExpoAudio.requestRecordingPermissionsAsync) {
           const perm = await ExpoAudio.requestRecordingPermissionsAsync();
           if (!perm.granted) {
@@ -102,9 +121,14 @@ export class UniversalVoiceRecorder {
           }
           const recorder = new ExpoAudio.AudioRecorder(
             ExpoAudio.RecordingPresets?.HIGH_QUALITY || {}
-          );
-          await recorder.prepareToRecordAsync();
-          recorder.record();
+          ) as unknown as NativeAudioRecorder;
+          const recObj = recorder as unknown as Record<string, unknown>;
+          if ('prepareToRecordAsync' in recObj) {
+            await (recObj as { prepareToRecordAsync: () => Promise<void> }).prepareToRecordAsync();
+          }
+          if ('record' in recObj) {
+            (recObj as { record: () => void }).record();
+          }
           this.nativeRecorder = recorder;
           this.isCurrentlyRecording = true;
 
@@ -162,7 +186,7 @@ export class UniversalVoiceRecorder {
 
       if (this.stream) {
         try {
-          this.stream.getTracks().forEach((track: any) => track.stop());
+          this.stream.getTracks().forEach((track: WebStreamTrack) => track.stop());
         } catch {
           // ignore
         }
@@ -216,7 +240,7 @@ export class UniversalVoiceRecorder {
     }
     if (this.stream) {
       try {
-        this.stream.getTracks().forEach((track: any) => track.stop());
+        this.stream.getTracks().forEach((track: WebStreamTrack) => track.stop());
       } catch {
         // ignore
       }

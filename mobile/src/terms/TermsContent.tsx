@@ -5,7 +5,7 @@ import { Card, Text } from '../components/UI';
 import { theme } from '../components/theme';
 
 export function TermsContent() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const lang = i18n.language ?? 'ka';
 
   const isKa = lang.startsWith('ka');

@@ -29,6 +29,7 @@ describe('GameLobbyScreen', () => {
       createdAtUtc: '2026-10-03T12:00:00Z',
       lobbyDeadlineUtc: '2026-10-03T12:00:30Z',
       version: 1,
+      isCustom: true,
     },
   ];
 

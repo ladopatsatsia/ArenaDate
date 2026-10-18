@@ -4,6 +4,7 @@ import {
   Easing,
   StyleSheet,
   View,
+  type DimensionValue,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -102,8 +103,8 @@ export function Skeleton({
       style={[
         styles.skeletonBase,
         {
-          width: width as any,
-          height: height as any,
+          width: width as DimensionValue,
+          height: height as DimensionValue,
           borderRadius,
           backgroundColor,
           borderColor,

@@ -115,7 +115,7 @@ export function formatVoiceMessage(mediaId: string, duration: number): string {
 
 export function formatMessageSnippet(
   text: string | null | undefined,
-  t: (key: string, defaultValue?: string) => any
+  t: (key: string, defaultValue?: string) => string
 ): string {
   if (!text) return '';
   let clean = text.trim();

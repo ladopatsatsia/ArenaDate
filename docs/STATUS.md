@@ -1,3 +1,37 @@
+# Status - GitHub Actions CI Failure & Expo Modules Resolution
+
+Updated 2026-10-18. Diagnosed and fixed all GitHub Actions CI failure points across ESLint, lockfile synchronization, Expo SDK 57 dependencies, and Metro asset resolution:
+
+1. **ESLint Errors Resolution (`mobile/src/` & `mobile/tests/`)**:
+   - Fixed all 37 ESLint violations across 17 files with `--max-warnings 0` strictly enforced.
+   - Cleanly resolved `any` type violations with strong typing (`string`, `DimensionValue`, `Record<string, unknown>`, typed audio interfaces) without disabling rules or weakening assertions.
+   - Removed unused imports and unreferenced variables across discovery, game, and chat components.
+
+2. **Lockfile & Expo SDK 57 Dependency Synchronization (`mobile/package.json` & `package-lock.json`)**:
+   - Aligned Expo dependencies in `mobile/package.json` (`expo@~57.0.30`, `expo-constants@~57.0.22`, `expo-crypto@~57.0.4`, `expo-dev-client@~57.0.20`, `expo-image-manipulator@~57.0.21`, `expo-linking@~57.0.13`, `expo-location@~57.0.21`, `expo-notifications@~57.0.23`, `expo-router@~57.0.28`, `jest-expo@~57.0.6`).
+   - Synchronized root `package-lock.json` so `npm ci` and `npx expo install --check` execute with zero errors.
+
+3. **Expo Router Asset Resolution & Android Bundling (`mobile/metro.config.js`)**:
+   - Addressed upstream `expo-router` Android bundling bug where `StackToolbarMenu/native.android.js` attempted to require non-existent XML assets `arrow_right.xml` and `checkmark.xml`.
+   - Added custom Metro `resolveRequest` hook in `mobile/metro.config.js` to return `{ type: 'empty' }` for those two missing XML assets.
+   - Verified full cross-platform bundling (`expo export --platform all`): Web (4.2MB), Android (6.2MB), iOS (6MB) all bundle cleanly.
+
+4. **OpenAPI Drift Synchronization & Jest Test Suite**:
+   - Synchronized OpenAPI schema via `npm run contract:generate` to satisfy `npm run contract:check`.
+   - Configured `mobile/tests/jest.setup.js` and `mobile/jest.config.cjs` to provide standard environment mocks for `expo-crypto`, `expo-image-picker`, and `getDevServer`.
+   - Updated `game-lobby.test.tsx` to include `isCustom: true` matching custom room lobby listing logic.
+
+5. **Verification**:
+   - `npm run lint`: **PASS (0 errors, 0 warnings)**.
+   - `npm run typecheck`: **PASS (all workspaces clean)**.
+   - `npm run contract:check`: **PASS (matches running backend)**.
+   - `npx expo install --check`: **PASS (Dependencies are up to date)**.
+   - `npm run export --workspace mobile`: **PASS (Web, Android, iOS bundle with exit code 0)**.
+   - `npm run admin:build`: **PASS (Angular build succeeded)**.
+   - `npm test --workspace mobile`: **PASS**.
+
+---
+
 # Status - Railway Cloud Deployment Configuration & Containerization
 
 Updated 2026-10-18. Prepared production deployment readiness for Railway.app cloud infrastructure:

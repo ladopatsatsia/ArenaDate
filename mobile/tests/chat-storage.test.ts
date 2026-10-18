@@ -15,9 +15,11 @@ test('chunked encrypted journal roundtrips Unicode, remains account-bound and re
 
 test('pendingStore works on web platform using localStorage', async () => {
   const originalOS = Platform.OS;
-  (Platform as any).OS = 'web';
+  const platformObj = Platform as unknown as { OS: string };
+  platformObj.OS = 'web';
   const memStore = new Map<string, string>();
-  (global as any).window = {
+  const globalObj = global as unknown as { window?: unknown };
+  globalObj.window = {
     localStorage: {
       getItem: (k: string) => memStore.get(k) ?? null,
       setItem: (k: string, v: string) => { memStore.set(k, v); },
@@ -33,7 +35,7 @@ test('pendingStore works on web platform using localStorage', async () => {
     await store.save(null);
     expect(await store.load()).toBeNull();
   } finally {
-    (Platform as any).OS = originalOS;
-    delete (global as any).window;
+    platformObj.OS = originalOS;
+    delete globalObj.window;
   }
 });

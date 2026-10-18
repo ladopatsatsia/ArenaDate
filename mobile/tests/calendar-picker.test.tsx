@@ -4,7 +4,6 @@ import { fireEvent, render } from '@testing-library/react-native';
 import { CalendarPicker } from '../src/components/CalendarPicker';
 import {
   computeQuickTimePreset,
-  formatCustomDateDisplay,
   formatPlanTime,
   getQuickPresetDates,
   formatPublicationTime,
@@ -93,7 +92,7 @@ describe('CalendarPicker and Custom Date Utils', () => {
       if (k === 'today_plans_day_tomorrow') return 'ხვალ';
       if (k === 'today_plans_day_after_tomorrow') return 'ზეგ';
       return opts?.defaultValue ?? k;
-    }) as any;
+    }) as unknown as (k: string, opts?: { defaultValue?: string }) => string;
 
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 3600 * 1000);

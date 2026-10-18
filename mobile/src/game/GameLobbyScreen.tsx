@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   BackHandler,
   FlatList,
   Modal,
@@ -289,21 +288,6 @@ export function GameLobbyScreen() {
     },
   });
 
-  const devSeedMutation = useMutation({
-    mutationFn: (roomId: string) => gameApi.seedDevFixtures(roomId, { femaleCount: 5, maleCount: 5 }),
-    onSuccess: () => {
-      setErrorMessage(null);
-      if (activeRoomId) {
-        cache.invalidateQueries({ queryKey: ['game', 'room', activeRoomId] });
-      }
-      cache.invalidateQueries({ queryKey: ['game', 'rooms'] });
-      cache.invalidateQueries({ queryKey: ['game', 'current'] });
-    },
-    onError: (err: unknown) => {
-      const code = extractErrorCode(err, 'seed_failed');
-      setErrorMessage(`${t('game_dev_seed_failed', 'სატესტო მოთამაშეების დამატება ვერ მოხერხდა')} (${code})`);
-    },
-  });
 
   function mapErrorCode(code: string): string {
     switch (code) {

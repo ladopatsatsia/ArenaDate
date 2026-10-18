@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    ...(Platform.OS === 'web' ? { position: 'sticky' as any, top: 0 } : {}),
+    ...(Platform.OS === 'web' ? { position: 'sticky' as unknown as 'absolute', top: 0 } : {}),
   },
   headerBlock: {
     gap: 8,

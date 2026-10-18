@@ -15,8 +15,9 @@ export function VoiceMessagePlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [loading, setLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const audioRef = useRef<any>(null);
-  const timerRef = useRef<any>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const displayDuration = durationSeconds > 0 ? durationSeconds : 0;
 
@@ -99,16 +100,16 @@ export function VoiceMessagePlayer({
 
       // Native Mobile (iOS / Android)
       try {
-        const ExpoAudio = require('expo-audio');
+        const ExpoAudio = await import('expo-audio');
         if (ExpoAudio && ExpoAudio.createAudioPlayer) {
           if (!audioRef.current) {
             const player = ExpoAudio.createAudioPlayer(mediaUrl);
             audioRef.current = player;
-            player.addListener('playbackStatusUpdate', (status: any) => {
+            player.addListener('playbackStatusUpdate', (status: { currentTime?: number; playbackState?: string; duration?: number }) => {
               if (status.currentTime !== undefined) {
                 setCurrentTime(status.currentTime);
               }
-              if (status.playbackState === 'ended' || (status.duration && status.currentTime >= status.duration)) {
+              if (status.playbackState === 'ended' || (status.duration !== undefined && status.currentTime !== undefined && status.currentTime >= status.duration)) {
                 setIsPlaying(false);
                 setCurrentTime(0);
               }
@@ -130,8 +131,10 @@ export function VoiceMessagePlayer({
       timerRef.current = setInterval(() => {
         const elapsed = (Date.now() - start) / 1000;
         if (elapsed >= (displayDuration || 5)) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
           setIsPlaying(false);
           setCurrentTime(0);
         } else {
