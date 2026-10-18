@@ -33,10 +33,13 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["Auth:Audience"]))
 }
 if (string.IsNullOrWhiteSpace(builder.Configuration["Email:Mode"]))
 {
-    builder.Configuration["Email:Mode"] = "Capture";
-    builder.Configuration["Email:Host"] = "127.0.0.1";
-    builder.Configuration["Email:Port"] = "1025";
-    builder.Configuration["Email:Sender"] = "no-reply@dating.local";
+    if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
+    {
+        builder.Configuration["Email:Mode"] = "Capture";
+        builder.Configuration["Email:Host"] = "127.0.0.1";
+        builder.Configuration["Email:Port"] = "1025";
+        builder.Configuration["Email:Sender"] = "no-reply@dating.local";
+    }
 }
 if (string.IsNullOrWhiteSpace(builder.Configuration["Media:Mode"]))
 {

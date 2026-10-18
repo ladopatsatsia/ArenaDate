@@ -133,9 +133,10 @@ public sealed class EmailValidator(IHostEnvironment environment) : IValidateOpti
 {
     public ValidateOptionsResult Validate(string? name, EmailOptions o)
     {
-        var capture = o.Mode == "Capture";
+        var capture = o.Mode == "Capture" && (environment.IsDevelopment() || environment.IsEnvironment("Testing")) &&
+            o.Host is "localhost" or "127.0.0.1" or "mailpit";
         var smtp = o.Mode == "Smtp" && !string.IsNullOrWhiteSpace(o.Username) && !string.IsNullOrWhiteSpace(o.Password);
         return (capture || smtp) && !string.IsNullOrWhiteSpace(o.Host) && o.Port is > 0 and <= 65535 && MailboxAddress.TryParse(o.Sender, out _)
-            ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail("Configure a valid SMTP sender/host/port and credentials.");
+            ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail("Configure a valid SMTP sender/host/port and credentials. Capture is local development only.");
     }
 }
