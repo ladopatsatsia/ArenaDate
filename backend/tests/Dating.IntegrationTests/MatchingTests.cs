@@ -182,4 +182,59 @@ public class MatchingTests {
   await Run<MatchOutbox>(h,s=>s.Process(default));
   await h.Db(async db=>{Assert.Equal(2,await db.Set<MatchNotice>().CountAsync());Assert.NotNull((await db.Set<MatchEvent>().SingleAsync()).ProcessedAt);});
  }
+
+ [Fact]
+ public async Task Profile_views_are_recorded_idempotently_ordered_and_excluded_by_block() {
+  await using var h = await AuthHarness.Create();
+  var a = await Person(h, "a");
+  var b = await Person(h, "b");
+  var c = await Person(h, "c");
+
+  // A views B
+  var res1 = await ProfileTests.Send(h, a, HttpMethod.Post, $"/api/matches/views/{b.Account.Id}");
+  Assert.Equal(HttpStatusCode.NoContent, res1.StatusCode);
+
+  // A views C
+  var res2 = await ProfileTests.Send(h, a, HttpMethod.Post, $"/api/matches/views/{c.Account.Id}");
+  Assert.Equal(HttpStatusCode.NoContent, res2.StatusCode);
+
+  // B views A
+  var res3 = await ProfileTests.Send(h, b, HttpMethod.Post, $"/api/matches/views/{a.Account.Id}");
+  Assert.Equal(HttpStatusCode.NoContent, res3.StatusCode);
+
+  // Check B's viewed-you: should contain A
+  var bViewedYouRes = await ProfileTests.Send(h, b, HttpMethod.Get, "/api/matches/views/viewed-you");
+  Assert.Equal(HttpStatusCode.OK, bViewedYouRes.StatusCode);
+  var bViewedYou = await bViewedYouRes.Content.ReadFromJsonAsync<ProfileViewSummary[]>();
+  Assert.NotNull(bViewedYou);
+  Assert.Single(bViewedYou);
+  Assert.Equal(a.Account.Id, bViewedYou[0].UserId);
+
+  // Check A's you-viewed: should contain C and B (ordered by latest)
+  var aYouViewedRes = await ProfileTests.Send(h, a, HttpMethod.Get, "/api/matches/views/you-viewed");
+  Assert.Equal(HttpStatusCode.OK, aYouViewedRes.StatusCode);
+  var aYouViewed = await aYouViewedRes.Content.ReadFromJsonAsync<ProfileViewSummary[]>();
+  Assert.NotNull(aYouViewed);
+  Assert.Equal(2, aYouViewed.Length);
+  Assert.Equal(c.Account.Id, aYouViewed[0].UserId);
+  Assert.Equal(b.Account.Id, aYouViewed[1].UserId);
+
+  // Check photo authorization for profile view partner (B can view A's photo)
+  var aPhoto = bViewedYou[0].Photo;
+  Assert.NotNull(aPhoto);
+  var photoGrantRes = await ProfileTests.Send(h, b, HttpMethod.Post, $"/api/profile/photos/{aPhoto.Id}/access");
+  Assert.Equal(HttpStatusCode.OK, photoGrantRes.StatusCode);
+
+  // Now block: B blocks A
+  await Run<PairLifecycle>(h, s => s.Block(b.Account.Id, a.Account.Id, default));
+
+  // B's viewed-you should now be empty because A is blocked
+  var bViewedYouAfterBlock = await (await ProfileTests.Send(h, b, HttpMethod.Get, "/api/matches/views/viewed-you")).Content.ReadFromJsonAsync<ProfileViewSummary[]>();
+  Assert.Empty(bViewedYouAfterBlock!);
+
+  // A's you-viewed should no longer show B
+  var aYouViewedAfterBlock = await (await ProfileTests.Send(h, a, HttpMethod.Get, "/api/matches/views/you-viewed")).Content.ReadFromJsonAsync<ProfileViewSummary[]>();
+  Assert.Single(aYouViewedAfterBlock!);
+  Assert.Equal(c.Account.Id, aYouViewedAfterBlock![0].UserId);
+ }
 }

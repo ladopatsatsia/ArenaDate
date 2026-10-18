@@ -23,6 +23,16 @@ public sealed class AuthController(AuthService auth) : ControllerBase
     [HttpPost("login"), AllowAnonymous]
     [ProducesResponseType<TokenResponse>(200)]
     public async Task<ActionResult<TokenResponse>> Login(LoginRequest request, CancellationToken ct) => Ok(await auth.Login(request, ct));
+    [HttpPost("otp/send"), AllowAnonymous]
+    [ProducesResponseType<OtpSendResponse>(200)]
+    public async Task<ActionResult<OtpSendResponse>> SendOtp(OtpSendRequest request, CancellationToken ct) => Ok(await auth.SendOtp(request, ct));
+    [HttpPost("otp/verify"), AllowAnonymous]
+    [ProducesResponseType<OtpVerifyResponse>(200)]
+    public async Task<ActionResult<OtpVerifyResponse>> VerifyOtp(OtpVerifyRequest request, CancellationToken ct) => Ok(await auth.VerifyOtp(request, ct));
+    [HttpPost("telegram"), AllowAnonymous]
+    [ProducesResponseType<OtpVerifyResponse>(200)]
+    public async Task<ActionResult<OtpVerifyResponse>> LoginTelegram(TelegramAuthRequest request, CancellationToken ct) => Ok(await auth.LoginTelegram(request, ct));
+
     [HttpPost("refresh"), AllowAnonymous, EnableRateLimiting("refresh")]
     [ProducesResponseType<TokenResponse>(200)]
     public async Task<ActionResult<TokenResponse>> Refresh(RefreshRequest request, CancellationToken ct) => Ok(await auth.Refresh(request, ct));

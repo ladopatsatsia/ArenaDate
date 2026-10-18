@@ -6,6 +6,8 @@ using Dating.Api.Features.Auth;
 using Dating.Api.Features.Profiles;
 using Dating.Api.Features.Discovery;
 using Dating.Api.Features.Auth.Email;
+using Dating.Api.Features.Game;
+using Dating.Api.Features.TodayPlans;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +20,27 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     public DbSet<AuthEmail> AuthEmails => Set<AuthEmail>();
     public DbSet<AccountDeletionJob> AccountDeletionJobs => Set<AccountDeletionJob>();
     public DbSet<DeletionTombstone> DeletionTombstones => Set<DeletionTombstone>();
+    public DbSet<GameRoom> GameRooms => Set<GameRoom>();
+    public DbSet<GameMembership> GameMemberships => Set<GameMembership>();
+    public DbSet<GameOutboxEvent> GameOutboxEvents => Set<GameOutboxEvent>();
+    public DbSet<GameQuestion> GameQuestions => Set<GameQuestion>();
+    public DbSet<GameRound> GameRounds => Set<GameRound>();
+    public DbSet<GameRoundAnswer> GameRoundAnswers => Set<GameRoundAnswer>();
+    public DbSet<GameKiss> GameKisses => Set<GameKiss>();
+    public DbSet<UserGameSettings> UserGameSettings => Set<UserGameSettings>();
+    public DbSet<Dating.Api.Features.Game.Wallet.UserWallet> UserWallets => Set<Dating.Api.Features.Game.Wallet.UserWallet>();
+    public DbSet<Dating.Api.Features.Game.Wallet.CrystalTransaction> CrystalTransactions => Set<Dating.Api.Features.Game.Wallet.CrystalTransaction>();
+    public DbSet<Dating.Api.Features.Game.Wallet.GameProfileUnlock> GameProfileUnlocks => Set<Dating.Api.Features.Game.Wallet.GameProfileUnlock>();
+    public DbSet<Dating.Api.Features.Game.Wallet.GameProfileViewNotice> GameProfileViewNotices => Set<Dating.Api.Features.Game.Wallet.GameProfileViewNotice>();
+    public DbSet<Dating.Api.Features.Game.Wallet.StorePurchase> StorePurchases => Set<Dating.Api.Features.Game.Wallet.StorePurchase>();
+    public DbSet<UserProfileView> UserProfileViews => Set<UserProfileView>();
+    public DbSet<GameDirectMatchRequest> GameDirectMatchRequests => Set<GameDirectMatchRequest>();
+    public DbSet<Dating.Api.Features.Game.Wallet.GameGift> GameGifts => Set<Dating.Api.Features.Game.Wallet.GameGift>();
+    public DbSet<Dating.Api.Features.Premium.UserSubscription> UserSubscriptions => Set<Dating.Api.Features.Premium.UserSubscription>();
+    public DbSet<DiscoverySuperLike> DiscoverySuperLikes => Set<DiscoverySuperLike>();
+    public DbSet<TelegramSubscriber> TelegramSubscribers => Set<TelegramSubscriber>();
+    public DbSet<TodayPlan> TodayPlans => Set<TodayPlan>();
+    public DbSet<TodayPlanResponse> TodayPlanResponses => Set<TodayPlanResponse>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -66,6 +89,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
         modelBuilder.Entity<DatingMatch>().ToTable(t=>t.HasCheckConstraint("CK_Match_Ordered", "\"FirstId\" < \"SecondId\""));
         modelBuilder.Entity<DatingMatch>().HasOne<AppUser>().WithMany().HasForeignKey(m=>m.FirstId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<DatingMatch>().HasOne<AppUser>().WithMany().HasForeignKey(m=>m.SecondId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<DatingMatch>().Property(m => m.Origin).HasMaxLength(30).HasDefaultValue("Discovery");
+        modelBuilder.Entity<DatingMatch>().Property(m => m.HasChatEntitlement).HasDefaultValue(true);
         modelBuilder.Entity<Conversation>().HasIndex(c=>c.MatchId).IsUnique();
         modelBuilder.Entity<Conversation>().HasOne<DatingMatch>().WithOne().HasForeignKey<Conversation>(c=>c.MatchId);
         modelBuilder.Entity<MatchEvent>().HasIndex(e=>e.MatchId).IsUnique();
@@ -112,5 +137,244 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
         modelBuilder.Entity<DeletionTombstone>().HasKey(t => t.UserId);
         modelBuilder.Entity<DeletionTombstone>().HasIndex(t => t.EmailHash);
         modelBuilder.Entity<DeletionTombstone>().Property(t => t.EmailHash).HasMaxLength(64);
+
+        modelBuilder.Entity<GameRoom>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Title).HasMaxLength(60);
+            entity.Property(r => r.State).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(r => r.State);
+            entity.HasIndex(r => r.CreatedAtUtc);
+        });
+
+        modelBuilder.Entity<GameMembership>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+            entity.Property(m => m.Gender).HasMaxLength(20);
+            entity.Property(m => m.Status).HasConversion<string>().HasMaxLength(20);
+            entity.HasOne(m => m.Room).WithMany(r => r.Memberships).HasForeignKey(m => m.RoomId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(m => new { m.RoomId, m.Status });
+            entity.HasIndex(m => m.UserId).IsUnique().HasFilter("\"Status\" IN ('Active', 'Disconnected')");
+        });
+
+        modelBuilder.Entity<GameOutboxEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EventType).HasMaxLength(50);
+            entity.HasIndex(e => new { e.RoomId, e.Sequence }).IsUnique();
+            entity.HasIndex(e => e.DispatchedAtUtc).HasFilter("\"DispatchedAtUtc\" IS NULL");
+        });
+
+        modelBuilder.Entity<GameQuestion>(entity =>
+        {
+            entity.HasKey(q => q.Id);
+            entity.Property(q => q.QuestionText).HasMaxLength(300);
+            entity.Property(q => q.Category).HasMaxLength(50);
+            entity.HasIndex(q => q.IsActive);
+        });
+
+        modelBuilder.Entity<GameRound>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.State).HasMaxLength(30);
+            entity.HasOne(r => r.Room).WithMany().HasForeignKey(r => r.RoomId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(r => r.RoomId);
+        });
+
+        modelBuilder.Entity<GameRoundAnswer>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.IdempotencyKey).HasMaxLength(64);
+            entity.HasOne(a => a.Round).WithMany(r => r.Answers).HasForeignKey(a => a.RoundId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(a => new { a.RoundId, a.QuestionIndex, a.UserId }).IsUnique();
+            entity.HasIndex(a => new { a.RoundId, a.QuestionIndex, a.IdempotencyKey }).IsUnique();
+        });
+
+        modelBuilder.Entity<GameKiss>(entity =>
+        {
+            entity.HasKey(k => k.Id);
+            entity.Property(k => k.Status).HasMaxLength(20);
+            entity.Property(k => k.IdempotencyKey).HasMaxLength(64);
+            entity.HasOne(k => k.Room).WithMany().HasForeignKey(k => k.RoomId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(k => k.Round).WithMany(r => r.Kisses).HasForeignKey(k => k.RoundId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(k => new { k.RoomId, k.SenderUserId, k.RecipientUserId });
+            entity.HasIndex(k => new { k.RoundId, k.SenderUserId, k.IdempotencyKey }).IsUnique();
+        });
+
+        modelBuilder.Entity<UserGameSettings>(entity =>
+        {
+            entity.HasKey(s => s.UserId);
+            entity.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Dating.Api.Features.Game.Wallet.UserWallet>(entity =>
+        {
+            entity.HasKey(w => w.UserId);
+            entity.HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_UserWallets_Balance", "\"Balance\" >= 0");
+                t.HasCheckConstraint("CK_UserWallets_OutstandingDebt", "\"OutstandingDebt\" >= 0");
+            });
+            entity.Property(w => w.Version).IsRowVersion();
+        });
+
+        modelBuilder.Entity<Dating.Api.Features.Game.Wallet.StorePurchase>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Platform).HasMaxLength(20);
+            entity.Property(p => p.ProductId).HasMaxLength(64);
+            entity.Property(p => p.TransactionId).HasMaxLength(128);
+            entity.Property(p => p.PurchaseToken).HasMaxLength(4096);
+            entity.Property(p => p.Status).HasMaxLength(20);
+            entity.Property(p => p.PriceCurrency).HasMaxLength(10);
+            entity.Property(p => p.Environment).HasMaxLength(20);
+            entity.Property(p => p.RefundReason).HasMaxLength(200);
+            entity.HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(p => new { p.Platform, p.TransactionId }).IsUnique();
+            entity.HasIndex(p => p.UserId);
+        });
+
+        modelBuilder.Entity<Dating.Api.Features.Game.Wallet.CrystalTransaction>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Type).HasMaxLength(30);
+            entity.Property(t => t.ReferenceId).HasMaxLength(64);
+            entity.Property(t => t.IdempotencyKey).HasMaxLength(64);
+            entity.Property(t => t.Description).HasMaxLength(200);
+            entity.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(t => new { t.UserId, t.IdempotencyKey }).IsUnique();
+            entity.HasIndex(t => new { t.UserId, t.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<Dating.Api.Features.Game.Wallet.GameProfileUnlock>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+            entity.HasOne(u => u.ViewerUser).WithMany().HasForeignKey(u => u.ViewerUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(u => u.TargetUser).WithMany().HasForeignKey(u => u.TargetUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(u => u.Transaction).WithMany().HasForeignKey(u => u.TransactionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(u => new { u.ViewerUserId, u.TargetUserId }).IsUnique();
+            entity.ToTable(t => t.HasCheckConstraint("CK_GameProfileUnlocks_NotSelf", "\"ViewerUserId\" <> \"TargetUserId\""));
+        });
+
+        modelBuilder.Entity<Dating.Api.Features.Game.Wallet.GameProfileViewNotice>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.ViewerDisplayName).HasMaxLength(50);
+            entity.HasOne(n => n.TargetUser).WithMany().HasForeignKey(n => n.TargetUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(n => new { n.TargetUserId, n.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<UserProfileView>(entity =>
+        {
+            entity.HasKey(v => v.Id);
+            entity.HasIndex(v => new { v.ViewerUserId, v.TargetUserId }).IsUnique();
+            entity.HasIndex(v => new { v.TargetUserId, v.ViewedAt });
+            entity.HasIndex(v => new { v.ViewerUserId, v.ViewedAt });
+        });
+
+        modelBuilder.Entity<GameDirectMatchRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Message).HasMaxLength(300);
+            entity.Property(r => r.Status).HasMaxLength(20);
+            entity.Property(r => r.IdempotencyKey).HasMaxLength(64);
+            entity.HasIndex(r => new { r.SenderUserId, r.TargetUserId }).IsUnique();
+            entity.HasIndex(r => new { r.TargetUserId, r.Status });
+            entity.HasIndex(r => r.RoomId);
+        });
+
+        modelBuilder.Entity<Dating.Api.Features.Game.Wallet.GameGift>(entity =>
+        {
+            entity.HasKey(g => g.Id);
+            entity.Property(g => g.GiftId).HasMaxLength(50);
+            entity.Property(g => g.GiftName).HasMaxLength(100);
+            entity.Property(g => g.GiftIcon).HasMaxLength(20);
+            entity.HasOne(g => g.SenderUser).WithMany().HasForeignKey(g => g.SenderUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(g => g.RecipientUser).WithMany().HasForeignKey(g => g.RecipientUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(g => g.Transaction).WithMany().HasForeignKey(g => g.TransactionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(g => new { g.RecipientUserId, g.CreatedAtUtc });
+            entity.HasIndex(g => new { g.SenderUserId, g.CreatedAtUtc });
+            entity.HasIndex(g => g.RoomId);
+            entity.ToTable(t => t.HasCheckConstraint("CK_GameGifts_NotSelf", "\"SenderUserId\" <> \"RecipientUserId\""));
+        });
+
+        modelBuilder.Entity<Dating.Api.Features.Premium.UserSubscription>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.PackageId).HasMaxLength(32);
+            entity.Property(s => s.Currency).HasMaxLength(8);
+            entity.Property(s => s.Platform).HasMaxLength(32);
+            entity.Property(s => s.TransactionId).HasMaxLength(128);
+            entity.HasIndex(s => s.UserId);
+            entity.HasIndex(s => new { s.UserId, s.IsActive });
+            entity.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DiscoverySuperLike>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.HasIndex(s => new { s.SenderUserId, s.TargetUserId }).IsUnique();
+            entity.HasIndex(s => new { s.TargetUserId, s.CreatedAtUtc });
+            entity.HasIndex(s => new { s.SenderUserId, s.CreatedAtUtc });
+            entity.HasOne<AppUser>().WithMany().HasForeignKey(s => s.SenderUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<AppUser>().WithMany().HasForeignKey(s => s.TargetUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.Property(s => s.Note).HasMaxLength(300);
+            entity.ToTable(t => t.HasCheckConstraint("CK_DiscoverySuperLike_NotSelf", "\"SenderUserId\" <> \"TargetUserId\""));
+        });
+
+        modelBuilder.Entity<TelegramSubscriber>(entity =>
+        {
+            entity.HasKey(s => s.ChatId);
+            entity.HasIndex(s => s.TelegramUserId);
+            entity.HasIndex(s => s.UserId);
+            entity.HasIndex(s => s.IsActive);
+            entity.Property(s => s.Username).HasMaxLength(64);
+            entity.Property(s => s.FirstName).HasMaxLength(128);
+            entity.Property(s => s.LastName).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<TodayPlan>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.City).HasMaxLength(60).IsRequired();
+            entity.Property(p => p.District).HasMaxLength(100);
+            entity.Property(p => p.Activity).HasMaxLength(30).IsRequired();
+            entity.Property(p => p.Title).HasMaxLength(100).IsRequired();
+            entity.Property(p => p.Description).HasMaxLength(500);
+            entity.Property(p => p.Currency).HasMaxLength(8).HasDefaultValue("GEL");
+            entity.Property(p => p.State).HasMaxLength(20).HasDefaultValue("Open");
+            entity.Property(p => p.Version).IsRowVersion();
+
+            entity.HasIndex(p => new { p.City, p.Activity, p.State, p.ExpiresAtUtc });
+            entity.HasIndex(p => new { p.AuthorUserId, p.State });
+            entity.HasIndex(p => new { p.State, p.ExpiresAtUtc });
+            entity.HasIndex(p => p.StartsAtUtc);
+
+            entity.HasOne<AppUser>().WithMany().HasForeignKey(p => p.AuthorUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<AppUser>().WithMany().HasForeignKey(p => p.SelectedCompanionUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TodayPlanResponse>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Message).HasMaxLength(300);
+            entity.Property(r => r.State).HasMaxLength(20).HasDefaultValue("Pending");
+
+            entity.HasOne(r => r.Plan)
+                .WithMany(p => p.Responses)
+                .HasForeignKey(r => r.PlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(r => r.ApplicantUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(r => new { r.PlanId, r.ApplicantUserId }).IsUnique();
+            entity.HasIndex(r => new { r.ApplicantUserId, r.CreatedAtUtc });
+            entity.HasIndex(r => new { r.PlanId, r.State });
+        });
     }
 }

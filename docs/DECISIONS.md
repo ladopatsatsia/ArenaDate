@@ -113,3 +113,126 @@ User authorized Prompt 8 after Prompt 7 completion; Prompt 9 remains unstarted.
 - Store compliance: `GET /account/delete` public web page; `POST /api/account/public-deletion-request` returns 202 without leaking account existence; token confirmed via `POST /api/account/confirm-deletion`.
 - Complete draft privacy policy in `docs/PRIVACY.md` marked for owner review, without claiming non-existent E2EE or governmental verification.
 
+## Prompt 13 decisions (current)
+
+User explicitly authorized Prompt 13 to verify release readiness, package reviewable staging artifacts, and finalize MVP deployment runbooks per AGENTS.md.
+
+- Packaging & Build Verification:
+  - Mobile: Built native Hermes Bytecode bundles for Android and iOS using `npx expo export --platform all` (5.4 MB Android HBC, 5.2 MB iOS HBC, 34 static assets).
+  - Admin: Compiled production Angular 21 distribution to `admin/dist/admin/browser` (441.5 kB initial bundle).
+  - Backend: Created production Docker image `dating-api:production` using official .NET 10 runtime, non-root user `1654:1654` (`$APP_UID`), and verified locked NuGet dependencies.
+  - Database: Generated idempotent standalone SQL migration script `artifacts/migration.sql` (42.8 kB) covering all migrations from initial foundation through account deletion.
+- Single Instance Topology:
+  - Explicitly documented that production deployment must remain **strictly ONE API instance**. Horizontal scaling beyond 1 replica is prohibited until a distributed SignalR backplane (Redis) and multi-instance distributed concurrency are implemented and validated.
+- Environment & Protocol Separation:
+  - Strict HTTPS enforcement: `mobile/app.config.ts` dynamically fails fast if `EAS_BUILD_PROFILE` is preview/production and `EXPO_PUBLIC_API_URL` does not start with `https://`.
+  - Insecure and development endpoints (such as mail capture or local photo auto-approval) fail validation in production environment.
+- Disaster Recovery & Rollback:
+  - Automated database backup and restore validation scripts provided in `infra/scripts/backup.ps1` and `restore.ps1`.
+  - Tombstone protections (`DeletionTombstones`) ensure restored backups do not resurrect deleted accounts.
+- Store Compliance Packages:
+  - Prepared full App Store Connect Guideline 1.2 (UGC safety) and 5.1.1(v) (Account deletion) packages.
+  - Prepared Google Play Console Data Safety disclosures and review credentials.
+  - Overall release status marked **NO-GO** in `docs/RELEASE.md` pending owner developer credentials and physical device testing.
+- Expo Go SDK 53+ Android Push Notifications Compatibility:
+  - Expo Go removed native remote push notification capabilities on Android starting with SDK 53.
+  - `mobile/src/notifications/PushProvider.tsx` was hardened to guard all native notification handler and listener registrations against `Constants.executionEnvironment === ExecutionEnvironment.StoreClient` (`isExpoGo`) and wrapped with `try/catch`. This prevents unhandled module-level exceptions when running inside the Expo Go sandbox while preserving full push capabilities for native EAS development builds and production releases.
+  - `mobile/app/_layout.tsx` explicitly exports `ErrorBoundary` from `expo-router` for safe route handling.
+
+## Prompt 14 decisions (current)
+
+User explicitly authorized Prompt 14: Arena Bottle Game foundation and persisted room/membership data model. Prompt 15 (SignalR presence & connection recovery) and beyond remain unstarted.
+
+- Architecture & Modular Monolith:
+  - Game feature placed in `backend/Dating.Api/Features/Game` slice (`GameModels.cs`, `GameService.cs`, `GameController.cs`).
+  - Mobile client integrated with `mobile/src/game/GameApi.ts`, `mobile/src/game/GameLobbyScreen.tsx`, and dedicated tab screen `(tabs)/game.tsx`.
+- Data Model & Single Active Membership Invariant:
+  - `GameRoom` stores room state (`Lobby`, `Starting`, `Active`, `Ended`, `Cancelled`), capacity (default 10), and gender quotas (default 5 ♀ / 5 ♂).
+  - `GameMembership` tracks membership lifecycle (`Active`, `Left`, `Kicked`, `Disconnected`).
+  - Single active room per user is enforced strictly at the database level using a partial unique index:
+    `CREATE UNIQUE INDEX "IX_GameMemberships_UserId" ON "GameMemberships" ("UserId") WHERE "Status" = 'Active';`
+- Concurrency & Atomic Quotas:
+  - Joins execute inside an isolated EF Core transaction with database row locks (`FOR UPDATE` pattern) to guarantee serial execution and prevent race conditions when two or more users attempt to fill the 5th gender slot or 10th room slot simultaneously.
+  - Quota evaluation checks exact gender counts (`woman` vs `man`) against the room's quotas before inserting membership.
+- Server-Side Eligibility & Trust:
+  - Client-supplied age, gender, role, or eligibility claims are strictly untrusted.
+  - `GameService.ValidateEligibilityAsync` checks 18+ adult age calculated from persisted `BirthDate`, `EmailConfirmed == true`, active account status, profile completeness, approved photo, and reciprocal interest (`woman -> man` and `man -> woman` for default rooms).
+- Safety & Blocked Pairs Exclusion:
+  - Blocked users cannot join or share a room with each other. If any active room member has blocked the joining user or is blocked by them, the room returns `404 Not Found` (`room_unavailable`), preventing either party from detecting the other's room presence.
+- Privacy & Information Sanitization:
+  - Room summaries and detail DTOs expose only safe public profile data: `displayName`, `gender`, `age` (derived from birth date), `bio`, and approved avatar photo ID. Location coordinates, email addresses, discovery preferences, and private settings are strictly excluded.
+- Account Invalidation Hooks:
+  - Account deletion (`AccountLifecycleService.ExecuteDeletionCore`) and suspension (`ModerationService.UpdateUserActiveAsync`) automatically invoke `GameService.InvalidateUserMembershipsAsync` to terminate active memberships immediately.
+- Test Fixtures:
+  - Development-only endpoint `/api/game/rooms/{id}/dev-fixtures` enables seeding up to 3♀ + 3♂ test players with valid data to verify 30-second lobby fallback quorums without exposing fixture methods in production.
+- Matchmaking Queue & 6/8/10 Table Formats:
+  - Added selectable table formats: 6-player (3♀ / 3♂), 8-player (4♀ / 4♂), and 10-player (5♀ / 5♂).
+  - Users enter the queue via `POST /api/game/queue` `{ capacity: 6 | 8 | 10 }`.
+  - Atomically finds existing open compatible `Lobby` rooms or creates a new one using row locks (`FOR UPDATE`). When full (e.g. 3♀ + 3♂ for 6-player), the room automatically transitions to `Starting`.
+- Absolute Invisibility of Starting / Playing Tables:
+  - Rooms in `Starting` or `Playing` state are completely removed from public listings (`GET /api/game/rooms`).
+  - Outsiders querying `GET /api/game/rooms/{id}` or `POST /api/game/rooms/{id}/join` for non-lobby rooms receive a non-revealing `404 Not Found` (`room_unavailable`).
+  - Only active joined members can view and interact with their room via `GET /api/game/current` or `GET /api/game/rooms/{id}`.
+- Comprehensive Incompatibility Filtering (Safety & Privacy):
+  - Users who have blocked each other (`UserBlock`, one-way or mutual), unmatched (`UnmatchedPair`), or are already actively matched (`DatingMatch.Active == true`) are strictly prohibited from sharing a table.
+  - The matchmaking queue checks the incompatible set before placing any user into an existing room. If any active member in a room is incompatible, a separate room is allocated.
+- Single Active Table & Queue Rule:
+  - While actively queued or seated at a table, joining another queue or table is blocked server-side with 409 `active_membership_exists` and backed by the database partial unique index.
+
+## Prompt 22 decisions — 18-Round Automatic Bottle Game, Target Selection & Post-Game Kisses
+
+User explicitly requested real-time Arena Bottle Game turn automation and end-of-game flows:
+- **18 Rounds & Exact 3-Spin Quota**:
+  - In a 6-player table (3♀, 3♂), active members are interleaved cyclically (`[w0, m0, w1, m1, w2, m2]`).
+  - At the completion of each round, `SelectNextTurnUserIdAsync` advances cyclically to the next player. Over exactly 18 rounds, each of the 6 players receives exactly 3 turns as the spinner (6 × 3 = 18).
+  - When the 18th round completes, `EndGameAsync` transitions the room to `State = Ended`, clears active turns, and dispatches the `GameEnded` event.
+- **Automatic Bottle Spin**:
+  - Rounds start automatically without requiring a manual spin button press. The bottle animates for 4 seconds pointing directly to the designated turn spinner.
+- **Target Selection & 15-Second Timer with Automatic Fallback**:
+  - Once the bottle points to the spinner, the spinner chooses an opposite-gender candidate within a 15-second deadline.
+  - Endpoint `POST /api/game/rooms/{id}/rounds/{roundId}/target` validates that the caller is the current turn spinner, that the chosen target is an active member of the opposite gender, and that the pair is compatible.
+  - If the spinner does not select within 15 seconds, `ProcessDeadlinesAndOutboxAsync` invokes `PickFallbackTargetUserIdAsync` to automatically assign an active opposite-gender candidate, guaranteeing the room never deadlocks or stalls.
+- **Standardized 15-Second Phase Deadlines**:
+  - All interactive phases are synchronized to 15 seconds (`TargetSelection: 15s`, `QuestionAnswering: 15s`, `KissChoice: 15s`, `TurnPending: 15s`). Reveal phase remains 4 seconds for immediate feedback.
+- **Game Completion Summary Modal & Post-Game Kisses**:
+  - When `snapshot.state === 'Ended'`, mobile renders the `"თამაში დასრულდა!"` modal listing all participants with avatar, display name, age, and `"💋 აკოცე"` action button.
+  - Post-game kisses (`POST /api/game/rooms/{id}/post-game-kiss`) are sent directly from the summary modal. Reciprocal post-game kisses form an instant mutual match (`GameArena` origin, `HasChatEntitlement = false`). Non-reciprocal kisses record a pending kiss and create a `DiscoveryDecision` ("like") with note `"დავიმეჩე ბოთლის თამაშში"`, appearing in the recipient's Requests tab.
+  - Dismissing or closing the summary modal exits the room (`onLeave`), removing membership and navigating back to the lobby.
+
+## Prompt 56 decisions — Telegram Bot Notifications & Admin Broadcast Architecture
+
+- **Subscriber Persistence & Chat ID Isolation**:
+  - `TelegramSubscriber` entity isolates Telegram `ChatId` and Telegram metadata in PostgreSQL, separated from identity tables.
+  - Subscribers are registered whenever a user messages the bot (`/start` or free text) or opens the Telegram Mini App.
+  - Telegram `ChatId` is linked to `AppUser.Id` during Telegram authentication (`AuthService.LoginTelegram`), allowing server-side push notifications to target specific users without needing client-side polling.
+- **Non-Blocking Notification Dispatches**:
+  - All notifications inside core mutation paths (`MatchService`, `GameService`, `WalletService`, `ChatService`) are wrapped in safe try/catch or background dispatches. Any Telegram API failure or network timeout never rolls back or aborts core transactional database operations (e.g. mutual matches, crystal purchases, chat persistence).
+- **Telegram Rate Limiting & Auto-Pruning**:
+  - Broadcasts enforce a 35ms throttle delay between deliveries (~28 messages/second), respecting Telegram's strict limit of 30 messages/second.
+  - If Telegram returns HTTP `403 Forbidden` (`bot was blocked by the user` or account deactivated), the system automatically updates `TelegramSubscriber.IsActive = false`, preventing future deliveries to that chat.
+- **Admin Broadcast Security**:
+  - Broadcast endpoints require valid moderator session cookie, MFA verification, and CSRF header protection (`X-XSRF-TOKEN`).
+  - Messages are validated server-side (1 to 4000 characters) and HTML-escaped. Button routes default to `/arena` or `/messages` within the verified `Telegram:WebAppUrl`.
+
+## ARENA „დღეს მინდა…“ decisions — Prompt 1 Architecture & Domain Model
+
+- **Subsystem Integration & No Parallel Stacks**:
+  - Feature lives in `backend/Dating.Api/Features/TodayPlans/`.
+  - Reuses existing ASP.NET Core Identity and JWT Bearer auth (`CurrentUser`), `DatingProfile`, `IPremiumService`, `PushQueue`, and `ITelegramNotificationService`.
+  - Matches generated from accepted plans create `DatingMatch` with `Origin = "TodayPlan"` and `HasChatEntitlement = true`. No custom or duplicate chat engines.
+- **Data Models & State Transitions**:
+  - `TodayPlan`: `State` transitions: `Open` -> `Matched` (when companion accepted), `Cancelled` (by author), or `Expired` (when `ExpiresAtUtc <= now`).
+  - `TodayPlanResponse`: `State` transitions: `Pending` -> `Accepted`, `Rejected`, `Withdrawn` (by applicant), or `Closed` (when another companion accepted or plan expired).
+  - Uniqueness: Single response per `(PlanId, ApplicantUserId)`.
+- **Atomic Acceptance & Concurrency**:
+  - Companion acceptance locks the `TodayPlan` row to prevent double-accept races. The first transaction wins; any concurrent acceptance receives 409 Conflict.
+  - When an applicant is accepted, all other `Pending` responses are atomically updated to `Closed`.
+- **Limits & Timezone Policy**:
+  - Max planning horizon is 48 hours from current UTC time.
+  - Free tier: max 1 active plan, 3 responses/day.
+  - Premium tier: max 3 active plans, 10 responses/day.
+  - Daily response quota evaluated in `Asia/Tbilisi` timezone resetting at 00:00.
+  - Applicant list and accepted chat are 100% free with 0 crystal cost.
+
+
+

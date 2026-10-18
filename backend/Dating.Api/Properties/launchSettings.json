@@ -1,1 +1,1 @@
-{"profiles":{"http":{"commandName":"Project","launchBrowser":false,"applicationUrl":"http://localhost:5180","environmentVariables":{"ASPNETCORE_ENVIRONMENT":"Development"}}}}
+{"profiles":{"http":{"commandName":"Project","launchBrowser":false,"applicationUrl":"http://0.0.0.0:5180;https://0.0.0.0:5181","environmentVariables":{"ASPNETCORE_ENVIRONMENT":"Development"}}}}

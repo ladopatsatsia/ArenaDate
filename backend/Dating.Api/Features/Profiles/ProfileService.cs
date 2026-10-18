@@ -20,7 +20,7 @@ public sealed class ProfileService(AppDbContext db, IPrivateStorage storage, Pho
         var photos = await db.Set<ProfilePhoto>().AsNoTracking().Where(p => p.UserId == id && !p.Deleted).OrderBy(p => p.Position)
             .Select(p => new PhotoDto(p.Id, p.State, p.Position, p.Width, p.Height)).ToArrayAsync(ct);
         return new(p.Revision, p.DisplayName, ProfileRules.Age(user.DateOfBirth, clock.GetUtcNow()), p.Bio, p.Gender,
-            p.DesiredGenders, p.City, p.Interests, p.RelationshipGoal, p.Visible, ProfileRules.Complete(p) && photos.Any(p => p.State == "approved"), photos);
+            p.DesiredGenders, p.City, p.Interests, p.RelationshipGoal, p.Visible, ProfileRules.Complete(p), photos, p.Languages);
     }
     public async Task<OwnProfileDto> Save(Guid id, ProfileUpdate request, CancellationToken ct)
     {
@@ -28,9 +28,23 @@ public sealed class ProfileService(AppDbContext db, IPrivateStorage storage, Pho
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var p = await Lock(id, ct);
         if (p.Revision != request.Revision) throw new AuthFailure(409, "profile_changed");
-        p.DisplayName = request.DisplayName.Trim(); p.Bio = request.Bio.Trim(); p.Gender = request.Gender;
-        p.DesiredGenders = request.DesiredGenders; p.City = request.City.Trim(); p.CityKey = Dating.Api.Features.Discovery.DiscoveryRules.CityKey(p.City); p.Interests = request.Interests;
-        p.RelationshipGoal = request.RelationshipGoal; p.Visible = request.Visible; p.Revision++;
+        p.DisplayName = request.DisplayName.Trim();
+        p.Bio = (request.Bio ?? "").Trim();
+        p.Gender = request.Gender;
+        p.DesiredGenders = request.DesiredGenders ?? [];
+        p.City = (request.City ?? "").Trim();
+        p.CityKey = Dating.Api.Features.Discovery.DiscoveryRules.CityKey(p.City);
+        p.Interests = request.Interests ?? [];
+        p.Languages = request.Languages ?? [];
+        p.RelationshipGoal = request.RelationshipGoal ?? "";
+        p.Visible = request.Visible;
+        if (request.DateOfBirth.HasValue)
+        {
+            if (!AdultPolicy.IsAdult(request.DateOfBirth.Value, clock.GetUtcNow()))
+                throw new AuthFailure(400, "adult_required");
+            p.User.DateOfBirth = request.DateOfBirth.Value;
+        }
+        p.Revision++;
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return await Get(id, ct);
     }

@@ -13,8 +13,11 @@ const port = reservation.address().port;
 await new Promise(resolve => reservation.close(resolve));
 const base = 'http://127.0.0.1:' + port;
 const dotnet = process.env.DOTNET_COMMAND || (existsSync(resolve('.tools/dotnet/dotnet.exe')) ? resolve('.tools/dotnet/dotnet.exe') : 'dotnet');
+const dllPath = existsSync(resolve('backend/Dating.Api/bin/Debug/net10.0/build2/net10.0/Dating.Api.dll'))
+  ? resolve('backend/Dating.Api/bin/Debug/net10.0/build2/net10.0/Dating.Api.dll')
+  : resolve('backend/Dating.Api/bin/Debug/net10.0/Dating.Api.dll');
 const child = spawn(dotnet, [
-  resolve('backend/Dating.Api/bin/Debug/net10.0/Dating.Api.dll')
+  dllPath
 ], { cwd: resolve('backend/Dating.Api'), env: { ...process.env, ...developmentAuthEnv(), ASPNETCORE_ENVIRONMENT: 'Development', ASPNETCORE_URLS: base,
   ConnectionStrings__Database: process.env.ConnectionStrings__Database || 'Host=localhost;Database=contract;Username=unused;Password=unused' },
   stdio: ['ignore', 'pipe', 'pipe'] });

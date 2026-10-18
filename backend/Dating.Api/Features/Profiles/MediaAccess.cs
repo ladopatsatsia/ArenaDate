@@ -1,11 +1,13 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Dating.Api.Features.Auth;
+using Dating.Api.Features.Discovery;
+using Dating.Api.Features.Matching;
 using Dating.Api.Persistence;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 namespace Dating.Api.Features.Profiles;
-public sealed class MediaAccess(AppDbContext db, IDataProtectionProvider protection, TimeProvider clock, Dating.Api.Features.Discovery.DiscoveryEligibility discovery)
+public sealed class MediaAccess(AppDbContext db, IDataProtectionProvider protection, TimeProvider clock, Dating.Api.Features.Discovery.DiscoveryEligibility discovery, Dating.Api.Features.Premium.IPremiumService premiumService)
 {
     private readonly IDataProtector signer = protection.CreateProtector("DatingMVP.PrivateMedia.v1");
     private sealed record Ticket(Guid Viewer, Guid Photo, DateTimeOffset Expires);
@@ -18,7 +20,64 @@ public sealed class MediaAccess(AppDbContext db, IDataProtectionProvider protect
             .SingleOrDefaultAsync(p => p.Id == photoId && !p.Deleted && p.State != "uploading", ct)
             ?? throw new AuthFailure(404, "photo_not_found");
         if (photo.UserId == viewer) return photo;
-        if (photo.State == "approved" && await discovery.CanSee(viewer, photo.UserId, ct)) return photo;
+
+        // If either user has blocked the other, media is strictly forbidden
+        if (await db.Set<UserBlock>().AnyAsync(b => (b.BlockerId == viewer && b.BlockedId == photo.UserId) || (b.BlockerId == photo.UserId && b.BlockedId == viewer), ct))
+            throw new AuthFailure(404, "photo_not_found");
+
+        // If they have unmatched each other, media is forbidden
+        if (await db.Set<UnmatchedPair>().AnyAsync(u => (u.FirstId == viewer && u.SecondId == photo.UserId) || (u.SecondId == viewer && u.FirstId == photo.UserId), ct))
+            throw new AuthFailure(404, "photo_not_found");
+
+        if (photo.State == "approved")
+        {
+            // 1. Undecided discovery candidate
+            if (await discovery.CanSee(viewer, photo.UserId, ct)) return photo;
+
+            // 2. Confirmed mutual match
+            if (await db.Set<DatingMatch>().AnyAsync(m => m.Active && ((m.FirstId == viewer && m.SecondId == photo.UserId) || (m.FirstId == photo.UserId && m.SecondId == viewer)), ct))
+                return photo;
+
+            // 3. Incoming suitor (someone who liked the viewer) - only accessible if viewer has active Premium
+            if (await db.Set<DiscoveryDecision>().AnyAsync(d => d.UserId == photo.UserId && d.TargetId == viewer && d.Kind == "like", ct))
+            {
+                if (await premiumService.HasActivePremiumAsync(viewer, ct))
+                    return photo;
+            }
+
+            // 4. Profile view relationship (viewer viewed target or target viewed viewer)
+            if (await db.Set<UserProfileView>().AnyAsync(pv => (pv.ViewerUserId == viewer && pv.TargetUserId == photo.UserId) || (pv.ViewerUserId == photo.UserId && pv.TargetUserId == viewer), ct))
+                return photo;
+
+            // 5. Active co-members at the same Game table
+            var sharedGameRoom = await (
+                from m1 in db.Set<Dating.Api.Features.Game.GameMembership>()
+                join m2 in db.Set<Dating.Api.Features.Game.GameMembership>() on m1.RoomId equals m2.RoomId
+                where m1.UserId == viewer && (m1.Status == Dating.Api.Features.Game.GameMembershipStatus.Active || m1.Status == Dating.Api.Features.Game.GameMembershipStatus.Disconnected)
+                   && m2.UserId == photo.UserId && (m2.Status == Dating.Api.Features.Game.GameMembershipStatus.Active || m2.Status == Dating.Api.Features.Game.GameMembershipStatus.Disconnected)
+                select m1.RoomId
+            ).AnyAsync(ct);
+            if (sharedGameRoom) return photo;
+
+            // 6. Game profile unlock
+            if (await db.Set<Dating.Api.Features.Game.Wallet.GameProfileUnlock>().AnyAsync(u => u.ViewerUserId == viewer && u.TargetUserId == photo.UserId, ct))
+                return photo;
+
+            // 7. Today Plans author (plans published to community feed)
+            if (await db.Set<Dating.Api.Features.TodayPlans.TodayPlan>().AnyAsync(p => p.AuthorUserId == photo.UserId, ct))
+                return photo;
+
+            // 8. Today Plans applicant or co-participant
+            var isPlanParticipant = await (
+                from r in db.Set<Dating.Api.Features.TodayPlans.TodayPlanResponse>()
+                join p in db.Set<Dating.Api.Features.TodayPlans.TodayPlan>() on r.PlanId equals p.Id
+                where (p.AuthorUserId == viewer && r.ApplicantUserId == photo.UserId)
+                   || (p.AuthorUserId == photo.UserId && r.ApplicantUserId == viewer)
+                select r.Id
+            ).AnyAsync(ct);
+            if (isPlanParticipant) return photo;
+        }
+
         throw new AuthFailure(404, "photo_not_found");
     }
     public async Task<MediaGrant> Grant(Guid viewer, Guid photo, CancellationToken ct)

@@ -18,7 +18,7 @@ public sealed class DiscoveryService(AppDbContext db, ProfileService profiles, D
     private static DiscoverySettings Dto(DatingProfile p) => new(p.Revision, p.MinAge, p.MaxAge, p.DesiredGenders, p.RadiusKm, p.LocationMode, p.City, p.Location is not null);
     public async Task<DiscoverySettings> Save(Guid id, SettingsRequest request, CancellationToken ct)
     {
-        if (request.City.Trim().Length < 2 || request.MinAge > request.MaxAge || !DiscoveryRules.Radii.Contains(request.RadiusKm) || request.Mode is not ("city" or "distance") ||
+        if (request.City.Trim().Length < 2 || request.MinAge > request.MaxAge || !DiscoveryRules.Radii.Contains(request.RadiusKm) || request.Mode is not ("city" or "distance" or "all") ||
             request.DesiredGenders.Any(g => !ProfileRules.Genders.Contains(g)) || request.DesiredGenders.Distinct().Count() != request.DesiredGenders.Length)
             throw new AuthFailure(400, "invalid_preferences");
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -65,7 +65,7 @@ public sealed class DiscoveryService(AppDbContext db, ProfileService profiles, D
         var q = eligibility.Candidates(viewer).Where(p => p.DiscoverySequence > last);
         if (only is not null) q = q.Where(p => p.UserId == only.Value);
         var rows = await q.OrderBy(p => p.DiscoverySequence).Take(21).Select(p => new {
-            p.UserId, p.DiscoverySequence, p.DisplayName, p.User.DateOfBirth, p.Bio, p.Gender, p.City, p.Interests, p.RelationshipGoal,
+            p.UserId, p.DiscoverySequence, p.DisplayName, p.User.DateOfBirth, p.Bio, p.Gender, p.City, p.Interests, p.Languages, p.RelationshipGoal,
             Distance = viewer.LocationMode == "distance" && p.LocationMode == "distance" && p.Location != null && viewer.Location != null
                 ? (double?)p.Location.Distance(viewer.Location) : null
         }).ToListAsync(ct);
@@ -74,7 +74,7 @@ public sealed class DiscoveryService(AppDbContext db, ProfileService profiles, D
         var photos = await db.Set<ProfilePhoto>().AsNoTracking().Where(p => ids.Contains(p.UserId) && !p.Deleted && p.State == "approved")
             .OrderBy(p => p.Position).Select(p => new { p.UserId, Photo = new PhotoDto(p.Id, p.State, p.Position, p.Width, p.Height) }).ToListAsync(ct);
         var items = page.Select(p => new DiscoveryCard(p.UserId, p.DisplayName, ProfileRules.Age(p.DateOfBirth, clock.GetUtcNow()), p.Bio, p.Gender,
-            p.City, p.Interests, p.RelationshipGoal, DiscoveryRules.Bucket(p.Distance), photos.Where(f => f.UserId == p.UserId).Select(f => f.Photo).ToArray())).ToArray();
+            p.City, p.Interests, p.RelationshipGoal, DiscoveryRules.Bucket(p.Distance), photos.Where(f => f.UserId == p.UserId).Select(f => f.Photo).ToArray(), p.Languages)).ToArray();
         var next = rows.Count > 20 ? cursors.Protect(JsonSerializer.Serialize(new Cursor(id, viewer.Revision, page[^1].DiscoverySequence, today, clock.GetUtcNow().AddMinutes(15)))) : null;
         return new(items, next);
     }

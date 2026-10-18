@@ -83,3 +83,10 @@ The following test matrix defines end-to-end user verification across iOS and An
 | **QA-14** | Discoverability Pause | Settings Toggle | Settings Toggle | Hides from discovery deck; keeps existing matches and conversations active. | Verified in `AccountLifecycleTests` and `account-lifecycle.test.tsx` |
 | **QA-15** | In-App Deletion | Password Modal | Password Modal | Requires password; revokes sessions; purges photos via worker; leaves tombstone. | Verified in `AccountLifecycleTests` and `account-lifecycle.test.tsx` |
 | **QA-16** | Public Web Deletion | Safari / Chrome | Chrome / Firefox | `/account/delete` form accepts email; sends verification token; does not leak registration. | Verified in Integration Tests & Web Browser |
+| **QA-17** | Arena Room 10-Player Quota | iOS Client | Android Client | Strict 5♀/5♂ quota; concurrent joins atomic; 10th join starts game countdown. | Verified in `GameFullQaTests` & `GameTests`; Pending Physical Device |
+| **QA-18** | Anti-Pay-to-Win Bottle Spin | iOS Client | Android Client | Server-authoritative RNG; zero advantage for paid/crystal-rich players. | Verified in `GameFullQaTests`; Pending Physical Device |
+| **QA-19** | 5-Question Spectator Barrier | iOS Client | Android Client | Active pair choices revealed only to pair; options redacted for spectators. | Verified in `GameFullQaTests`; Pending Physical Device |
+| **QA-20** | Reciprocal Kiss Mutual Match | iOS Client | Android Client | Private pending kiss; reciprocal kiss creates match; chat initially locked. | Verified in `GameFullQaTests` & `GameTests`; Pending Physical Device |
+| **QA-21** | 25-Crystal Chat & Profile Unlock | iOS Client | Android Client | Simultaneous unlock debits once (second gets already_open 0-debit); gates chat. | Verified in `GameFullQaTests` & `CrystalLedgerTests`; Pending Physical Device |
+| **QA-22** | Consumable Purchase & Debt Recovery | StoreKit 2 (iOS) | Google Play Billing (Android) | Idempotent receipt verification; spent-credit refund sets OutstandingDebt safely. | Verified in `StorePurchaseTests`; Live Store Pending Owner Enrollment |
+

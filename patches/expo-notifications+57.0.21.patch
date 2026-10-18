@@ -1,0 +1,84 @@
+diff --git a/node_modules/expo-notifications/build/warnOfExpoGoPushUsage.js b/node_modules/expo-notifications/build/warnOfExpoGoPushUsage.js
+index 1234567..89abcdef 100644
+--- a/node_modules/expo-notifications/build/warnOfExpoGoPushUsage.js
++++ b/node_modules/expo-notifications/build/warnOfExpoGoPushUsage.js
+@@ -7,9 +7,4 @@ export const warnOfExpoGoPushUsage = () => {
+-        if (Platform.OS === 'android') {
+-            throw new Error(message);
+-        }
+-        else if (__DEV__) {
+-            didWarn = true;
+-            console.warn(message);
+-        }
++        didWarn = true;
++        console.warn(message);
+     }
+ };
+diff --git a/node_modules/expo-notifications/src/warnOfExpoGoPushUsage.ts b/node_modules/expo-notifications/src/warnOfExpoGoPushUsage.ts
+index 1234567..89abcdef 100644
+--- a/node_modules/expo-notifications/src/warnOfExpoGoPushUsage.ts
++++ b/node_modules/expo-notifications/src/warnOfExpoGoPushUsage.ts
+@@ -10,7 +10,4 @@ export const warnOfExpoGoPushUsage = () => {
+-    if (Platform.OS === 'android') {
+-      throw new Error(message);
+-    } else if (__DEV__) {
+-      didWarn = true;
+-      console.warn(message);
+-    }
++    didWarn = true;
++    console.warn(message);
+   }
+ };
+diff --git a/node_modules/expo-notifications/build/TopicSubscriptionModule.android.js b/node_modules/expo-notifications/build/TopicSubscriptionModule.android.js
+index 1234567..89abcdef 100644
+--- a/node_modules/expo-notifications/build/TopicSubscriptionModule.android.js
++++ b/node_modules/expo-notifications/build/TopicSubscriptionModule.android.js
+@@ -1,2 +1,13 @@
+ import { requireNativeModule } from 'expo-modules-core';
+-export default requireNativeModule('ExpoTopicSubscriptionModule');
++let module;
++try {
++  module = requireNativeModule('ExpoTopicSubscriptionModule');
++} catch {
++  module = {
++    addListener: () => {},
++    removeListeners: () => {},
++    subscribeToTopicAsync: () => Promise.resolve(null),
++    unsubscribeFromTopicAsync: () => Promise.resolve(null),
++  };
++}
++export default module;
+diff --git a/node_modules/expo-notifications/build/ServerRegistrationModule.native.js b/node_modules/expo-notifications/build/ServerRegistrationModule.native.js
+index 1234567..89abcdef 100644
+--- a/node_modules/expo-notifications/build/ServerRegistrationModule.native.js
++++ b/node_modules/expo-notifications/build/ServerRegistrationModule.native.js
+@@ -1,2 +1,11 @@
+ import { requireNativeModule } from 'expo-modules-core';
+-export default requireNativeModule('NotificationsServerRegistrationModule');
++let module;
++try {
++  module = requireNativeModule('NotificationsServerRegistrationModule');
++} catch {
++  module = {
++    addListener: () => {},
++    removeListeners: () => {},
++  };
++}
++export default module;
+diff --git a/node_modules/expo-notifications/build/PushTokenManager.native.js b/node_modules/expo-notifications/build/PushTokenManager.native.js
+index 1234567..89abcdef 100644
+--- a/node_modules/expo-notifications/build/PushTokenManager.native.js
++++ b/node_modules/expo-notifications/build/PushTokenManager.native.js
+@@ -1,2 +1,11 @@
+ import { requireNativeModule } from 'expo-modules-core';
+-export default requireNativeModule('ExpoPushTokenManager');
++let module;
++try {
++  module = requireNativeModule('ExpoPushTokenManager');
++} catch {
++  module = {
++    addListener: () => ({ remove: () => {} }),
++    removeListeners: () => {},
++  };
++}
++export default module;

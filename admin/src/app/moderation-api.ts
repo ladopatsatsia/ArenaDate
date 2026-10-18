@@ -7,6 +7,93 @@ export type Photo = components['schemas']['PhotoReview'];
 export type Report = components['schemas']['ReportSummary'];
 export type UserReview = components['schemas']['UserReview'];
 export type Audit = components['schemas']['AuditDto'];
+export type GameQuestion = components['schemas']['GameQuestionDto'];
+export type CreateQuestionInput = components['schemas']['CreateQuestionRequest'];
+export type UpdateQuestionInput = components['schemas']['UpdateQuestionRequest'];
+export interface AdminProfileSummary {
+  userId: string;
+  email: string;
+  displayName: string;
+  gender: string;
+  city: string;
+  age: number;
+  active: boolean;
+  emailConfirmed: boolean;
+  visible: boolean;
+  photoCount: number;
+  primaryPhotoId: string | null;
+  crystals: number;
+}
+export interface AdminPhoto {
+  id: string;
+  state: string;
+  position: number;
+  createdAt: string;
+}
+export interface AdminProfileDetail {
+  userId: string;
+  email: string;
+  emailConfirmed: boolean;
+  active: boolean;
+  displayName: string;
+  bio: string;
+  gender: string;
+  desiredGenders: string[];
+  city: string;
+  cityKey: string;
+  dateOfBirth: string;
+  age: number;
+  interests: string[];
+  relationshipGoal: string;
+  languages: string[];
+  visible: boolean;
+  minAge: number;
+  maxAge: number;
+  radiusKm: number;
+  locationMode: string;
+  revision: number;
+  photos: AdminPhoto[];
+  crystals: number;
+}
+export interface AdminCreateUserInput {
+  email: string;
+  password: string;
+  displayName: string;
+  dateOfBirth: string;
+  gender: string;
+  city?: string;
+  initialCrystals?: number;
+}
+export interface AdminAdjustCrystalsInput {
+  amount: number;
+  mode?: 'delta' | 'set';
+  reason?: string;
+}
+export interface AdminCrystalAdjustmentResult {
+  userId: string;
+  oldBalance: number;
+  newBalance: number;
+  delta: number;
+}
+export interface TelegramStats {
+  totalSubscribers: number;
+  activeSubscribers: number;
+  linkedUsersCount: number;
+  latestActivityUtc: string | null;
+}
+export interface TelegramBroadcastRequest {
+  message: string;
+  buttonText?: string;
+  webAppRelativePath?: string;
+}
+export interface TelegramBroadcastResult {
+  totalSubscribers: number;
+  targeted: number;
+  successCount: number;
+  failedCount: number;
+  blockedCount: number;
+  completedAtUtc: string;
+}
 @Injectable({ providedIn: 'root' })
 export class ModerationApi {
  private readonly http = inject(HttpClient);
@@ -14,12 +101,41 @@ export class ModerationApi {
  private readonly base = '/api/moderation';
  csrf() { return firstValueFrom(this.http.get<void>(this.base + '/csrf')); }
  async restore() { await this.csrf(); const me = await this.get<Identity>('/me'); this.identity.set(me); return me; }
- async login(value: { email: string; password: string; code: string }) {
+ async login(value: { email: string; password: string; code?: string }) {
   await this.csrf(); await this.post('/login', value); await this.restore();
  }
  async logout() { await this.post('/logout', {}); this.identity.set(null); await this.csrf(); }
+ listProfiles(search?: string, page = 1, pageSize = 50): Promise<AdminProfileSummary[]> {
+  const query = new URLSearchParams();
+  if (search) query.set('search', search);
+  query.set('page', page.toString());
+  query.set('pageSize', pageSize.toString());
+  return this.get<AdminProfileSummary[]>('/profiles?' + query.toString());
+ }
+ getProfile(userId: string): Promise<AdminProfileDetail> {
+  return this.get<AdminProfileDetail>('/profiles/' + userId);
+ }
+ createUser(input: AdminCreateUserInput): Promise<AdminProfileSummary> {
+  return this.postReturn<AdminProfileSummary>('/users', input);
+ }
+ adjustCrystals(userId: string, input: AdminAdjustCrystalsInput): Promise<AdminCrystalAdjustmentResult> {
+  return this.postReturn<AdminCrystalAdjustmentResult>('/users/' + userId + '/crystals', input);
+ }
+ deleteUser(userId: string, reason?: string): Promise<void> {
+  const query = reason ? '?reason=' + encodeURIComponent(reason) : '';
+  return this.delete('/users/' + userId + query);
+ }
+ getTelegramStats(): Promise<TelegramStats> {
+  return this.get<TelegramStats>('/telegram-stats');
+ }
+ broadcastTelegram(input: TelegramBroadcastRequest): Promise<TelegramBroadcastResult> {
+  return this.postReturn<TelegramBroadcastResult>('/broadcast-telegram', input);
+ }
  async get<T>(path: string): Promise<T> { try { return await firstValueFrom(this.http.get<T>(this.base + path)); } catch (e) { this.expired(e); throw e; } }
  async post(path: string, body: unknown): Promise<void> { try { await firstValueFrom(this.http.post<void>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }
+ async postReturn<T>(path: string, body: unknown): Promise<T> { try { return await firstValueFrom(this.http.post<T>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }
+ async put(path: string, body: unknown): Promise<void> { try { await firstValueFrom(this.http.put<void>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }
+ async delete(path: string): Promise<void> { try { await firstValueFrom(this.http.delete<void>(this.base + path)); } catch (e) { this.expired(e); throw e; } }
  private expired(e: unknown) { if (e instanceof HttpErrorResponse && e.status === 401) this.identity.set(null); }
 }
 export function adminError(e: unknown): string {

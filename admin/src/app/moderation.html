@@ -4,26 +4,277 @@
  @if (notice()) { <p role="status">{{ notice() }}</p> }
  @if (busy()) { <p role="status">Loading…</p> }
  @if (!api.identity()) {
-  <p>Staff access requires an operator-provisioned account and an authenticator code.</p>
+  <p>Staff access requires an administrator account.</p>
   <form [formGroup]="loginForm" (ngSubmit)="login()">
    <mat-form-field><mat-label>Email</mat-label><input matInput formControlName="email" type="email" autocomplete="username"></mat-form-field>
    <mat-form-field><mat-label>Password</mat-label><input matInput formControlName="password" type="password" autocomplete="current-password"></mat-form-field>
-   <mat-form-field><mat-label>Authenticator code</mat-label><input matInput formControlName="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></mat-form-field>
    <button mat-flat-button type="submit" [disabled]="busy() || loginForm.invalid">Sign in</button>
   </form>
  } @else {
   <p>Signed in as {{ api.identity()?.role }}. Session expires after 30 minutes.</p>
   <nav aria-label="Moderation sections">
+   <button mat-button (click)="change('profiles')" [disabled]="busy()">👥 Profiles</button>
    <button mat-button (click)="change('photos')" [disabled]="busy()">Pending photos</button>
    <button mat-button (click)="change('reports')" [disabled]="busy()">Reports</button>
    <button mat-button (click)="change('users')" [disabled]="busy()">Account status</button>
+   <button mat-button (click)="change('questions')" [disabled]="busy()">Game questions</button>
+   <button mat-button (click)="change('broadcast')" [disabled]="busy()">📢 Telegram Broadcast</button>
    <button mat-button (click)="change('audit')" [disabled]="busy()">Audit</button>
    <button mat-button (click)="logout()" [disabled]="busy()">Sign out</button>
   </nav>
-  @if (tab() !== 'users') { <button mat-button (click)="refresh()" [disabled]="busy()">Refresh / first page</button> }
-  @if (tab() !== 'audit') { <mat-form-field><mat-label>Decision reason (required)</mat-label><textarea matInput [formControl]="reason" maxlength="500"></textarea><mat-hint>Use a concise moderation rationale; omit contact details and copied messages.</mat-hint></mat-form-field> }
+
+  @if (tab() !== 'users' && tab() !== 'questions' && tab() !== 'broadcast') {
+   <mat-form-field>
+    <mat-label>Decision reason (required for moderation actions)</mat-label>
+    <textarea matInput [formControl]="reason" maxlength="500"></textarea>
+    <mat-hint>Use a concise moderation rationale; omit contact details and copied messages.</mat-hint>
+   </mat-form-field>
+  }
+
+  @if (tab() === 'profiles') {
+   @if (selectedProfile(); as detail) {
+    <!-- Single Profile Detailed View -->
+    <div class="profile-detail-header">
+     <button mat-stroked-button (click)="closeProfileDetail()" [disabled]="busy()">← პროფილების სია</button>
+     <div class="actions">
+      <button mat-flat-button style="background-color: #0284c7; color: #fff;" (click)="openCrystalModal(detail)" [disabled]="busy()">💎 კრისტალები (+/-)</button>
+      @if (detail.active) {
+       <button mat-flat-button color="warn" (click)="toggleProfileAccount(detail.userId, false)" [disabled]="busy()">⛔ დაბლოკვა (Suspend)</button>
+      } @else {
+       <button mat-flat-button style="background-color: #2e7d32; color: #fff;" (click)="toggleProfileAccount(detail.userId, true)" [disabled]="busy()">✅ განბლოკვა (Reactivate)</button>
+      }
+      <button mat-flat-button style="background-color: #c62828; color: #fff;" (click)="deleteProfile(detail.userId)" [disabled]="busy()">🗑️ მომხმარებლის წაშლა (Delete)</button>
+      <button mat-button (click)="lookup(detail.userId)" [disabled]="busy()">Account Status Tool</button>
+     </div>
+    </div>
+
+    <mat-card>
+     <div class="profile-detail-hero">
+      @if (detail.photos.length > 0) {
+       <img class="hero-avatar" [src]="'/api/moderation/profiles/photos/' + detail.photos[0].id + '/content'" alt="Profile avatar">
+      } @else {
+       <div class="hero-placeholder">👤</div>
+      }
+      <div>
+       <h2>{{ detail.displayName || 'No display name' }} · {{ detail.age }} years old</h2>
+       <p class="muted">User ID: {{ detail.userId }}</p>
+       <div class="badges-row">
+        <span class="badge badge-crystals">💎 {{ detail.crystals }} კრისტალი</span>
+        <span class="badge" [class.badge-active]="detail.active" [class.badge-suspended]="!detail.active">{{ detail.active ? 'Account Active' : 'Account Suspended' }}</span>
+        <span class="badge" [class.badge-verified]="detail.emailConfirmed" [class.badge-unverified]="!detail.emailConfirmed">{{ detail.emailConfirmed ? 'Email Verified' : 'Email Unverified' }}</span>
+        <span class="badge" [class.badge-active]="detail.visible" [class.badge-suspended]="!detail.visible">{{ detail.visible ? 'Discovery Visible' : 'Discovery Hidden' }}</span>
+       </div>
+      </div>
+     </div>
+
+     <!-- Personal Details -->
+     <div class="detail-section">
+      <h3>Personal Information</h3>
+      <div class="detail-grid">
+       <div class="detail-field"><div class="detail-label">Display Name</div><div class="detail-value">{{ detail.displayName || '—' }}</div></div>
+       <div class="detail-field"><div class="detail-label">Email Address</div><div class="detail-value">{{ detail.email }}</div></div>
+       <div class="detail-field"><div class="detail-label">Date of Birth</div><div class="detail-value">{{ detail.dateOfBirth }} (Age {{ detail.age }})</div></div>
+       <div class="detail-field"><div class="detail-label">Gender</div><div class="detail-value">{{ detail.gender || '—' }}</div></div>
+       <div class="detail-field">
+        <div class="detail-label">Looking For (Desired Genders)</div>
+        <div class="detail-value">{{ detail.desiredGenders.length ? detail.desiredGenders.join(', ') : '—' }}</div>
+       </div>
+       <div class="detail-field"><div class="detail-label">City</div><div class="detail-value">{{ detail.city || '—' }} ({{ detail.cityKey || '—' }})</div></div>
+       <div class="detail-field"><div class="detail-label">Relationship Goal</div><div class="detail-value">{{ detail.relationshipGoal || '—' }}</div></div>
+       <div class="detail-field">
+        <div class="detail-label">კრისტალების ბალანსი (Crystals)</div>
+        <div class="detail-value" style="display:flex; align-items:center; gap:8px;">
+         <strong>💎 {{ detail.crystals }}</strong>
+         <button mat-stroked-button style="font-size: 12px; height: 28px; line-height: 26px; padding: 0 10px;" (click)="openCrystalModal(detail)" [disabled]="busy()">შეცვლა (+/-)</button>
+        </div>
+       </div>
+      </div>
+     </div>
+
+     <!-- Bio -->
+     <div class="detail-section">
+      <h3>About Me / Bio</h3>
+      <p style="white-space: pre-wrap; font-size: 15px; line-height: 1.5;">{{ detail.bio || 'No biography entered by user.' }}</p>
+     </div>
+
+     <!-- Languages & Interests -->
+     <div class="detail-section">
+      <h3>Languages & Interests</h3>
+      <div class="detail-field">
+       <div class="detail-label">Languages</div>
+       <div class="chips-row">
+        @for (lang of detail.languages; track lang) {
+         <span class="chip">🌐 {{ lang }}</span>
+        } @empty {
+         <span class="muted">No languages specified.</span>
+        }
+       </div>
+      </div>
+      <div class="detail-field" style="margin-top: 12px;">
+       <div class="detail-label">Interests</div>
+       <div class="chips-row">
+        @for (interest of detail.interests; track interest) {
+         <span class="chip">🏷️ {{ interest }}</span>
+        } @empty {
+         <span class="muted">No interests specified.</span>
+        }
+       </div>
+      </div>
+     </div>
+
+     <!-- Discovery & Matching Preferences -->
+     <div class="detail-section">
+      <h3>Discovery & Location Preferences</h3>
+      <div class="detail-grid">
+       <div class="detail-field"><div class="detail-label">Age Range</div><div class="detail-value">{{ detail.minAge }} – {{ detail.maxAge }} years</div></div>
+       <div class="detail-field"><div class="detail-label">Search Radius</div><div class="detail-value">{{ detail.radiusKm }} km</div></div>
+       <div class="detail-field"><div class="detail-label">Location Mode</div><div class="detail-value">{{ detail.locationMode || 'device' }}</div></div>
+       <div class="detail-field"><div class="detail-label">Profile Revision</div><div class="detail-value">#{{ detail.revision }}</div></div>
+      </div>
+     </div>
+
+     <!-- Photos Gallery -->
+     <div class="detail-section">
+      <h3>Uploaded Photos ({{ detail.photos.length }})</h3>
+      <div class="photos-grid">
+       @for (p of detail.photos; track p.id) {
+        <div class="photo-card">
+         <img [src]="'/api/moderation/profiles/photos/' + p.id + '/content'" alt="Profile photo" loading="lazy">
+         <div class="photo-info">
+          <div><strong>Position:</strong> {{ p.position === 0 ? '0 (Primary)' : p.position }}</div>
+          <div>
+           <span class="badge"
+            [class.badge-photo-approved]="p.state === 'approved'"
+            [class.badge-photo-pending]="p.state === 'pending'"
+            [class.badge-photo-rejected]="p.state === 'rejected'">
+            {{ p.state }}
+           </span>
+          </div>
+          <div class="muted">{{ p.createdAt | date:'short' }}</div>
+          @if (p.state === 'pending') {
+           <div class="actions" style="margin: 4px 0 0;">
+            <button mat-flat-button (click)="photo(p.id, 'approved')" [disabled]="busy() || reason.invalid">Approve</button>
+            <button mat-button (click)="photo(p.id, 'rejected')" [disabled]="busy() || reason.invalid">Reject</button>
+           </div>
+          }
+         </div>
+        </div>
+       } @empty {
+        <p class="muted">No photos uploaded for this profile.</p>
+       }
+      </div>
+     </div>
+    </mat-card>
+   } @else {
+    <!-- Profiles List View -->
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+     <h2 style="margin:0;">Registered Profiles</h2>
+     <button mat-flat-button style="background-color: #1a73e8; color: #fff;" (click)="toggleCreateUser()">
+      {{ showCreateUser() ? '✕ ფორმის დახურვა' : '➕ ახალი მომხმარებლის დამატება' }}
+     </button>
+    </div>
+
+    @if (showCreateUser()) {
+     <div class="create-user-card">
+      <h3 style="margin-top:0; margin-bottom:16px; color:#1a73e8;">👤 ახალი მომხმარებლის რეგისტრაცია</h3>
+      <form [formGroup]="createUserForm" (ngSubmit)="submitCreateUser()">
+       <div class="create-user-grid">
+        <div class="field-group">
+         <label class="field-label">ელ-ფოსტა (Email) *</label>
+         <input class="custom-input" type="email" formControlName="email" placeholder="user@example.com" required>
+        </div>
+        <div class="field-group">
+         <label class="field-label">პაროლი (Password) *</label>
+         <input class="custom-input" type="password" formControlName="password" placeholder="მინიმუმ 8 სიმბოლო" required>
+        </div>
+        <div class="field-group">
+         <label class="field-label">სახელი (Display Name) *</label>
+         <input class="custom-input" type="text" formControlName="displayName" placeholder="სახელი" required>
+        </div>
+        <div class="field-group">
+         <label class="field-label">დაბადების თარიღი (18+) *</label>
+         <input class="custom-input" type="date" formControlName="dateOfBirth" required>
+        </div>
+        <div class="field-group">
+         <label class="field-label">სქესი (Gender) *</label>
+         <select class="custom-input" formControlName="gender">
+          <option value="woman">ქალი (Woman)</option>
+          <option value="man">კაცი (Man)</option>
+         </select>
+        </div>
+        <div class="field-group">
+         <label class="field-label">ქალაქი (City)</label>
+         <input class="custom-input" type="text" formControlName="city" placeholder="Tbilisi / Batumi / Kutaisi">
+        </div>
+        <div class="field-group">
+         <label class="field-label">საწყისი კრისტალები 💎</label>
+         <input class="custom-input" type="number" formControlName="initialCrystals" min="0" placeholder="0">
+        </div>
+       </div>
+       <div class="form-actions">
+        <button mat-button type="button" (click)="toggleCreateUser(false)" [disabled]="busy()">გაუქმება</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="busy() || createUserForm.invalid">
+         ✓ მომხმარებლის შექმნა
+        </button>
+       </div>
+      </form>
+     </div>
+    }
+
+    <div class="search-bar">
+     <mat-form-field appearance="outline">
+      <mat-label>Search by email, name or city...</mat-label>
+      <input matInput [formControl]="profileSearch" (keydown.enter)="searchProfiles()">
+     </mat-form-field>
+     <div class="search-actions">
+      <button mat-flat-button (click)="searchProfiles()" [disabled]="busy()">Search</button>
+      <button mat-button (click)="clearProfileSearch()" [disabled]="busy()">Clear</button>
+      <button mat-button (click)="refresh()" [disabled]="busy()">Refresh</button>
+     </div>
+    </div>
+
+    <div class="profiles-list">
+     @for (p of profiles(); track p.userId) {
+      <mat-card class="profile-card" (click)="inspectProfile(p.userId)">
+       <div class="profile-card-header">
+        @if (p.primaryPhotoId) {
+         <img class="avatar-thumb" [src]="'/api/moderation/profiles/photos/' + p.primaryPhotoId + '/content'" alt="Avatar" loading="lazy">
+        } @else {
+         <div class="avatar-placeholder">👤</div>
+        }
+        <div class="profile-summary-info">
+         <h3 class="profile-title">{{ p.displayName || 'უსახელო მომხმარებელი' }} · {{ p.age }} წლის</h3>
+         <p class="profile-meta">{{ p.email }} · {{ p.city || 'ქალაქი არაა მითითებული' }} · {{ p.gender || 'სქესი არაა მითითებული' }}</p>
+         <div class="badges-row">
+          <span class="badge badge-crystals">💎 {{ p.crystals }} კრისტალი</span>
+          <span class="badge" [class.badge-active]="p.active" [class.badge-suspended]="!p.active">{{ p.active ? 'აქტიური' : 'დაბლოკილი' }}</span>
+          <span class="badge" [class.badge-verified]="p.emailConfirmed" [class.badge-unverified]="!p.emailConfirmed">{{ p.emailConfirmed ? 'ვერიფიცირებული' : 'არა-ვერიფიცირებული' }}</span>
+          <span class="badge" [class.badge-active]="p.visible" [class.badge-suspended]="!p.visible">{{ p.visible ? 'ჩანს ძიებაში' : 'დამალულია' }}</span>
+          <span class="badge">📷 {{ p.photoCount }} {{ p.photoCount === 1 ? 'ფოტო' : 'ფოტო' }}</span>
+         </div>
+        </div>
+        <div class="card-actions" (click)="$event.stopPropagation()">
+         <button mat-stroked-button style="color: #0284c7; border-color: #7dd3fc;" (click)="openCrystalModal(p, $event)" [disabled]="busy()">💎 +/- კრისტალი</button>
+         <button mat-stroked-button (click)="inspectProfile(p.userId)" [disabled]="busy()">დეტალები</button>
+         @if (p.active) {
+          <button mat-flat-button color="warn" (click)="toggleProfileAccount(p.userId, false, $event)" [disabled]="busy()">დაბლოკვა</button>
+         } @else {
+          <button mat-flat-button style="background-color: #2e7d32; color: #fff;" (click)="toggleProfileAccount(p.userId, true, $event)" [disabled]="busy()">განბლოკვა</button>
+         }
+         <button mat-stroked-button style="color: #c62828; border-color: #c62828;" (click)="deleteProfile(p.userId, $event)" [disabled]="busy()">წაშლა</button>
+        </div>
+       </div>
+      </mat-card>
+     } @empty {
+      <p>მომხმარებლების პროფილები არ მოიძებნა.</p>
+     }
+    </div>
+   }
+  }
+
   @if (tab() === 'photos') {
    <h2>Pending photos</h2>
+   <button mat-button (click)="refresh()" [disabled]="busy()">Refresh / first page</button>
    @for (photoItem of photos(); track photoItem.id) {
     <mat-card><p class="muted">Photo {{ photoItem.id }} · {{ photoItem.createdAt | date:'medium' }}</p>
      <img [src]="'/api/moderation/photos/' + photoItem.id + '/content'" alt="Pending profile photo for moderation" loading="lazy">
@@ -31,18 +282,238 @@
     </mat-card>
    } @empty { <p>No pending photos on this page.</p> }
   }
+
   @if (tab() === 'reports') {
-   <h2>{{ closed() ? 'Closed' : 'Open' }} reports</h2><button mat-button (click)="toggleClosed()" [disabled]="busy()">Show {{ closed() ? 'open' : 'closed' }}</button>
+   <h2>Safety reports</h2>
+   <button mat-button (click)="toggleClosed()" [disabled]="busy()">{{ closed() ? 'Show pending' : 'Show closed' }}</button>
    @for (report of reports(); track report.id) {
-    <mat-card><p>{{ report.category }} · {{ report.createdAt | date:'medium' }}</p><p class="muted">Report {{ report.id }}</p><div class="actions"><button mat-button (click)="inspect(report)" [disabled]="busy()">Review evidence</button><button mat-button (click)="lookup(report.subjectId)" [disabled]="busy()">Reported account</button></div></mat-card>
+    <mat-card><p><strong>Category:</strong> {{ report.category }} · <strong>Subject ID:</strong> {{ report.subjectId }} · <strong>Created:</strong> {{ report.createdAt | date:'medium' }}</p>
+     <div class="actions"><button mat-button (click)="inspect(report)" [disabled]="busy()">View evidence</button><button mat-button (click)="lookup(report.subjectId)" [disabled]="busy()">Account status</button></div>
+    </mat-card>
    } @empty { <p>No reports on this page.</p> }
-   @if (selected()) { <mat-card><h3>Report evidence</h3><p>Access is audited. Only the retained report snapshot is shown.</p><pre>{{ evidence() | json }}</pre>@if (!selected()?.closed) { <button mat-flat-button (click)="close()" [disabled]="busy() || reason.invalid">Close report with reason</button> }</mat-card> }
+   @if (selected(); as currentReport) {
+    <mat-card><h3>Report {{ currentReport.id }} details</h3>
+     <pre>{{ evidence() | json }}</pre>
+     <div class="actions"><button mat-flat-button (click)="close()" [disabled]="busy() || reason.invalid">Close report</button></div>
+    </mat-card>
+   }
   }
+
   @if (tab() === 'users') {
-   <h2>Account status</h2><mat-form-field><mat-label>Account UUID (from a report or photo)</mat-label><input matInput [formControl]="userId"></mat-form-field><button mat-button (click)="lookup()" [disabled]="busy() || userId.invalid">Find account</button>
-   @if (user(); as current) { <mat-card><h3>{{ current.displayName || 'No profile name' }}</h3><p>{{ current.active ? 'Active' : 'Suspended' }}</p><p>Suspension ends current sessions and blocks discovery, chat and push. Reactivation requires a new login.</p><button mat-flat-button (click)="account(!current.active)" [disabled]="busy() || reason.invalid">{{ current.active ? 'Suspend account' : 'Reactivate account' }}</button></mat-card> }
+   <h2>Account status tool</h2>
+   <mat-form-field><mat-label>User ID</mat-label><input matInput [formControl]="userId"></mat-form-field>
+   <button mat-flat-button (click)="lookup()" [disabled]="busy() || userId.invalid">Check user</button>
+   @if (user(); as u) {
+    <mat-card><p>Account {{ u.id }} is <strong>{{ u.active ? 'active' : 'suspended' }}</strong>. Name: {{ u.displayName }}.</p>
+     <div class="actions">
+      @if (u.active) {
+       <button mat-flat-button (click)="account(false)" [disabled]="busy() || reason.invalid">Suspend account</button>
+      } @else {
+       <button mat-flat-button (click)="account(true)" [disabled]="busy() || reason.invalid">Reactivate account</button>
+      }
+     </div>
+    </mat-card>
+   }
   }
-  @if (tab() === 'audit') { <h2>Audit history</h2>@for (row of audit(); track row.id) { <mat-card><p>{{ row.at | date:'medium' }} · {{ row.action }}</p><p class="muted">Actor {{ row.actorId }} · Target {{ row.targetId }}</p><p>{{ row.reason }}</p></mat-card> } @empty { <p>No audit entries on this page.</p> } }
-  @if (more()) { <button mat-button (click)="refresh(true)" [disabled]="busy()">Next page</button> }
+
+  @if (tab() === 'questions') {
+   <h2>Game questions</h2>
+   <form [formGroup]="questionForm" (ngSubmit)="createQuestion()">
+    <mat-form-field><mat-label>Question text</mat-label><textarea matInput formControlName="text" maxlength="300"></textarea></mat-form-field>
+    <mat-form-field><mat-label>Option 1</mat-label><input matInput formControlName="opt1"></mat-form-field>
+    <mat-form-field><mat-label>Option 2</mat-label><input matInput formControlName="opt2"></mat-form-field>
+    <mat-form-field><mat-label>Option 3</mat-label><input matInput formControlName="opt3"></mat-form-field>
+    <mat-form-field><mat-label>Option 4</mat-label><input matInput formControlName="opt4"></mat-form-field>
+    <button mat-flat-button type="submit" [disabled]="busy() || questionForm.invalid">Add question</button>
+   </form>
+   <h3>Existing questions</h3>
+   @for (q of questions(); track q.id) {
+    <mat-card>
+     <p><strong>{{ q.questionText }}</strong> ({{ q.category }})</p>
+     <ul>@for (opt of q.options; track opt) { <li>{{ opt }}</li> }</ul>
+     <div class="actions"><button mat-button (click)="deactivateQuestion(q.id)" [disabled]="busy()">Deactivate</button></div>
+    </mat-card>
+   } @empty { <p>No questions found.</p> }
+  }
+
+  @if (tab() === 'audit') {
+   <h2>Moderation audit</h2>
+   <button mat-button (click)="refresh()" [disabled]="busy()">Refresh / first page</button>
+   @for (entry of audit(); track entry.id) {
+    <mat-card><p class="muted">{{ entry.at | date:'medium' }} · Action: {{ entry.action }} · Actor: {{ entry.actorId }} · Target: {{ entry.targetId }}</p>
+     <p>{{ entry.reason }}</p>
+    </mat-card>
+   } @empty { <p>No audit entries on this page.</p> }
+  }
+
+  @if (tab() === 'broadcast') {
+   <div class="broadcast-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+     <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+      📢 ტელეგრამ ბროდკასტი (შეტყობინება ყველას)
+     </h2>
+     <button mat-stroked-button (click)="loadTelegramStats()" [disabled]="broadcastBusy()">
+      🔄 სტატისტიკის განახლება
+     </button>
+    </div>
+
+    <!-- Live Stats Cards -->
+    <div class="stat-boxes">
+     <div class="stat-box">
+      <div class="stat-num">{{ tgStats()?.totalSubscribers ?? '...' }}</div>
+      <div class="stat-label">👥 სულ ბოტის გამომწერი</div>
+     </div>
+     <div class="stat-box stat-box-active">
+      <div class="stat-num" style="color: #16a34a;">{{ tgStats()?.activeSubscribers ?? '...' }}</div>
+      <div class="stat-label">🟢 აქტიური გამომწერი (Start Bot)</div>
+     </div>
+     <div class="stat-box">
+      <div class="stat-num" style="color: #0284c7;">{{ tgStats()?.linkedUsersCount ?? '...' }}</div>
+      <div class="stat-label">📱 აპლიკაციასთან დაკავშირებული</div>
+     </div>
+     <div class="stat-box">
+      <div class="stat-num" style="font-size: 15px; padding-top: 6px;">{{ (tgStats()?.latestActivityUtc | date:'short') ?? '—' }}</div>
+      <div class="stat-label">⏱️ ბოლო აქტივობა</div>
+     </div>
+    </div>
+
+    <!-- Quick Message Templates -->
+    <div class="template-section">
+     <span class="template-label">⚡ სწრაფი შაბლონები:</span>
+     <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('welcome')">🎉 მისალმება</button>
+     <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('tournament')">🏆 საღამოს ტურნირი</button>
+     <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('bonus')">💎 ბონუს კრისტალები</button>
+     <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('dating')">💫 გაცნობის შეხსენება</button>
+    </div>
+
+    <!-- Broadcast Form Card -->
+    <mat-card class="broadcast-card">
+     <form [formGroup]="broadcastForm" (ngSubmit)="sendBroadcast()">
+      <div class="field-group">
+       <label class="field-label" for="bc-msg">
+        ✉️ შეტყობინების ტექსტი (მიუვა ყველა აქტიურ მომხმარებელს, ვისაც Start Bot აქვს დაჭერილი):
+       </label>
+       <textarea
+        id="bc-msg"
+        formControlName="message"
+        class="custom-textarea"
+        rows="6"
+        placeholder="დაწერეთ შეტყობინება... (შეგიძლიათ გამოიყენოთ ემოჯები და HTML: <b>მუქი</b>, <i>დახრილი</i>)"
+        maxlength="4000"
+       ></textarea>
+       <div class="char-counter">
+        სიმბოლოები: {{ broadcastForm.controls.message.value.length }} / 4000
+       </div>
+      </div>
+
+      <div class="form-row">
+       <div class="field-group" style="flex: 1; min-width: 200px;">
+        <label class="field-label" for="bc-btn">🔘 ღილაკის ტექსტი (Mini App-ის გასახსნელად):</label>
+        <input id="bc-btn" formControlName="buttonText" class="custom-input" placeholder="🚀 ARENA-ს გახსნა" />
+       </div>
+       <div class="field-group" style="flex: 1; min-width: 200px;">
+        <label class="field-label" for="bc-path">🔗 გვერდის მისამართი (არასავალდებულო):</label>
+        <input id="bc-path" formControlName="webAppPath" class="custom-input" placeholder="მაგ. /arena ან /discover" />
+       </div>
+      </div>
+
+      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+       <div style="font-size: 13px; color: #6b7280;">
+        ⚠️ შეტყობინება გაეგზავნება <strong>{{ tgStats()?.activeSubscribers ?? 0 }}</strong> აქტიურ ტელეგრამ მომხმარებელს.
+       </div>
+       <button
+        mat-flat-button
+        type="submit"
+        style="background: #0284c7; color: #fff; font-size: 15px; padding: 0 24px; height: 46px;"
+        [disabled]="broadcastBusy() || broadcastForm.invalid || !broadcastForm.controls.message.value.trim()"
+       >
+        @if (broadcastBusy()) {
+         <span>⏳ იგზავნება...</span>
+        } @else {
+         <span>🚀 შეტყობინების გაგზავნა ყველასთვის</span>
+        }
+       </button>
+      </div>
+     </form>
+    </mat-card>
+
+    <!-- Last Broadcast Result Card -->
+    @if (broadcastResult(); as res) {
+     <mat-card style="background: #f0fdf4; border: 1px solid #86efac; margin-top: 16px;">
+      <h3 style="margin-top: 0; color: #166534; display: flex; align-items: center; gap: 6px;">
+       ✅ ბოლო ბროდკასტის შედეგი ({{ res.completedAtUtc | date:'medium' }})
+      </h3>
+      <div style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px; color: #1e293b;">
+       <div>სულ გამომწერი: <strong>{{ res.totalSubscribers }}</strong></div>
+       <div>სამიზნე: <strong>{{ res.targeted }}</strong></div>
+       <div style="color: #15803d;">წარმატებით გაიგზავნა: <strong>{{ res.successCount }}</strong></div>
+       <div style="color: #b91c1c;">დაბლოკილი/არააქტიური: <strong>{{ res.blockedCount }}</strong></div>
+       <div style="color: #d97706;">შეცდომა: <strong>{{ res.failedCount }}</strong></div>
+      </div>
+     </mat-card>
+    }
+   </div>
+  }
+
+  @if (more()) {
+   <button mat-button (click)="refresh(true)" [disabled]="busy()">Next page</button>
+  }
+
+  <!-- Crystal Adjustment Modal Dialog -->
+  @if (selectedCrystalUser(); as cu) {
+   <div class="modal-backdrop" (click)="closeCrystalModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+     <h3 style="margin-top:0; color:#0284c7; display:flex; align-items:center; gap:8px;">
+      💎 კრისტალების მართვა
+     </h3>
+     <p style="margin: 4px 0 16px; color:#4b5563; font-size:14px;">
+      მომხმარებელი: <strong>{{ cu.displayName || cu.email }}</strong> (მიმდინარე ბალანსი: <strong>💎 {{ cu.crystals }}</strong>)
+     </p>
+
+     <div class="mode-toggle">
+      <button type="button" class="mode-btn" [class.active]="crystalMode() === 'delta'" (click)="setCrystalMode('delta')">
+       ➕ / ➖ მომატება / მოკლება
+      </button>
+      <button type="button" class="mode-btn" [class.active]="crystalMode() === 'set'" (click)="setCrystalMode('set')">
+       🎯 ზუსტი ბალანსის დაყენება
+      </button>
+     </div>
+
+     @if (crystalMode() === 'delta') {
+      <div style="font-size:12px; color:#6b7280; margin-bottom:4px;">სწრაფი თანხები:</div>
+      <div class="quick-amounts">
+       <button type="button" class="quick-btn" (click)="applyQuickDelta(10)">+10</button>
+       <button type="button" class="quick-btn" (click)="applyQuickDelta(50)">+50</button>
+       <button type="button" class="quick-btn" (click)="applyQuickDelta(100)">+100</button>
+       <button type="button" class="quick-btn" (click)="applyQuickDelta(500)">+500</button>
+       <button type="button" class="quick-btn quick-btn-neg" (click)="applyQuickDelta(-25)">-25</button>
+       <button type="button" class="quick-btn quick-btn-neg" (click)="applyQuickDelta(-50)">-50</button>
+       <button type="button" class="quick-btn quick-btn-neg" (click)="applyQuickDelta(-100)">-100</button>
+      </div>
+     }
+
+     <form [formGroup]="crystalForm" (ngSubmit)="submitCrystalAdjustment()">
+      <div class="field-group">
+       <label class="field-label">
+        {{ crystalMode() === 'delta' ? 'ცვლილების რაოდენობა (დადებითი ან უარყოფითი)' : 'ახალი ზუსტი ბალანსი' }} *
+       </label>
+       <input class="custom-input" type="number" formControlName="amount" required>
+      </div>
+
+      <div class="field-group">
+       <label class="field-label">მიზეზი / კომენტარი (სურვილისამებრ)</label>
+       <input class="custom-input" type="text" formControlName="reason" placeholder="მაგ. ბონუსი, აქცია, შეცდომის გასწორება...">
+      </div>
+
+      <div class="form-actions">
+       <button mat-button type="button" (click)="closeCrystalModal()" [disabled]="busy()">დახურვა</button>
+       <button mat-flat-button style="background-color:#0284c7; color:#fff;" type="submit" [disabled]="busy() || crystalForm.invalid">
+        ✓ შენახვა
+       </button>
+      </div>
+     </form>
+    </div>
+   </div>
+  }
  }
 </main>

@@ -465,6 +465,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/otp/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["OtpSendRequest"];
+                    "application/json": components["schemas"]["OtpSendRequest"];
+                    "text/json": components["schemas"]["OtpSendRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OtpSendResponse"];
+                        "text/json": components["schemas"]["OtpSendResponse"];
+                        "text/plain": components["schemas"]["OtpSendResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["OtpVerifyRequest"];
+                    "application/json": components["schemas"]["OtpVerifyRequest"];
+                    "text/json": components["schemas"]["OtpVerifyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OtpVerifyResponse"];
+                        "text/json": components["schemas"]["OtpVerifyResponse"];
+                        "text/plain": components["schemas"]["OtpVerifyResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/refresh": {
         parameters: {
             query?: never;
@@ -581,6 +667,49 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/telegram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["TelegramAuthRequest"];
+                    "application/json": components["schemas"]["TelegramAuthRequest"];
+                    "text/json": components["schemas"]["TelegramAuthRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OtpVerifyResponse"];
+                        "text/json": components["schemas"]["OtpVerifyResponse"];
+                        "text/plain": components["schemas"]["OtpVerifyResponse"];
+                    };
                 };
             };
         };
@@ -994,6 +1123,1481 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/game/ai-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserAiConsentResponse"];
+                        "text/json": components["schemas"]["UserAiConsentResponse"];
+                        "text/plain": components["schemas"]["UserAiConsentResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["UpdateAiConsentRequest"];
+                    "application/json": components["schemas"]["UpdateAiConsentRequest"];
+                    "text/json": components["schemas"]["UpdateAiConsentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserAiConsentResponse"];
+                        "text/json": components["schemas"]["UserAiConsentResponse"];
+                        "text/plain": components["schemas"]["UserAiConsentResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameRoomDetail"];
+                        "text/json": components["schemas"]["GameRoomDetail"];
+                        "text/plain": components["schemas"]["GameRoomDetail"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/direct-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SendDirectMatchRequestInput"];
+                    "application/json": components["schemas"]["SendDirectMatchRequestInput"];
+                    "text/json": components["schemas"]["SendDirectMatchRequestInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SendDirectMatchRequestResult"];
+                        "text/json": components["schemas"]["SendDirectMatchRequestResult"];
+                        "text/plain": components["schemas"]["SendDirectMatchRequestResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/direct-request/{requestId}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    requestId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["RespondDirectMatchRequestInput"];
+                    "application/json": components["schemas"]["RespondDirectMatchRequestInput"];
+                    "text/json": components["schemas"]["RespondDirectMatchRequestInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RespondDirectMatchRequestResult"];
+                        "text/json": components["schemas"]["RespondDirectMatchRequestResult"];
+                        "text/plain": components["schemas"]["RespondDirectMatchRequestResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/gifts/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GiftCatalogItemDto"][];
+                        "text/json": components["schemas"]["GiftCatalogItemDto"][];
+                        "text/plain": components["schemas"]["GiftCatalogItemDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/gifts/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserGiftsDto"];
+                        "text/json": components["schemas"]["UserGiftsDto"];
+                        "text/plain": components["schemas"]["UserGiftsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/gifts/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SendGiftRequest"];
+                    "application/json": components["schemas"]["SendGiftRequest"];
+                    "text/json": components["schemas"]["SendGiftRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SendGiftResult"];
+                        "text/json": components["schemas"]["SendGiftResult"];
+                        "text/plain": components["schemas"]["SendGiftResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/profiles/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameProfileViewNoticeDto"][];
+                        "text/json": components["schemas"]["GameProfileViewNoticeDto"][];
+                        "text/plain": components["schemas"]["GameProfileViewNoticeDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/profiles/views/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/profiles/{targetUserId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    targetUserId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameProfileDto"];
+                        "text/json": components["schemas"]["GameProfileDto"];
+                        "text/plain": components["schemas"]["GameProfileDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/profiles/{targetUserId}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    targetUserId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["UnlockProfileRequest"];
+                    "application/json": components["schemas"]["UnlockProfileRequest"];
+                    "text/json": components["schemas"]["UnlockProfileRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UnlockProfileResult"];
+                        "text/json": components["schemas"]["UnlockProfileResult"];
+                        "text/plain": components["schemas"]["UnlockProfileResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["JoinQueueRequest"];
+                    "application/json": components["schemas"]["JoinQueueRequest"];
+                    "text/json": components["schemas"]["JoinQueueRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameRoomDetail"];
+                        "text/json": components["schemas"]["GameRoomDetail"];
+                        "text/plain": components["schemas"]["GameRoomDetail"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameRoomSummary"][];
+                        "text/json": components["schemas"]["GameRoomSummary"][];
+                        "text/plain": components["schemas"]["GameRoomSummary"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["CreateRoomRequest"];
+                    "application/json": components["schemas"]["CreateRoomRequest"];
+                    "text/json": components["schemas"]["CreateRoomRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameRoomDetail"];
+                        "text/json": components["schemas"]["GameRoomDetail"];
+                        "text/plain": components["schemas"]["GameRoomDetail"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameRoomDetail"];
+                        "text/json": components["schemas"]["GameRoomDetail"];
+                        "text/plain": components["schemas"]["GameRoomDetail"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/dev-fixtures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["DevFixtureSeedRequest"];
+                    "application/json": components["schemas"]["DevFixtureSeedRequest"];
+                    "text/json": components["schemas"]["DevFixtureSeedRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HeartbeatResult"];
+                        "text/json": components["schemas"]["HeartbeatResult"];
+                        "text/plain": components["schemas"]["HeartbeatResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JoinRoomResult"];
+                        "text/json": components["schemas"]["JoinRoomResult"];
+                        "text/plain": components["schemas"]["JoinRoomResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LeaveRoomResult"];
+                        "text/json": components["schemas"]["LeaveRoomResult"];
+                        "text/plain": components["schemas"]["LeaveRoomResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameRoomMessageDto"][];
+                        "text/json": components["schemas"]["GameRoomMessageDto"][];
+                        "text/plain": components["schemas"]["GameRoomMessageDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SendRoomMessageRequest"];
+                    "application/json": components["schemas"]["SendRoomMessageRequest"];
+                    "text/json": components["schemas"]["SendRoomMessageRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameRoomMessageDto"];
+                        "text/json": components["schemas"]["GameRoomMessageDto"];
+                        "text/plain": components["schemas"]["GameRoomMessageDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/post-game-kiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["PostGameKissRequest"];
+                    "application/json": components["schemas"]["PostGameKissRequest"];
+                    "text/json": components["schemas"]["PostGameKissRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostGameKissResult"];
+                        "text/json": components["schemas"]["PostGameKissResult"];
+                        "text/plain": components["schemas"]["PostGameKissResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/reconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReconnectRoomResult"];
+                        "text/json": components["schemas"]["ReconnectRoomResult"];
+                        "text/plain": components["schemas"]["ReconnectRoomResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/rounds/{roundId}/kiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    roundId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SendKissRequest"];
+                    "application/json": components["schemas"]["SendKissRequest"];
+                    "text/json": components["schemas"]["SendKissRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SendKissResult"];
+                        "text/json": components["schemas"]["SendKissResult"];
+                        "text/plain": components["schemas"]["SendKissResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/rounds/{roundId}/kiss/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    roundId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SkipKissRequest"];
+                    "application/json": components["schemas"]["SkipKissRequest"];
+                    "text/json": components["schemas"]["SkipKissRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/rounds/{roundId}/questions/{questionIndex}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    roundId: string;
+                    questionIndex: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["AnswerQuestionRequest"];
+                    "application/json": components["schemas"]["AnswerQuestionRequest"];
+                    "text/json": components["schemas"]["AnswerQuestionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnswerQuestionResult"];
+                        "text/json": components["schemas"]["AnswerQuestionResult"];
+                        "text/plain": components["schemas"]["AnswerQuestionResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/rounds/{roundId}/questions/{questionIndex}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    roundId: string;
+                    questionIndex: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SkipQuestionRequest"];
+                    "application/json": components["schemas"]["SkipQuestionRequest"];
+                    "text/json": components["schemas"]["SkipQuestionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnswerQuestionResult"];
+                        "text/json": components["schemas"]["AnswerQuestionResult"];
+                        "text/plain": components["schemas"]["AnswerQuestionResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/rounds/{roundId}/target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    roundId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SelectTargetRequest"];
+                    "application/json": components["schemas"]["SelectTargetRequest"];
+                    "text/json": components["schemas"]["SelectTargetRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SelectTargetResult"];
+                        "text/json": components["schemas"]["SelectTargetResult"];
+                        "text/plain": components["schemas"]["SelectTargetResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/rounds/{roundId}/target/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    roundId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/*+json": null | components["schemas"]["SkipTargetRequest"];
+                    "application/json": null | components["schemas"]["SkipTargetRequest"];
+                    "text/json": null | components["schemas"]["SkipTargetRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameRoomSnapshot"];
+                        "text/json": components["schemas"]["GameRoomSnapshot"];
+                        "text/plain": components["schemas"]["GameRoomSnapshot"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/rooms/{id}/spin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: {
+                    autoPickTarget?: boolean;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/*+json": null | components["schemas"]["SpinRequest"];
+                    "application/json": null | components["schemas"]["SpinRequest"];
+                    "text/json": null | components["schemas"]["SpinRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SpinResult"];
+                        "text/json": components["schemas"]["SpinResult"];
+                        "text/plain": components["schemas"]["SpinResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/store/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreProductDto"][];
+                        "text/json": components["schemas"]["StoreProductDto"][];
+                        "text/plain": components["schemas"]["StoreProductDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/store/purchase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["StorePurchaseRequest"];
+                    "application/json": components["schemas"]["StorePurchaseRequest"];
+                    "text/json": components["schemas"]["StorePurchaseRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StorePurchaseResult"];
+                        "text/json": components["schemas"]["StorePurchaseResult"];
+                        "text/plain": components["schemas"]["StorePurchaseResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/store/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["StoreRefundRequest"];
+                    "application/json": components["schemas"]["StoreRefundRequest"];
+                    "text/json": components["schemas"]["StoreRefundRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreRefundResult"];
+                        "text/json": components["schemas"]["StoreRefundResult"];
+                        "text/plain": components["schemas"]["StoreRefundResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/wallet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WalletBalanceDto"];
+                        "text/json": components["schemas"]["WalletBalanceDto"];
+                        "text/plain": components["schemas"]["WalletBalanceDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/wallet/dev-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["DevGrantRequest"];
+                    "application/json": components["schemas"]["DevGrantRequest"];
+                    "text/json": components["schemas"]["DevGrantRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WalletBalanceDto"];
+                        "text/json": components["schemas"]["WalletBalanceDto"];
+                        "text/plain": components["schemas"]["WalletBalanceDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health/live": {
         parameters: {
             query?: never;
@@ -1102,6 +2706,152 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/matches/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LikeRequestSummary"][];
+                        "text/json": components["schemas"]["LikeRequestSummary"][];
+                        "text/plain": components["schemas"]["LikeRequestSummary"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/matches/views/viewed-you": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProfileViewSummary"][];
+                        "text/json": components["schemas"]["ProfileViewSummary"][];
+                        "text/plain": components["schemas"]["ProfileViewSummary"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/matches/views/you-viewed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProfileViewSummary"][];
+                        "text/json": components["schemas"]["ProfileViewSummary"][];
+                        "text/plain": components["schemas"]["ProfileViewSummary"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/matches/views/{targetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    targetId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/matches/{match}/acknowledge": {
         parameters: {
             query?: never;
@@ -1128,6 +2878,51 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/matches/{match}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    match: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["UnlockMatchConversationRequest"];
+                    "application/json": components["schemas"]["UnlockMatchConversationRequest"];
+                    "text/json": components["schemas"]["UnlockMatchConversationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UnlockMatchConversationResult"];
+                        "text/json": components["schemas"]["UnlockMatchConversationResult"];
+                        "text/plain": components["schemas"]["UnlockMatchConversationResult"];
+                    };
                 };
             };
         };
@@ -1204,6 +2999,134 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moderation/game-questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameQuestionDto"][];
+                        "text/json": components["schemas"]["GameQuestionDto"][];
+                        "text/plain": components["schemas"]["GameQuestionDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["CreateQuestionRequest"];
+                    "application/json": components["schemas"]["CreateQuestionRequest"];
+                    "text/json": components["schemas"]["CreateQuestionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameQuestionDto"];
+                        "text/json": components["schemas"]["GameQuestionDto"];
+                        "text/plain": components["schemas"]["GameQuestionDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moderation/game-questions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["UpdateQuestionRequest"];
+                    "application/json": components["schemas"]["UpdateQuestionRequest"];
+                    "text/json": components["schemas"]["UpdateQuestionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GameQuestionDto"];
+                        "text/json": components["schemas"]["GameQuestionDto"];
+                        "text/plain": components["schemas"]["GameQuestionDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -1422,6 +3345,121 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moderation/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    page?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProfileSummary"][];
+                        "text/json": components["schemas"]["AdminProfileSummary"][];
+                        "text/plain": components["schemas"]["AdminProfileSummary"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moderation/profiles/photos/{id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moderation/profiles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProfileDetail"];
+                        "text/json": components["schemas"]["AdminProfileDetail"];
+                        "text/plain": components["schemas"]["AdminProfileDetail"];
+                    };
                 };
             };
         };
@@ -1786,6 +3824,252 @@ export interface paths {
                         "application/json": components["schemas"]["NotificationTarget"];
                         "text/json": components["schemas"]["NotificationTarget"];
                         "text/plain": components["schemas"]["NotificationTarget"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/telegram-stars/invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["TelegramStarsInvoiceRequest"];
+                    "application/json": components["schemas"]["TelegramStarsInvoiceRequest"];
+                    "text/json": components["schemas"]["TelegramStarsInvoiceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramStarsInvoiceResponse"];
+                        "text/json": components["schemas"]["TelegramStarsInvoiceResponse"];
+                        "text/plain": components["schemas"]["TelegramStarsInvoiceResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/telegram-stars/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["TelegramStarsVerifyRequest"];
+                    "application/json": components["schemas"]["TelegramStarsVerifyRequest"];
+                    "text/json": components["schemas"]["TelegramStarsVerifyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramStarsVerifyResponse"];
+                        "text/json": components["schemas"]["TelegramStarsVerifyResponse"];
+                        "text/plain": components["schemas"]["TelegramStarsVerifyResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/telegram-stars/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["TelegramUpdate"];
+                    "application/json": components["schemas"]["TelegramUpdate"];
+                    "text/json": components["schemas"]["TelegramUpdate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramWebhookResult"];
+                        "text/json": components["schemas"]["TelegramWebhookResult"];
+                        "text/plain": components["schemas"]["TelegramWebhookResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/premium/packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PremiumPackageDto"][];
+                        "text/json": components["schemas"]["PremiumPackageDto"][];
+                        "text/plain": components["schemas"]["PremiumPackageDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/premium/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PremiumStatusDto"];
+                        "text/json": components["schemas"]["PremiumStatusDto"];
+                        "text/plain": components["schemas"]["PremiumStatusDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/premium/subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SubscribePackageRequest"];
+                    "application/json": components["schemas"]["SubscribePackageRequest"];
+                    "text/json": components["schemas"]["SubscribePackageRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SubscribeResultDto"];
+                        "text/json": components["schemas"]["SubscribeResultDto"];
+                        "text/plain": components["schemas"]["SubscribeResultDto"];
                     };
                 };
             };
@@ -2294,6 +4578,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/swipes/superlike": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["SuperLikeRequest"];
+                    "application/json": components["schemas"]["SuperLikeRequest"];
+                    "text/json": components["schemas"]["SuperLikeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuperLikeResult"];
+                        "text/json": components["schemas"]["SuperLikeResult"];
+                        "text/plain": components["schemas"]["SuperLikeResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/swipes/{request}": {
         parameters: {
             query?: never;
@@ -2355,9 +4682,86 @@ export interface components {
             role: string;
         };
         AdminLogin: {
-            code: string;
+            code?: null | string;
             email: string;
             password: string;
+        };
+        AdminPhotoDto: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            position: number | string;
+            state: string;
+        };
+        AdminProfileDetail: {
+            active: boolean;
+            /** Format: int32 */
+            age: number | string;
+            bio: string;
+            city: string;
+            cityKey: string;
+            /** Format: date */
+            dateOfBirth: string;
+            desiredGenders: string[];
+            displayName: string;
+            email: string;
+            emailConfirmed: boolean;
+            gender: string;
+            interests: string[];
+            languages: string[];
+            locationMode: string;
+            /** Format: int32 */
+            maxAge: number | string;
+            /** Format: int32 */
+            minAge: number | string;
+            photos: components["schemas"]["AdminPhotoDto"][];
+            /** Format: int32 */
+            radiusKm: number | string;
+            relationshipGoal: string;
+            /** Format: int64 */
+            revision: number | string;
+            /** Format: uuid */
+            userId: string;
+            visible: boolean;
+        };
+        AdminProfileSummary: {
+            active: boolean;
+            /** Format: int32 */
+            age: number | string;
+            city: string;
+            displayName: string;
+            email: string;
+            emailConfirmed: boolean;
+            gender: string;
+            /** Format: int32 */
+            photoCount: number | string;
+            /** Format: uuid */
+            primaryPhotoId: null | string;
+            /** Format: uuid */
+            userId: string;
+            visible: boolean;
+        };
+        AnswerQuestionRequest: {
+            idempotencyKey: string;
+            isSkipped: boolean;
+            /** Format: uuid */
+            questionId: string;
+            /** Format: int32 */
+            selectedOption: null | number | string;
+            /** Format: int32 */
+            stateVersion: number | string;
+        };
+        AnswerQuestionResult: {
+            /** Format: int32 */
+            questionIndex: number | string;
+            revealed: boolean;
+            revealedSelection: null | components["schemas"]["RevealedSelectionDto"];
+            /** Format: uuid */
+            roundId: string;
+            submitted: boolean;
+            waitingForPartner: boolean;
         };
         AuditDto: {
             action: string;
@@ -2375,6 +4779,32 @@ export interface components {
             email: string;
             token: string;
         };
+        CreateQuestionRequest: {
+            category: string;
+            options: string[];
+            questionText: string;
+        };
+        CreateRoomRequest: {
+            /**
+             * Format: int32
+             * @default 10
+             */
+            capacity: number | string;
+            title?: null | string;
+        };
+        CrystalTransactionDto: {
+            /** Format: int32 */
+            amount: number | string;
+            /** Format: int32 */
+            balanceAfter: number | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            description: null | string;
+            /** Format: uuid */
+            id: string;
+            referenceId: null | string;
+            type: string;
+        };
         DeleteAccountRequest: {
             password: string;
         };
@@ -2387,6 +4817,23 @@ export interface components {
             /** Format: uuid */
             userId: string;
         };
+        DevFixtureSeedRequest: {
+            /**
+             * Format: int32
+             * @default 3
+             */
+            femaleCount: number | string;
+            /**
+             * Format: int32
+             * @default 3
+             */
+            maleCount: number | string;
+        };
+        DevGrantRequest: {
+            /** Format: int32 */
+            amount: number | string;
+            idempotencyKey: string;
+        };
         DeviceRequest: {
             enabled: boolean;
             /** Format: uuid */
@@ -2398,6 +4845,19 @@ export interface components {
             revision: number | string;
             secret: string;
             token: null | string;
+        };
+        DirectMatchRequestDto: {
+            /** Format: date-time */
+            createdAtUtc: string;
+            message: string;
+            /** Format: uuid */
+            requestId: string;
+            /** Format: int32 */
+            senderAge: number | string;
+            senderDisplayName: string;
+            senderPhoto: null | components["schemas"]["PhotoDto"];
+            /** Format: uuid */
+            senderUserId: string;
         };
         DiscoverabilityPauseRequest: {
             paused: boolean;
@@ -2413,6 +4873,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             interests: string[];
+            languages?: null | string[];
             photos: components["schemas"]["PhotoDto"][];
             relationshipGoal: string;
         };
@@ -2437,8 +4898,263 @@ export interface components {
         EmailRequest: {
             email: string;
         };
+        FrozenQuestionDto: {
+            category: string;
+            /** Format: uuid */
+            id: string;
+            options: string[];
+            questionText: string;
+        };
+        GameGiftEventDto: {
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: int32 */
+            crystalCost: number | string;
+            giftIcon: string;
+            giftId: string;
+            giftName: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            recipientUserId: string;
+            /** Format: uuid */
+            senderUserId: string;
+        };
+        GameMemberDto: {
+            /** Format: int32 */
+            age: number | string;
+            displayName: string;
+            gender: string;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            generation: number | string;
+            /** @default false */
+            isSelf: boolean;
+            /** Format: date-time */
+            joinedAtUtc: string;
+            photo: null | components["schemas"]["PhotoDto"];
+            /** Format: int32 */
+            reservationRemainingSeconds?: null | number | string;
+            /** @default Active */
+            status: string;
+            /** Format: uuid */
+            userId: string;
+        };
+        GameProfileDto: {
+            /** Format: int32 */
+            age: number | string;
+            bio: string;
+            city: string;
+            displayName: string;
+            gender: string;
+            /** Format: int32 */
+            giftsReceivedCount?: null | number | string;
+            interests: string[];
+            isFullAccess: boolean;
+            /** Format: int32 */
+            kissesReceivedCount?: null | number | string;
+            photos: components["schemas"]["PhotoDto"][];
+            relationshipGoal: string;
+            /**
+             * Format: int32
+             * @default 25
+             */
+            unlockPrice: number | string;
+            /** Format: uuid */
+            userId: string;
+        };
+        GameProfileViewNoticeDto: {
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: uuid */
+            id: string;
+            seen: boolean;
+            viewerDisplayName: string;
+            /** Format: uuid */
+            viewerUserId: string;
+        };
+        GameQuestionDto: {
+            category: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: uuid */
+            id: string;
+            isActive: boolean;
+            options: string[];
+            questionText: string;
+            /** Format: int32 */
+            version: number | string;
+        };
+        GameRoomDetail: {
+            canStart: boolean;
+            /** Format: int32 */
+            capacity: number | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: int32 */
+            femaleCount: number | string;
+            /** Format: int32 */
+            femaleQuota: number | string;
+            /** Format: uuid */
+            id: string;
+            isJoined: boolean;
+            /** Format: date-time */
+            lobbyDeadlineUtc: string;
+            /** Format: int32 */
+            maleCount: number | string;
+            /** Format: int32 */
+            maleQuota: number | string;
+            /** Format: int32 */
+            memberCount: number | string;
+            members: components["schemas"]["GameMemberDto"][];
+            /** Format: int32 */
+            minFemaleStart: number | string;
+            /** Format: int32 */
+            minMaleStart: number | string;
+            state: string;
+            title: string;
+            /** Format: int32 */
+            version: number | string;
+        };
+        GameRoomMessageDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            roomId: string;
+            senderDisplayName: string;
+            senderPhotoId: null | string;
+            /** Format: uuid */
+            senderUserId: string;
+            /** Format: date-time */
+            sentAtUtc: string;
+            text: string;
+        };
+        GameRoomSnapshot: {
+            /** Format: int32 */
+            capacity: number | string;
+            currentRound?: null | components["schemas"]["GameRoundDto"];
+            /** Format: uuid */
+            currentTurnUserId?: null | string;
+            deadlineType: null | string;
+            /** Format: date-time */
+            deadlineUtc: null | string;
+            /** Format: int32 */
+            disconnectPauseBudgetMs: number | string;
+            /** Format: int32 */
+            femaleCount: number | string;
+            /** Format: int32 */
+            femaleQuota: number | string;
+            isPaused: boolean;
+            /** Format: int32 */
+            maleCount: number | string;
+            /** Format: int32 */
+            maleQuota: number | string;
+            /** Format: int32 */
+            memberCount: number | string;
+            members: components["schemas"]["GameMemberDto"][];
+            /** Format: int32 */
+            minActivePlayers: number | string;
+            pendingDirectRequests?: null | components["schemas"]["DirectMatchRequestDto"][];
+            recentGifts?: null | components["schemas"]["GameGiftEventDto"][];
+            /** Format: int32 */
+            remainingDeadlineMs: null | number | string;
+            /** Format: uuid */
+            roomId: string;
+            sentDirectRequestUserIds?: null | string[];
+            /** Format: int64 */
+            sequence: number | string;
+            /** Format: date-time */
+            serverTimeUtc: string;
+            state: string;
+            /** Format: int32 */
+            stateVersion: number | string;
+            title: string;
+        };
+        GameRoomSummary: {
+            /** Format: int32 */
+            capacity: number | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: int32 */
+            femaleCount: number | string;
+            /** Format: int32 */
+            femaleQuota: number | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lobbyDeadlineUtc: string;
+            /** Format: int32 */
+            maleCount: number | string;
+            /** Format: int32 */
+            maleQuota: number | string;
+            /** Format: int32 */
+            memberCount: number | string;
+            state: string;
+            title: string;
+            /** Format: int32 */
+            version: number | string;
+        };
+        GameRoundDto: {
+            /** Format: int32 */
+            angleDegrees: number | string;
+            /** Format: int32 */
+            callerPendingAnswer: null | number | string;
+            currentQuestion: null | components["schemas"]["FrozenQuestionDto"];
+            /** Format: int32 */
+            currentQuestionIndex: number | string;
+            deadlineType: null | string;
+            /** Format: date-time */
+            deadlineUtc: null | string;
+            /** @default false */
+            hasPendingKissFromPartner: boolean;
+            /** Format: uuid */
+            kissRecipientUserId?: null | string;
+            /** @default false */
+            kissSkipped: boolean;
+            revealedSelections: components["schemas"]["RevealedSelectionDto"][];
+            /** Format: uuid */
+            roundId: string;
+            /** Format: int32 */
+            roundNumber: number | string;
+            /** Format: uuid */
+            spinnerUserId: string;
+            state: string;
+            summaryCommentary?: null | string;
+            /** Format: uuid */
+            targetUserId: string;
+        };
+        GiftCatalogItemDto: {
+            icon: string;
+            id: string;
+            name: string;
+            /** Format: int32 */
+            price: number | string;
+        };
+        GiftItemDto: {
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: int32 */
+            crystalCost: number | string;
+            giftIcon: string;
+            giftId: string;
+            giftName: string;
+            /** Format: uuid */
+            id: string;
+            otherDisplayName: string;
+            otherPhoto: null | components["schemas"]["PhotoDto"];
+            /** Format: uuid */
+            otherUserId: string;
+        };
         HealthResponse: {
             status: string;
+        };
+        HeartbeatResult: {
+            /** Format: uuid */
+            roomId: string;
+            /** Format: date-time */
+            serverTimeUtc: string;
         };
         HistoryPage: {
             items: components["schemas"]["MessageDto"][];
@@ -2447,7 +5163,49 @@ export interface components {
             peerReadSequence: string;
             readSequence: string;
         };
+        JoinQueueRequest: {
+            /**
+             * Format: int32
+             * @default 10
+             */
+            capacity: number | string;
+        };
+        JoinRoomResult: {
+            /** Format: uuid */
+            membershipId: string;
+            /** Format: uuid */
+            roomId: string;
+            state: string;
+            /** Format: int32 */
+            version: number | string;
+        };
         JsonElement: unknown;
+        LeaveRoomResult: {
+            /** Format: uuid */
+            roomId: string;
+            success: boolean;
+        };
+        LikeRequestSummary: {
+            /** Format: int32 */
+            age: number | string;
+            bio: string;
+            city: string;
+            displayName: string;
+            /** @default  */
+            gender: string;
+            interests?: null | string[];
+            /** @default false */
+            isBlurred: boolean;
+            note?: null | string;
+            /** @default Discovery */
+            origin: string;
+            photo: null | components["schemas"]["PhotoDto"];
+            photos?: null | components["schemas"]["PhotoDto"][];
+            /** @default  */
+            relationshipGoal: string;
+            /** Format: uuid */
+            userId: string;
+        };
         LocationRequest: {
             consent: boolean;
             /** Format: double */
@@ -2476,15 +5234,30 @@ export interface components {
         MatchSummary: {
             /** Format: int32 */
             age: number | string;
+            /** @default  */
+            bio: string;
             city: string;
             /** Format: uuid */
             conversationId: string;
             displayName: string;
+            /** @default  */
+            gender: string;
+            /** @default true */
+            hasChatEntitlement: boolean;
             /** Format: uuid */
             id: string;
+            interests?: null | string[];
             lastMessage: null | string;
+            /** @default Discovery */
+            origin: string;
+            photo?: null | components["schemas"]["PhotoDto"];
+            photos?: null | components["schemas"]["PhotoDto"][];
+            /** @default  */
+            relationshipGoal: string;
             /** Format: int32 */
             unreadCount: number | string;
+            /** Format: uuid */
+            userId?: null | string;
         };
         MediaGrant: {
             /** Format: date-time */
@@ -2509,6 +5282,23 @@ export interface components {
             /** Format: uuid */
             conversationId: string;
         };
+        OtpSendRequest: {
+            email: string;
+        };
+        OtpSendResponse: {
+            /** @default 1111 */
+            devCode: null | string;
+            message: string;
+        };
+        OtpVerifyRequest: {
+            code: string;
+            email: string;
+        };
+        OtpVerifyResponse: {
+            hasCompleteProfile: boolean;
+            isNewUser: boolean;
+            tokens: components["schemas"]["TokenResponse"];
+        };
         OwnProfileDto: {
             /** Format: int32 */
             age: number | string;
@@ -2519,6 +5309,7 @@ export interface components {
             displayName: string;
             gender: string;
             interests: string[];
+            languages?: null | string[];
             photos: components["schemas"]["PhotoDto"][];
             relationshipGoal: string;
             /** Format: int64 */
@@ -2544,6 +5335,47 @@ export interface components {
             /** Format: uuid */
             userId: string;
         };
+        PostGameKissRequest: {
+            idempotencyKey: string;
+            /** Format: uuid */
+            recipientUserId: string;
+        };
+        PostGameKissResult: {
+            /** Format: uuid */
+            conversationId?: null | string;
+            isMatch: boolean;
+            /** Format: uuid */
+            kissId: string;
+            /** Format: uuid */
+            matchId?: null | string;
+            /** Format: uuid */
+            recipientUserId: string;
+            /** Format: uuid */
+            senderUserId: string;
+            status: string;
+        };
+        PremiumPackageDto: {
+            badge?: null | string;
+            currency: string;
+            description: string;
+            /** Format: int32 */
+            durationDays: null | number | string;
+            id: string;
+            /** @default false */
+            isPopular: boolean;
+            name: string;
+            /** Format: double */
+            priceAmount: number | string;
+            priceDisplay: string;
+        };
+        PremiumStatusDto: {
+            activePackageId: null | string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            hasPremium: boolean;
+            isLifetime: boolean;
+            packages: components["schemas"]["PremiumPackageDto"][];
+        };
         ProblemDetails: {
             detail?: null | string;
             instance?: null | string;
@@ -2555,19 +5387,41 @@ export interface components {
         ProfileChoices: {
             genders: string[];
             interests: string[];
+            languages: string[];
             relationshipGoals: string[];
         };
         ProfileUpdate: {
-            bio: string;
-            city: string;
-            desiredGenders: string[];
+            bio: null | string;
+            city: null | string;
+            /** Format: date */
+            dateOfBirth?: null | string;
+            desiredGenders: null | string[];
             displayName: string;
             gender: string;
-            interests: string[];
-            relationshipGoal: string;
+            interests: null | string[];
+            languages?: null | string[];
+            relationshipGoal: null | string;
             /** Format: int64 */
             revision: number | string;
             visible: boolean;
+        };
+        ProfileViewSummary: {
+            /** Format: int32 */
+            age: number | string;
+            bio: string;
+            city: string;
+            displayName: string;
+            /** @default  */
+            gender: string;
+            interests?: null | string[];
+            photo?: null | components["schemas"]["PhotoDto"];
+            photos?: null | components["schemas"]["PhotoDto"][];
+            /** @default  */
+            relationshipGoal: string;
+            /** Format: uuid */
+            userId: string;
+            /** Format: date-time */
+            viewedAt: string;
         };
         PublicDeletionRequest: {
             email: string;
@@ -2586,6 +5440,15 @@ export interface components {
         ReadMessage: {
             /** Format: uuid */
             messageId: string;
+        };
+        ReconnectRoomResult: {
+            /** Format: int32 */
+            generation: number | string;
+            /** Format: uuid */
+            membershipId: string;
+            /** Format: uuid */
+            roomId: string;
+            snapshot: components["schemas"]["GameRoomSnapshot"];
         };
         RefreshRequest: {
             refreshToken: string;
@@ -2629,6 +5492,29 @@ export interface components {
             /** Format: uuid */
             notificationId: string;
         };
+        RespondDirectMatchRequestInput: {
+            action: string;
+        };
+        RespondDirectMatchRequestResult: {
+            /** Format: uuid */
+            conversationId?: null | string;
+            /** Format: uuid */
+            matchId?: null | string;
+            /** Format: uuid */
+            requestId: string;
+            status: string;
+        };
+        RevealedSelectionDto: {
+            fallbackCommentary: string;
+            isMatch: boolean;
+            isSuppressed: boolean;
+            /** Format: int32 */
+            questionIndex: number | string;
+            /** Format: int32 */
+            spinnerOption: null | number | string;
+            /** Format: int32 */
+            targetOption: null | number | string;
+        };
         ReviewRequest: {
             reason: string;
             state: string;
@@ -2654,9 +5540,88 @@ export interface components {
             /** Format: uuid */
             targetId?: null | string;
         };
+        SelectTargetRequest: {
+            /** Format: uuid */
+            targetUserId: string;
+        };
+        SelectTargetResult: {
+            currentQuestion: components["schemas"]["FrozenQuestionDto"];
+            /** Format: date-time */
+            deadlineUtc: string;
+            /** Format: uuid */
+            roundId: string;
+            /** Format: uuid */
+            spinnerUserId: string;
+            /** Format: uuid */
+            targetUserId: string;
+        };
+        SendDirectMatchRequestInput: {
+            idempotencyKey: string;
+            message: string;
+            /** Format: uuid */
+            roomId?: null | string;
+            /** Format: uuid */
+            targetUserId: string;
+        };
+        SendDirectMatchRequestResult: {
+            /** Format: int32 */
+            balanceAfter: number | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: int32 */
+            crystalsPaid: number | string;
+            /** Format: uuid */
+            requestId: string;
+            status: string;
+            /** Format: uuid */
+            targetUserId: string;
+        };
+        SendGiftRequest: {
+            giftId: string;
+            idempotencyKey: string;
+            /** Format: uuid */
+            recipientUserId: string;
+            /** Format: uuid */
+            roomId: null | string;
+        };
+        SendGiftResult: {
+            /** Format: int32 */
+            balance: number | string;
+            /** Format: int32 */
+            crystalCost: number | string;
+            giftIcon: string;
+            giftId: string;
+            giftName: string;
+            /** Format: uuid */
+            giftRecordId: string;
+            message: string;
+            recipientDisplayName: string;
+            success: boolean;
+        };
+        SendKissRequest: {
+            idempotencyKey: string;
+            /** Format: uuid */
+            recipientUserId: string;
+        };
+        SendKissResult: {
+            /** Format: uuid */
+            conversationId?: null | string;
+            /** Format: uuid */
+            kissId: string;
+            /** Format: uuid */
+            matchId?: null | string;
+            /** Format: uuid */
+            recipientUserId: string;
+            /** Format: uuid */
+            senderUserId: string;
+            status: string;
+        };
         SendMessage: {
             /** Format: uuid */
             clientMessageId: string;
+            text: string;
+        };
+        SendRoomMessageRequest: {
             text: string;
         };
         SettingsRequest: {
@@ -2671,6 +5636,109 @@ export interface components {
             radiusKm: number | string;
             /** Format: int64 */
             revision: number | string;
+        };
+        SkipKissRequest: {
+            idempotencyKey: string;
+        };
+        SkipQuestionRequest: {
+            idempotencyKey: string;
+        };
+        SkipTargetRequest: {
+            idempotencyKey?: null | string;
+        };
+        SpinRequest: {
+            autoPickTarget?: null | boolean;
+        };
+        SpinResult: {
+            /** Format: int32 */
+            angleDegrees: number | string;
+            /** Format: date-time */
+            deadlineUtc: string;
+            /** Format: uuid */
+            roundId: string;
+            /** Format: int32 */
+            spinDurationMs: number | string;
+            /** Format: uuid */
+            spinnerUserId: string;
+            /** Format: uuid */
+            targetUserId: string;
+        };
+        StoreProductDto: {
+            /** Format: int32 */
+            crystalAmount: number | string;
+            description: string;
+            productId: string;
+            tierApproximateGEL: string;
+            title: string;
+        };
+        StorePurchaseRequest: {
+            currency?: null | string;
+            platform: string;
+            /** Format: double */
+            price?: null | number | string;
+            productId: string;
+            purchaseToken: string;
+            transactionId: string;
+        };
+        StorePurchaseResult: {
+            alreadyProcessed: boolean;
+            /** Format: int32 */
+            balance: number | string;
+            /** Format: int32 */
+            crystalsCredited: number | string;
+            /** Format: int32 */
+            debtRepaid: number | string;
+            message: string;
+            /** Format: int32 */
+            outstandingDebt: number | string;
+            success: boolean;
+        };
+        StoreRefundRequest: {
+            platform: string;
+            reason?: null | string;
+            refundId: string;
+            transactionId: string;
+        };
+        StoreRefundResult: {
+            alreadyProcessed: boolean;
+            /** Format: int32 */
+            balance: number | string;
+            /** Format: int32 */
+            crystalsRevoked: number | string;
+            message: string;
+            /** Format: int32 */
+            outstandingDebt: number | string;
+            success: boolean;
+        };
+        SubscribePackageRequest: {
+            idempotencyKey?: null | string;
+            packageId: string;
+            /** @default mobile */
+            platform: null | string;
+            transactionId?: null | string;
+        };
+        SubscribeResultDto: {
+            message: string;
+            status: components["schemas"]["PremiumStatusDto"];
+            success: boolean;
+        };
+        SuperLikeRequest: {
+            note?: null | string;
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            targetId: string;
+        };
+        SuperLikeResult: {
+            /** Format: int32 */
+            balanceAfter: number | string;
+            /** Format: uuid */
+            matchId: null | string;
+            note: null | string;
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            targetId: string;
         };
         SwipeRequest: {
             kind: string;
@@ -2688,6 +5756,101 @@ export interface components {
             /** Format: uuid */
             targetId: string;
         };
+        TelegramAuthRequest: {
+            initData: string;
+        };
+        TelegramPreCheckoutQuery: {
+            /** @default XTR */
+            currency: string;
+            from?: null | components["schemas"]["TelegramWebhookUser"];
+            /** @default  */
+            id: string;
+            /** @default  */
+            invoice_payload: string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            total_amount: number | string;
+        };
+        TelegramStarsInvoiceRequest: {
+            itemId: string;
+            itemType: string;
+        };
+        TelegramStarsInvoiceResponse: {
+            invoiceLink: string;
+            itemId: string;
+            itemType: string;
+            payload: string;
+            /** Format: int32 */
+            starsAmount: number | string;
+        };
+        TelegramStarsVerifyRequest: {
+            payload: string;
+            telegramPaymentChargeId?: null | string;
+        };
+        TelegramStarsVerifyResponse: {
+            message: string;
+            premiumStatus?: null | components["schemas"]["PremiumStatusDto"];
+            success: boolean;
+            /** Format: int32 */
+            walletBalance?: null | number | string;
+        };
+        TelegramSuccessfulPayment: {
+            /** @default XTR */
+            currency: string;
+            /** @default  */
+            invoice_payload: string;
+            provider_payment_charge_id?: null | string;
+            /** @default  */
+            telegram_payment_charge_id: string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            total_amount: number | string;
+        };
+        TelegramUpdate: {
+            message?: null | components["schemas"]["TelegramWebhookMessage"];
+            pre_checkout_query?: null | components["schemas"]["TelegramPreCheckoutQuery"];
+            /**
+             * Format: int64
+             * @default 0
+             */
+            update_id: number | string;
+        };
+        TelegramWebhookChat: {
+            /**
+             * Format: int64
+             * @default 0
+             */
+            id: number | string;
+            type?: null | string;
+        };
+        TelegramWebhookMessage: {
+            chat?: null | components["schemas"]["TelegramWebhookChat"];
+            from?: null | components["schemas"]["TelegramWebhookUser"];
+            /**
+             * Format: int64
+             * @default 0
+             */
+            message_id: number | string;
+            successful_payment?: null | components["schemas"]["TelegramSuccessfulPayment"];
+            text?: null | string;
+        };
+        TelegramWebhookResult: {
+            status: string;
+            success: boolean;
+        };
+        TelegramWebhookUser: {
+            first_name?: null | string;
+            /**
+             * Format: int64
+             * @default 0
+             */
+            id: number | string;
+            username?: null | string;
+        };
         TokenResponse: {
             /** Format: date-time */
             accessExpiresAt: string;
@@ -2697,9 +5860,63 @@ export interface components {
             /** Format: date-time */
             sessionExpiresAt: string;
         };
+        UnlockMatchConversationRequest: {
+            idempotencyKey: string;
+        };
+        UnlockMatchConversationResult: {
+            alreadyOpen: boolean;
+            /** Format: int32 */
+            balance: number | string;
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: int32 */
+            debited: number | string;
+            /** Format: uuid */
+            matchId: string;
+            message: string;
+            unlocked: boolean;
+        };
+        UnlockProfileRequest: {
+            idempotencyKey: string;
+        };
+        UnlockProfileResult: {
+            alreadyUnlocked: boolean;
+            /** Format: int32 */
+            balance: number | string;
+            /** Format: int32 */
+            debited: number | string;
+            message: string;
+            profile: null | components["schemas"]["GameProfileDto"];
+            unlocked: boolean;
+        };
+        UpdateAiConsentRequest: {
+            aiConsent: boolean;
+        };
+        UpdateQuestionRequest: {
+            category: string;
+            isActive: boolean;
+            options: string[];
+            questionText: string;
+        };
         UploadRequest: {
             /** Format: uuid */
             requestId: string;
+        };
+        UserAiConsentResponse: {
+            aiConsent: boolean;
+            /** Format: date-time */
+            consentGivenAtUtc: null | string;
+            disclosureText: string;
+        };
+        UserGiftsDto: {
+            receivedGifts: components["schemas"]["GiftItemDto"][];
+            sentGifts: components["schemas"]["GiftItemDto"][];
+            /** Format: int32 */
+            totalReceivedCount: number | string;
+            /** Format: int32 */
+            totalReceivedCrystalsValue: number | string;
+            /** Format: int32 */
+            totalSentCount: number | string;
         };
         UserReview: {
             active: boolean;
@@ -2710,6 +5927,13 @@ export interface components {
         VerifyRequest: {
             code: string;
             email: string;
+        };
+        WalletBalanceDto: {
+            /** Format: int32 */
+            balance: number | string;
+            /** Format: int32 */
+            outstandingDebt: number | string;
+            recentTransactions: components["schemas"]["CrystalTransactionDto"][];
         };
     };
     responses: never;

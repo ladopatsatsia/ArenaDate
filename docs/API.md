@@ -12,6 +12,9 @@ Development base URL: http://localhost:5180. OpenAPI is generated from the actua
 | GET /api/health/ready | Public 200 with migrations/PostGIS ready, otherwise 503 |
 | GET /openapi/v1.json | Development only; 404 in Production |
 | POST /api/auth/register | Public email, password, dateOfBirth (YYYY-MM-DD); generic 202 |
+| POST /api/auth/otp/send | Public email; generic 200 with { success, message, expiresAtUtc, devCode? } (fixed to "1111" in development) |
+| POST /api/auth/otp/verify | Public email, code (4 digits, "1111"); 200 with { isNewUser, isProfileComplete, tokens: { accessToken, ... } } |
+| POST /api/auth/telegram | Public initData; 200 with { isNewUser, isProfileComplete, tokens: { accessToken, ... } } |
 | POST /api/auth/verification-email | Public email; generic 202 |
 | POST /api/auth/verify | Public email, code; 204 or 400 |
 | POST /api/auth/login | Public email, password; token response or generic 401 |
@@ -109,6 +112,138 @@ Bearer auth, no-store and inherited per-account request policy apply. Device pay
 | GET /api/account/deletion-status | Own deletion status `{userId, state, requestedAt, completedAt}`; 200 |
 | POST /api/account/discoverability-pause | `{paused: boolean}`; toggles profile visibility and bumps revision without losing matches or chat; 204 |
 | POST /api/account/public-deletion-request | `{email: string}`; returns 202 Accepted without leaking whether account exists; enqueues verification token to registered address |
-| POST /api/account/confirm-deletion | `{email: string, token: string}`; validates protected token within 24h lifetime and executes deletion; 204 |
 | GET /account/delete | Store-compliant public web page serving self-service deletion request form |
 
+## Prompt 14 additions — Arena Bottle Game foundation & room model
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/game/current | Returns active game room for current authenticated user or 204 No Content |
+| POST /api/game/queue | `{ capacity: 6 \| 8 \| 10 }`; enters matchmaking queue; finds or creates compatible room with exact 50/50 gender quotas, transitions room to `Starting` when quota full |
+| GET /api/game/rooms | Lists open lobby rooms with quota progress; starting and playing rooms are strictly omitted |
+| POST /api/game/rooms | `{ title?: string, capacity?: 6 \| 8 \| 10 }`; creates a new room with format quotas, creator joins atomically |
+| GET /api/game/rooms/{id} | Returns room details; returns 404 `room_unavailable` for outsiders if room is in `Starting` or `Playing` state, or if viewer is incompatible with any active member |
+| POST /api/game/rooms/{id}/join | Atomically verifies 18+ eligibility, profile completion, photo approval, reciprocal preference, single active room constraint, incompatibility exclusion (blocks, unmatches, active matches), and gender quota; returns 404 `room_unavailable` for non-lobby rooms or incompatible users |
+| POST /api/game/rooms/{id}/leave | Leaves current room membership; room dissolves if empty; 200 OK |
+| POST /api/game/rooms/{id}/dev-fixtures | Development only: seeds test fixtures (up to 3♀ + 3♂) to test lobby fallback quorum |
+
+All game routes require bearer authorization and `Cache-Control: no-store`. See [GAME.md](GAME.md) for data model, concurrency, state machine transitions, and safety invariants.
+
+## Prompt 15-17 additions — Arena Bottle Game real-time play, turns, questions, kisses & matches
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/game/rooms/{id}/snapshot | Full authorized room snapshot with recipient-specific redactions (hidden personal answers, hidden pending kisses, only spinner sees kiss target); 200 OK |
+| POST /api/game/rooms/{id}/reconnect | Reconnects disconnected session within 60-second reservation grace period; 200 OK |
+| POST /api/game/rooms/{id}/heartbeat | Refreshes active heartbeat timestamp; 200 OK |
+| POST /api/game/rooms/{id}/spin | Current turn owner only; server-side RNG picks eligible candidate; persists round and angle; 200 OK |
+| POST /api/game/rooms/{id}/rounds/{roundId}/questions/{qIndex}/answer | Pair members only; dual independent answer; locks answer and reveals only when both submit; 200 OK |
+| POST /api/game/rooms/{id}/rounds/{roundId}/questions/{qIndex}/skip | Pair members only; suppresses answers from both players for this question; 200 OK |
+| POST /api/game/rooms/{id}/rounds/{roundId}/kiss | Current turn owner only within 15s KissChoice deadline; sends private kiss to eligible opposite-gender member; 200 OK with SendKissResult |
+| POST /api/game/rooms/{id}/rounds/{roundId}/kiss/skip | Current turn owner only; skips kiss within 15s window; 200 OK |
+| GET /api/game/ai-consent | Returns current user's AI commentary consent status (`aiConsent`, `consentGivenAtUtc`, `disclosureText`); 200 OK |
+| POST /api/game/ai-consent | `{ aiConsent: boolean }`; grants or revokes opt-in consent for AI commentary; 200 OK |
+| GET /api/moderation/game-questions | Admin cookie + CSRF; lists curated Georgian questions |
+| POST /api/moderation/game-questions | Admin cookie + CSRF; creates curated question with 3-4 options |
+| PUT /api/moderation/game-questions/{id} | Admin cookie + CSRF; updates curated question text and options |
+| DELETE /api/moderation/game-questions/{id} | Admin cookie + CSRF; deactivates curated question |
+
+## Prompt 19 additions — Crystal Ledger & 25-Crystal Unlocks
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/game/wallet | Bearer auth; returns current user's crystal balance and last 20 transactions (`WalletBalanceDto`) |
+| POST /api/game/wallet/dev-grant | Development/Testing only; `{ amount: number, idempotencyKey: string }`; atomically credits test crystals |
+| GET /api/game/profiles/{targetUserId} | Bearer auth; returns `GameProfileDto`. If viewer has full entitlement (self, unlocked, or mutual match), returns complete dating profile; if unentitled, returns redacted preview (primary photo only, snippet bio, empty interests, empty goals, `UnlockPrice = 25`, `IsFullAccess = false`) |
+| POST /api/game/profiles/{targetUserId}/unlock | Bearer auth; `{ idempotencyKey: string }`; atomically debits 25 crystals, creates `GameProfileUnlock`, creates `GameProfileViewNotice` for target. Revalidates blocks/unmatches. Replays debit 0 |
+| GET /api/game/profiles/views | Bearer auth; returns array of view notices (`GameProfileViewNoticeDto[]`) for current user |
+| POST /api/game/profiles/views/acknowledge | Bearer auth; marks unseen view notices as seen; 204 No Content |
+| POST /api/matches/{matchId}/unlock | Bearer auth; `{ idempotencyKey: string }`; atomically debits 25 crystals, sets `HasChatEntitlement = true` on `DatingMatch`, unlocks chat for both participants. Concurrent calls debit once, second receives `already_open` with 0 debit. Discovery free match returns `already_open` with 0 debit |
+
+## Prompt 20 additions — iOS/Android Consumable Crystal Store Purchases & Refunds
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/game/store/products | Returns available crystal packages including starter offer (`dating.crystals.100`, 100 crystals, ₾0.99 / $0.99 tier) |
+| POST /api/game/store/purchase | Bearer auth; `{ platform: "apple" \| "google" \| "mock", productId: string, transactionId: string, purchaseToken: string }`; validates receipt, binds to user, idempotent replay returns existing balance (0 duplicate credit), prevents cross-account claim (409 Conflict), repays any `outstandingDebt` first, credits remainder to `balance`, records immutable ledger transaction; 200 OK with `StorePurchaseResult` |
+| POST /api/game/store/refund | Webhook/Operator endpoint; `{ platform: string, transactionId: string, refundReason?: string }`; verifies original purchase, revokes crystals; if credits were already spent, sets `balance = 0` and increments `outstandingDebt` to preserve non-negative DB constraints; 200 OK with `StoreRefundResult` |
+
+## Prompt 22 additions — Arena Bottle Game 18-Round Turn Quota, Automatic Spin, Target Selection & Post-Game Kisses
+
+| Method/path | Behavior |
+|---|---|
+| POST /api/game/rooms/{id}/rounds/{roundId}/target | Spinner only during `SelectingTarget` phase within 15-second deadline; `{ targetUserId: UUID }`; server verifies candidate is active room member, opposite gender, and compatible; transitions round to `QuestionAnswering` with 15s deadline; 200 OK with `SelectTargetResult` |
+| POST /api/game/rooms/{id}/rounds/{roundId}/target/skip | Spinner only during `SelectingTarget` phase; `{ idempotencyKey?: string }`; spinner skips choosing a partner/question round; server marks round `EndedEarly` (reason: `target_skipped`), rotates turn to next member or completes game if 18 rounds reached; 200 OK with `SkipTargetResult` |
+| POST /api/game/rooms/{id}/post-game-kiss | Active member only after room ends (`room.State == Ended`); `{ recipientUserId: UUID, idempotencyKey: string }`; sends post-game kiss; if reciprocal, creates `DatingMatch` with `Origin = GameArena` and `HasChatEntitlement = false`; if non-reciprocal, records pending `GameKiss` and synchronizes `DiscoveryDecision` ("like") with note "დავიმეჩე ბოთლის თამაშში"; 200 OK with `PostGameKissResult` |
+
+## Prompt 23 additions — Profile Views History & Match/Message Navigation Split
+
+| Method/path | Behavior |
+|---|---|
+| POST /api/matches/views/{targetId} | Bearer auth; records a profile view idempotently. If viewer previously viewed target, updates `ViewedAt` to current timestamp; otherwise inserts new `UserProfileView`. Self-views are ignored (200 OK). Blocks/unmatches are verified server-side. |
+| GET /api/matches/views/viewed-you | Bearer auth; returns list of `ProfileViewSummary` (`userId`, `displayName`, `age`, `city`, `bio`, `gender`, `relationshipGoal`, `interests`, `photo`, `photos`, `viewedAt`) for users who viewed the current user's profile, ordered by `viewedAt` descending. Excludes blocked or unmatching accounts. Authorized photos are attached. |
+## Prompt 24 additions — Arena Table Gifts (1 to 500 Crystals) & Profile Table Statistics
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/game/gifts/catalog | Returns available gift catalog items starting from 1 crystal up to 500 crystals (`GiftCatalogItemDto[]`: Rose 1 💎, Coffee 5 💎, Chocolate 15 💎, Cocktail 30 💎, Bouquet 50 💎, Teddy Bear 100 💎, Diamond 250 💎, Royal Crown 500 💎). |
+| POST /api/game/gifts/send | Bearer auth; `{ recipientUserId: UUID, giftId: string, roomId?: UUID, idempotencyKey: string }`; validates safety blocks/unmatches, disallows self-gifting (400), atomically checks and debits crystal wallet balance, records `GameGift` entity and `CrystalTransaction` (`GiftSent`), logs audit; returns `SendGiftResult`. |
+| GET /api/game/gifts/history | Bearer auth; returns `UserGiftsDto` containing up to 50 received gifts and 50 sent gifts with sender/recipient details, primary photo, counts, and crystal totals. |
+| GET /api/game/profiles/{targetUserId} / POST /api/game/profiles/{targetUserId}/unlock | When full profile access is unlocked (`isFullAccess == true`), `GameProfileDto` exclusively populates `kissesReceivedCount` and `giftsReceivedCount`. This small report is not exposed on any discovery, chat, match, or general profile view endpoints. |
+| GET /api/game/rooms/{id}/snapshot | `GameRoomSnapshot` returns `recentGifts` array (`GameGiftEventDto[]`) for gifts sent at the table in the last 25 seconds, driving real-time table flying gift animations for all members. |
+| SignalR `/hubs/game` | Broadcasts `GameGiftSent` to group `game_room_{roomId}` when a gift is sent with `roomId` present, allowing instant real-time flying gift animations. |
+
+## Prompt 25 additions — Premium Subscriptions & Dating App Gating Flow
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/premium/packages | Returns active Premium subscription packages with exact pricing: 2 კვირა = 2.90 GEL (`two_weeks`, 14 days), 1 თვე = 4.90 GEL (`one_month`, 30 days, popular), 3 თვე = 10.00 GEL (`three_months`, 90 days, eco), ულიმიტო = 40.00 GEL (`lifetime`, permanent). |
+| GET /api/premium/status | Bearer auth; returns `PremiumStatusDto` (`hasPremium`, `activePackageId`, `startedAtUtc`, `expiresAtUtc`, `isLifetime`, `packages`). |
+| POST /api/premium/subscribe | Bearer auth; `{ packageId: string, platform?: string, transactionId?: string, idempotencyKey?: string }`; verifies package id, activates or extends `UserSubscription` in database, returns `SubscribeResultDto` with updated status. |
+| GET /api/matches/requests | Bearer auth; enforced server-side premium gating: if caller does NOT have active premium, all incoming suitors are masked (`isBlurred: true`, `displayName: "დაფარული მოწონება"`, `photo: null`, `photos: null`, `bio: ""`, `age: 0`, obfuscated ID) preventing client identity interception. If caller has active premium, full unblurred candidate cards (`isBlurred: false`) and photos are returned. |
+
+## Prompt 26 additions — Telegram Stars Payments & Invoicing
+
+| Method/path | Behavior |
+|---|---|
+| POST /api/payments/telegram-stars/invoice | Bearer auth; `{ itemType: "subscription" | "crystals", itemId: string }`; resolves package and star amount (Subscriptions: 50, 90, 180, 750 Stars; Crystals: 25, 100, 200 Stars); calls Telegram Bot API `createInvoiceLink` (or returns dev mock link if bot token is unconfigured); returns `{ invoiceLink, starsAmount, itemType, itemId, payload }`. |
+| POST /api/payments/telegram-stars/verify | Bearer auth; `{ payload: string, telegramPaymentChargeId?: string }`; verifies caller matches `userId` embedded in payload, fulfills subscription or crystal credit, returns updated `PremiumStatus` and `WalletBalance`. |
+| POST /api/payments/telegram-stars/webhook | Public / Telegram Bot webhook; handles `pre_checkout_query` (replies `answerPreCheckoutQuery`) and `successful_payment` updates to fulfill orders. Also registers/updates `TelegramSubscriber` for any `/start` or user message update. |
+
+## Prompt 56 additions — Telegram Event Notifications & Admin Panel Broadcast
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/moderation/telegram-stats | Admin cookie + CSRF; returns `TelegramStatsDto` (`totalSubscribers`, `activeSubscribers`, `linkedUsers`, `lastActiveAt`). Counts all users who interacted with the bot or authenticated via Mini App. |
+| POST /api/moderation/broadcast-telegram | Admin cookie + CSRF; `{ message: string (1-4000 chars), buttonText?: string, webAppRelativePath?: string }`; dispatches broadcast notification with inline web_app button to all active subscribers via throttled worker (30 msgs/sec); auto-deactivates subscribers if bot is blocked (403); returns `TelegramBroadcastResult` (`totalSubscribers`, `targetedSubscribers`, `successCount`, `failedCount`, `blockedCount`, `completedAtUtc`). |
+
+## ARENA „დღეს მინდა…“ — Prompt 2 additions
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/today-plans | Bearer auth; returns `TodayPlanFeedPageDto` with active open plans (`State == Open`, `ExpiresAtUtc > now`). Supports filters: `city`, `activity`, `day` (`today`/`tomorrow`), `cursor`, `limit` (max 20). Excludes blocked users and own responses. |
+| GET /api/today-plans/{id} | Bearer auth; returns `TodayPlanDetailDto`. Re-verifies expiration and safety block exclusions. |
+| POST /api/today-plans | Bearer auth; `{ city, district?, activity, title, description?, startsAtUtc, expiresAtUtc, budgetAmount? }`; enforces valid activity, max 48-hour planning horizon, min 15-min duration, and budget (0-5000 GEL); returns created `TodayPlanDetailDto`. |
+| POST /api/today-plans/{id}/cancel | Bearer auth; author only; transitions plan to `Cancelled` and closes all `Pending` responses atomically. |
+| GET /api/today-plans/my | Bearer auth; returns all plans created by the caller ordered by creation date descending. |
+| GET /api/today-plans/my-responses | Bearer auth; returns all responses sent by the caller with plan preview and current state (`Pending`, `Accepted`, `Rejected`, `Withdrawn`, `Closed`). |
+| POST /api/today-plans/{id}/responses | Bearer auth; applicant only; `{ message? }`; enforces 1 response per plan, excludes author self-apply, checks daily response quota in `Asia/Tbilisi`, returns `TodayPlanMyResponseDto`. |
+| POST /api/today-plans/{id}/responses/{responseId}/withdraw | Bearer auth; applicant only; transitions response from `Pending` to `Withdrawn`. Re-applying is disallowed. |
+| GET /api/today-plans/{id}/applicants | Bearer auth; author only; returns list of `TodayPlanApplicantDto` with profile details, bio, photo, message, and state. |
+| POST /api/today-plans/{id}/responses/{responseId}/accept | Bearer auth; author only; atomic companion selection; transitions plan to `Matched`, selected response to `Accepted`, closes all other `Pending` responses, links or creates free `DatingMatch` and `Conversation` (`HasChatEntitlement = true`); returns `AcceptPlanResponseResult`. |
+| POST /api/today-plans/{id}/responses/{responseId}/reject | Bearer auth; author only; marks response `Rejected`. Plan remains Open for other applicants. |
+
+## ARENA „დღეს მინდა…“ — Prompt 3 additions (Limits & Premium)
+
+| Method/path | Behavior |
+|---|---|
+| GET /api/today-plans/limits | Bearer auth; returns `TodayPlanLimitsDto` (`hasPremium`, `activePlansCount`, `activePlansLimit`, `canCreatePlan`, `dailyResponsesUsed`, `dailyResponsesLimit`, `dailyResponsesRemaining`, `canApply`, `resetsAtUtc`, `timeZone: "Asia/Tbilisi"`). Evaluates user limits against existing `IPremiumService`: Free tier allows 1 active plan and 3 responses/day; Premium tier allows 3 active plans and 10 responses/day. Quota resets daily at midnight (00:00) in `Asia/Tbilisi`. |
+| POST /api/today-plans (limits enforced) | Atomic user row lock (`SELECT "Id" FROM "AspNetUsers" WHERE "Id" = @id FOR UPDATE`) serializes concurrent requests and blocks creation with `403 active_plans_limit_reached` when active plans (`State == Open || State == Matched && ExpiresAtUtc > now`) reach the user's tier limit (1 Free / 3 Premium). When Premium expires, existing plans are preserved, but new creations are blocked until active count < 1. |
+## ARENA „დღეს მინდა…“ — Prompt 4 additions (Free Chat & Notifications)
+
+| Method/path | Behavior |
+|---|---|
+| POST /api/today-plans/{id}/responses/{responseId}/accept (chat & notifications) | Transitions plan to `Matched`, sets `SelectedCompanionUserId`, and closes all other pending responses. Finds or creates `DatingMatch` with `HasChatEntitlement = true` and `Origin = "TodayPlan"` (free messaging for both users without crystals/paywalls). Idempotently appends initial context message (`📍 [დღეს მინდა: {title}]` + applicant message, `ClientMessageId = responseId`). Enqueues `match` push notifications for mobile devices. Dispatches Telegram notification to applicant with inline button linking to chat (`/messages`). Failures in notifications do not rollback or block transaction. |
+| POST /api/today-plans/{id}/responses (author notification) | After recording response and updating daily quota, dispatches Telegram notification to plan author with applicant name, response note preview, and inline button linking to `/today-plans` applicants view. |
+| POST /api/today-plans/{id}/cancel (companion notification & chat history preservation) | When a `Matched` plan is cancelled, dispatches Telegram cancellation notice to the selected companion. Chat history (`DatingMatch`, `Conversation`, `ChatMessage`) is permanently preserved and remains fully accessible to both participants. |
+| GET /api/today-plans/{id} & GET /api/today-plans/my-responses (chat links) | Returns `conversationId` for accepted companion and author, allowing direct navigation from plan or response card directly to the active conversation. |

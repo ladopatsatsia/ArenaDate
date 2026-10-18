@@ -9,9 +9,13 @@ public sealed class MatchController(MatchService service):ControllerBase {
  private Guid Id=>Guid.Parse(User.FindFirst("sub")!.Value);
  [HttpPost("swipes"),RequestSizeLimit(1024)]
  public Task<SwipeResult> Decide(SwipeRequest request,CancellationToken ct)=>service.Decide(Id,request,ct);
+ [HttpPost("swipes/superlike"),RequestSizeLimit(2048)]
+ public Task<SuperLikeResult> SuperLike(SuperLikeRequest request,CancellationToken ct)=>service.SuperLike(Id,request,ct);
  [HttpGet("swipes/{request:guid}")]
  public async Task<SwipeResult> Receipt(Guid request,CancellationToken ct)=>
   await service.Receipt(Id,request,ct) ?? throw new AuthFailure(404,"request_unknown");
+ [HttpGet("matches/requests")]
+ public Task<LikeRequestSummary[]> Requests(CancellationToken ct)=>service.Requests(Id,ct);
  [HttpGet("matches")]
  public Task<MatchPage> List([FromQuery] Guid? cursor,CancellationToken ct) {
   if(Request.Query.Keys.Any(k=>k!="cursor")) throw new AuthFailure(400,"invalid_query");
@@ -21,4 +25,20 @@ public sealed class MatchController(MatchService service):ControllerBase {
  public Task<MatchNotification[]> Notices(CancellationToken ct)=>service.Notices(Id,ct);
  [HttpPost("matches/{match:guid}/acknowledge"),RequestSizeLimit(1024)]
  public async Task<IActionResult> Ack(Guid match,CancellationToken ct) { await service.Acknowledge(Id,match,ct); return NoContent(); }
+ [HttpPost("matches/{match:guid}/unlock"),RequestSizeLimit(1024)]
+ public Task<Dating.Api.Features.Game.Wallet.UnlockMatchConversationResult> Unlock(
+     Guid match,
+     [FromBody] Dating.Api.Features.Game.Wallet.UnlockMatchConversationRequest request,
+     [FromServices] Dating.Api.Features.Game.Wallet.WalletService walletService,
+     CancellationToken ct)
+     => walletService.UnlockMatchConversationAsync(Id, match, request, ct);
+ [HttpPost("matches/views/{targetId:guid}")]
+ public async Task<IActionResult> RecordView(Guid targetId, CancellationToken ct) {
+  await service.RecordProfileView(Id, targetId, ct);
+  return NoContent();
+ }
+ [HttpGet("matches/views/viewed-you")]
+ public Task<ProfileViewSummary[]> ViewedYou(CancellationToken ct) => service.GetViewedMe(Id, ct);
+ [HttpGet("matches/views/you-viewed")]
+ public Task<ProfileViewSummary[]> YouViewed(CancellationToken ct) => service.GetYouViewed(Id, ct);
 }

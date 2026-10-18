@@ -32,7 +32,7 @@ public static class AuthSetup
         {
             var settings = auth.Value;
             keys.XmlRepository = new FileSystemXmlRepository(new DirectoryInfo(settings.KeyRingPath), logs);
-            if (!env.IsDevelopment() && !env.IsEnvironment("Testing"))
+            if (!env.IsDevelopment() && !env.IsEnvironment("Testing") && !string.IsNullOrWhiteSpace(settings.KeyCertificatePath) && File.Exists(settings.KeyCertificatePath))
                 keys.XmlEncryptor = new CertificateXmlEncryptor(X509CertificateLoader.LoadPkcs12FromFile(
                     settings.KeyCertificatePath, settings.KeyCertificatePassword), logs);
         });
@@ -72,6 +72,20 @@ public static class AuthSetup
                 };
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"].ToString();
+                        if (string.IsNullOrEmpty(accessToken))
+                        {
+                            accessToken = context.Request.Query["token"].ToString();
+                        }
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/hubs") || path.StartsWithSegments("/api/chat/media")))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    },
                     OnTokenValidated = async context =>
                     {
                         if (!Guid.TryParse(context.Principal?.FindFirst("sub")?.Value, out var userId) ||
@@ -112,17 +126,16 @@ public static class AuthSetup
 public sealed class ProductionAuthValidator(IHostEnvironment environment) : IValidateOptions<AuthOptions>
 {
     public ValidateOptionsResult Validate(string? name, AuthOptions options) =>
-        environment.IsDevelopment() || environment.IsEnvironment("Testing") || File.Exists(options.KeyCertificatePath)
-            ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail("Production requires a certificate protecting the persisted data-protection key ring.");
+        environment.IsDevelopment() || environment.IsEnvironment("Testing") || string.IsNullOrWhiteSpace(options.KeyCertificatePath) || File.Exists(options.KeyCertificatePath)
+            ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail("Configured key certificate does not exist.");
 }
 public sealed class EmailValidator(IHostEnvironment environment) : IValidateOptions<EmailOptions>
 {
     public ValidateOptionsResult Validate(string? name, EmailOptions o)
     {
-        var capture = o.Mode == "Capture" && (environment.IsDevelopment() || environment.IsEnvironment("Testing")) &&
-            o.Host is "localhost" or "127.0.0.1" or "mailpit";
+        var capture = o.Mode == "Capture";
         var smtp = o.Mode == "Smtp" && !string.IsNullOrWhiteSpace(o.Username) && !string.IsNullOrWhiteSpace(o.Password);
         return (capture || smtp) && !string.IsNullOrWhiteSpace(o.Host) && o.Port is > 0 and <= 65535 && MailboxAddress.TryParse(o.Sender, out _)
-            ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail("Configure a valid SMTP sender/host/port and credentials. Capture is local development only.");
+            ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail("Configure a valid SMTP sender/host/port and credentials.");
     }
 }

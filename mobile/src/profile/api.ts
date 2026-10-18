@@ -1,6 +1,26 @@
 import type { components } from '@dating/api-contract';
 import { ApiError, AuthApi } from '../auth/api';
 import { SessionManager } from '../auth/session';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
+
+export function uriToBlob(uri: string): Promise<Blob> {
+  if (uri.startsWith('data:')) {
+    const commaIndex = uri.indexOf(',');
+    const header = uri.substring(0, commaIndex);
+    const base64Data = uri.substring(commaIndex + 1);
+    const mimeMatch = header.match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const binary = atob(base64Data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return Promise.resolve(new Blob([bytes], { type: mime }));
+  }
+  return fetch(uri).then(r => r.blob());
+}
+
 export type OwnProfile = components['schemas']['OwnProfileDto'];
 export type Photo = components['schemas']['PhotoDto'];
 export type Choices = components['schemas']['ProfileChoices'];
@@ -28,9 +48,28 @@ export class ProfileApi {
       return response;
     } finally { clearTimeout(timeout); }
   }
-  finalize = (id: string, bytes: Blob) => this.authorized(async t => {
+  finalize = (id: string, source: Blob | string) => this.authorized(async t => {
+    if (typeof source === 'string') {
+      const url = this.api.baseUrl.replace(/\/$/, '') + '/api/profile/photos/' + id + '/finalize';
+      if (Platform.OS !== 'web' && FileSystem.uploadAsync && FileSystem.FileSystemUploadType) {
+        const result = await FileSystem.uploadAsync(url, source, {
+          httpMethod: 'POST',
+          headers: {
+            Authorization: 'Bearer ' + t,
+            'Content-Type': 'application/octet-stream',
+          },
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        });
+        if (result.status < 200 || result.status >= 300) throw new ApiError(result.status);
+        return JSON.parse(result.body) as Photo;
+      }
+      const fileBlob = await uriToBlob(source);
+      const response = await this.fetch('/api/profile/photos/' + id + '/finalize', t,
+        { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: fileBlob });
+      return await response.json() as Photo;
+    }
     const response = await this.fetch('/api/profile/photos/' + id + '/finalize', t,
-      { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes });
+      { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: source });
     return await response.json() as Photo;
   });
   remove = (id: string) => this.authorized(async t => { await this.fetch('/api/profile/photos/' + id, t, { method: 'DELETE' }); });
@@ -45,7 +84,7 @@ export class ProfileApi {
   });
 }
 // Keep the same request ID across interrupted Begin/finalize responses. No fake completion.
-export async function uploadPhoto(api: Pick<ProfileApi, 'begin' | 'finalize'>, requestId: string, bytes: Blob): Promise<Photo> {
+export async function uploadPhoto(api: Pick<ProfileApi, 'begin' | 'finalize'>, requestId: string, source: Blob | string): Promise<Photo> {
   const slot = await api.begin(requestId);
-  return slot.state === 'uploading' ? api.finalize(slot.id, bytes) : slot;
+  return slot.state === 'uploading' ? api.finalize(slot.id, source) : slot;
 }

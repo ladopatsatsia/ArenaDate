@@ -6,14 +6,17 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Screen } from '../components/Screen';
+import { theme } from '../components/theme';
 import { ApiError } from './api';
 import { useAuth } from './AuthProvider';
 
 type Mode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
 export function AuthForm({ mode }: { mode: Mode }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const { manager, api, state } = useAuth();
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,12 +39,21 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const submit = handleSubmit(async values => {
     setError(null); setResult(null);
     try {
-      if (mode === 'login') await manager.signIn({ email: values.email.trim(), password: values.password });
-      if (mode === 'register') await api.register({ email: values.email.trim(), password: values.password, dateOfBirth: values.dateOfBirth });
+      if (mode === 'login') {
+        await manager.signIn({ email: values.email.trim(), password: values.password });
+        router.replace('/(tabs)/discover');
+        return;
+      }
+      if (mode === 'register') {
+        await api.register({ email: values.email.trim(), password: values.password, dateOfBirth: values.dateOfBirth });
+        await manager.signIn({ email: values.email.trim(), password: values.password });
+        router.replace('/(tabs)/discover');
+        return;
+      }
       if (mode === 'verify') await api.verify({ email: values.email.trim(), code: values.code.trim() });
       if (mode === 'forgot') await api.forgot(values.email.trim());
       if (mode === 'reset') await api.reset({ email: values.email.trim(), code: values.code.trim(), password: values.password });
-      if (mode !== 'login') { setResult(mode === 'verify' ? 'verified' : mode === 'reset' ? 'password_reset' : 'email_accepted'); reset({ ...values, password: '', code: '' }); }
+      setResult(mode === 'verify' ? 'verified' : mode === 'reset' ? 'password_reset' : 'email_accepted'); reset({ ...values, password: '', code: '' });
     } catch (error) { showError(error); }
   });
   const fields: ('email' | 'password' | 'dateOfBirth' | 'code')[] = ['email'];
@@ -55,6 +67,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <>
           <Text>{t('field_' + name)}</Text>
           <TextInput testID={'auth-'+name} accessibilityLabel={t('field_' + name)} style={styles.input} value={value} onChangeText={onChange} onBlur={onBlur}
+            placeholderTextColor={theme.colors.muted}
             autoCapitalize="none" autoCorrect={false} secureTextEntry={name === 'password' || name === 'code'}
             keyboardType={name === 'email' ? 'email-address' : name === 'dateOfBirth' ? 'numbers-and-punctuation' : 'default'}
             autoComplete={name === 'email' ? 'email' : name === 'password' ? (mode === 'login' ? 'current-password' : 'new-password') : 'off'}
@@ -77,4 +90,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <Link href="/reset">{t('auth_reset')}</Link>
     </Screen>;
 }
-const styles = StyleSheet.create({ input: { borderWidth: 1, borderColor: '#826675', borderRadius: 8, padding: 12, minHeight: 48, color: '#432d37' }, error: { color: '#991b1b' } });
+const styles = StyleSheet.create({
+  input: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    minHeight: 48,
+    color: theme.colors.text,
+  },
+  error: {
+    color: theme.colors.danger,
+  },
+});

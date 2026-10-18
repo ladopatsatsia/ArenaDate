@@ -7,6 +7,44 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var portEnv = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(portEnv))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{portEnv}");
+}
+if (string.IsNullOrWhiteSpace(builder.Configuration["Auth:SigningKeyPem"]))
+{
+    using var rsa = System.Security.Cryptography.RSA.Create(2048);
+    builder.Configuration["Auth:SigningKeyPem"] = rsa.ExportPkcs8PrivateKeyPem();
+}
+if (string.IsNullOrWhiteSpace(builder.Configuration["Auth:KeyRingPath"]))
+{
+    var keyring = Path.Combine(AppContext.BaseDirectory, "auth-keyring");
+    Directory.CreateDirectory(keyring);
+    builder.Configuration["Auth:KeyRingPath"] = keyring;
+}
+if (string.IsNullOrWhiteSpace(builder.Configuration["Auth:Issuer"]))
+{
+    builder.Configuration["Auth:Issuer"] = "dating-api";
+}
+if (string.IsNullOrWhiteSpace(builder.Configuration["Auth:Audience"]))
+{
+    builder.Configuration["Auth:Audience"] = "dating-clients";
+}
+if (string.IsNullOrWhiteSpace(builder.Configuration["Email:Mode"]))
+{
+    builder.Configuration["Email:Mode"] = "Capture";
+    builder.Configuration["Email:Host"] = "127.0.0.1";
+    builder.Configuration["Email:Port"] = "1025";
+    builder.Configuration["Email:Sender"] = "no-reply@dating.local";
+}
+if (string.IsNullOrWhiteSpace(builder.Configuration["Media:Mode"]))
+{
+    builder.Configuration["Media:Mode"] = "Local";
+    var mediaDir = Path.Combine(AppContext.BaseDirectory, "private-media");
+    Directory.CreateDirectory(mediaDir);
+    builder.Configuration["Media:LocalPath"] = mediaDir;
+}
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
@@ -19,7 +57,41 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
     context.ProblemDetails.Extensions.Clear();
     context.ProblemDetails.Extensions["correlationId"] = context.HttpContext.TraceIdentifier;
 });
-builder.Services.AddOpenApi();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+if (!string.IsNullOrWhiteSpace(databaseUrl) && string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Database")))
+{
+    var formattedConnection = databaseUrl;
+    if (databaseUrl.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+        databaseUrl.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+    {
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var database = uri.AbsolutePath.TrimStart('/');
+        formattedConnection = $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};Include Error Detail=true";
+    }
+    builder.Configuration["ConnectionStrings:Database"] = formattedConnection;
+}
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddOptions<DatabaseSettings>().BindConfiguration("ConnectionStrings")
     .Validate(settings => !string.IsNullOrWhiteSpace(settings.Database), "ConnectionStrings__Database is required.")
     .ValidateOnStart();
@@ -27,10 +99,32 @@ builder.Services.AddDbContext<AppDbContext>((services, options) =>
 {
     var connection = services.GetRequiredService<IConfiguration>().GetConnectionString("Database")
         ?? throw new InvalidOperationException("Configure ConnectionStrings__Database.");
+
+    if (connection.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+        connection.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+    {
+        var uri = new Uri(connection);
+        var userInfo = uri.UserInfo.Split(':');
+        var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var database = uri.AbsolutePath.TrimStart('/');
+        connection = $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};Include Error Detail=true";
+    }
+
     options.UseNpgsql(connection, npgsql => npgsql.UseNetTopologySuite());
 });
 builder.Services.AddDatingAuth();
 builder.Services.AddModeration();
+builder.Services.AddScoped<Dating.Api.Features.Premium.IPremiumService, Dating.Api.Features.Premium.PremiumService>();
+builder.Services.AddHttpClient<Dating.Api.Features.Premium.ITelegramPaymentService, Dating.Api.Features.Premium.TelegramPaymentService>(c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<Dating.Api.Features.Notifications.ITelegramNotificationService, Dating.Api.Features.Notifications.TelegramNotificationService>(c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
 builder.Services.AddProfileMedia();
 builder.Services.AddScoped<Dating.Api.Features.Discovery.DiscoveryEligibility>();
 builder.Services.AddScoped<Dating.Api.Features.Discovery.DiscoveryService>();
@@ -40,6 +134,7 @@ builder.Services.AddScoped<Dating.Api.Features.Matching.PairLifecycle>();
 builder.Services.AddScoped<Dating.Api.Features.Matching.MatchOutbox>();
 builder.Services.AddHostedService<Dating.Api.Features.Matching.MatchOutboxWorker>();
 builder.Services.AddScoped<Dating.Api.Features.Chat.ChatService>();
+builder.Services.AddScoped<Dating.Api.Features.Chat.ChatMediaService>();
 builder.Services.AddScoped<Dating.Api.Features.Chat.ChatOutbox>();
 builder.Services.AddSingleton<Dating.Api.Features.Chat.ChatConnections>();
 builder.Services.AddHostedService<Dating.Api.Features.Chat.ChatOutboxWorker>();
@@ -55,9 +150,27 @@ builder.Services.AddHttpClient<Dating.Api.Features.Notifications.IPushProvider,D
 builder.Services.AddHostedService<Dating.Api.Features.Notifications.PushWorker>();
 builder.Services.AddScoped<Dating.Api.Features.AccountLifecycle.AccountLifecycleService>();
 builder.Services.AddHostedService<Dating.Api.Features.AccountLifecycle.AccountPurgeWorker>();
+builder.Services.AddOptions<Dating.Api.Features.Game.GameOptions>().BindConfiguration("Game")
+    .Validate(o => o.Valid(), "Game options invalid: capacity must equal quotas, start thresholds must be valid.")
+    .ValidateOnStart();
+builder.Services.Configure<Dating.Api.Features.Game.Ai.OpenAiOptions>(builder.Configuration.GetSection(Dating.Api.Features.Game.Ai.OpenAiOptions.SectionName));
+builder.Services.AddSingleton<Dating.Api.Features.Game.Ai.DeterministicAiCommentaryProvider>();
+builder.Services.AddHttpClient<Dating.Api.Features.Game.Ai.IAiCommentaryProvider, Dating.Api.Features.Game.Ai.OpenAiCommentaryProvider>(c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(5);
+}).RemoveAllLoggers();
+builder.Services.AddSingleton<Dating.Api.Features.Game.GameConnections>();
+builder.Services.AddScoped<Dating.Api.Features.Game.GameService>();
+builder.Services.AddSingleton<Dating.Api.Features.Game.Wallet.IPlatformStoreValidator, Dating.Api.Features.Game.Wallet.PlatformStoreValidator>();
+builder.Services.AddScoped<Dating.Api.Features.Game.Wallet.WalletService>();
+builder.Services.AddHostedService<Dating.Api.Features.Game.GameDeadlineWorker>();
+builder.Services.AddScoped<Dating.Api.Features.TodayPlans.TodayPlanService>();
+builder.Services.AddHostedService<Dating.Api.Features.TodayPlans.TodayPlanExpirationWorker>();
 var app = builder.Build();
 if (args.Length > 0 && args[0] == "staff") { await StaffCommand.Run(app.Services,args); return; }
+app.UseForwardedHeaders();
 app.UseMiddleware<SafeRequestMiddleware>();
+app.UseCors();
 // Production API/hub traffic fails closed unless Kestrel (or explicitly trusted proxy middleware) establishes HTTPS.
 app.Use(async (context,next) => {
  if(context.Request.Path.StartsWithSegments("/api/moderation")) {
@@ -90,6 +203,27 @@ app.MapHub<Dating.Api.Features.Chat.ChatHub>("/hubs/chat", options => {
  options.CloseOnAuthenticationExpiration=true;
  options.LongPolling.PollTimeout=TimeSpan.FromSeconds(25);
 }).RequireRateLimiting("chat");
+app.MapHub<Dating.Api.Features.Game.GameHub>("/hubs/game", options => {
+ options.Transports=Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+ options.CloseOnAuthenticationExpiration=true;
+ options.LongPolling.PollTimeout=TimeSpan.FromSeconds(25);
+}).RequireRateLimiting("chat");
+
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        await db.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Database migration on startup failed.");
+    }
+}
+
 app.Run();
 
 public partial class Program;

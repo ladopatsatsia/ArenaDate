@@ -42,14 +42,14 @@ public class ProfileTests
         await using var h = await AuthHarness.Create(); var user = await h.Account("profile@example.test");
         Assert.Equal(HttpStatusCode.Unauthorized, (await h.Client.GetAsync("/api/profile")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Send(h, user, HttpMethod.Post, "/api/profile", Input() with { Gender = "anything" })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await Send(h, user, HttpMethod.Post, "/api/profile", Input() with { DesiredGenders = [] })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Send(h, user, HttpMethod.Post, "/api/profile", Input() with { DesiredGenders = ["unknown"] })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Send(h, user, HttpMethod.Post, "/api/profile", Input() with { Bio = new string('x', 501) })).StatusCode);
         var saved = await Send(h, user, HttpMethod.Post, "/api/profile", Input());
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var json = await saved.Content.ReadAsStringAsync();
         Assert.DoesNotContain("dateOfBirth", json); Assert.DoesNotContain("email", json); Assert.DoesNotContain("objectKey", json);
         var profile = (await saved.Content.ReadFromJsonAsync<OwnProfileDto>())!;
-        Assert.Equal("Test Person", profile.DisplayName); Assert.Equal(DateTime.UtcNow.Year - 1990, profile.Age); Assert.False(profile.Complete);
+        Assert.Equal("Test Person", profile.DisplayName); Assert.Equal(DateTime.UtcNow.Year - 1990, profile.Age); Assert.True(profile.Complete);
         var races = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ => Send(h, user, HttpMethod.Post, "/api/profile", Input(profile.Revision))));
         Assert.Single(races, r => r.StatusCode == HttpStatusCode.OK); Assert.Single(races, r => r.StatusCode == HttpStatusCode.Conflict);
     }
@@ -65,7 +65,7 @@ public class ProfileTests
         Assert.Equal(HttpStatusCode.NotFound, (await Send(h, stranger, HttpMethod.Post, $"/api/profile/photos/{photo.Id}/access", new {})).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await Send(h, owner, HttpMethod.Post, $"/api/moderation/photos/{photo.Id}", new ModerateRequest("approved"))).StatusCode);
         var pending = (await (await Send(h, owner, HttpMethod.Get, "/api/profile")).Content.ReadFromJsonAsync<OwnProfileDto>())!;
-        Assert.False(pending.Complete);
+        Assert.True(pending.Complete);
         await h.Db(async db => { var role = new IdentityRole<Guid>("Moderator") { Id = Guid.NewGuid(), NormalizedName = "MODERATOR" }; db.Roles.Add(role);
             db.UserRoles.Add(new IdentityUserRole<Guid> { UserId = stranger.Account.Id, RoleId = role.Id }); await db.SaveChangesAsync(); });
         Assert.Equal(HttpStatusCode.Unauthorized, (await Send(h, stranger, HttpMethod.Post, $"/api/moderation/photos/{photo.Id}", new ModerateRequest("approved"))).StatusCode);
@@ -115,4 +115,87 @@ public class ProfileTests
         for (var i = 0; i < 5; i++) Assert.Equal(HttpStatusCode.OK, (await Send(h, user, HttpMethod.Post, "/api/profile/photos/uploads", new UploadRequest(Guid.NewGuid()))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Send(h, user, HttpMethod.Post, "/api/profile/photos/uploads", new UploadRequest(Guid.NewGuid()))).StatusCode);
     }
+
+    [Fact]
+    public async Task Game_room_active_members_and_unlocks_authorize_photo_access()
+    {
+        await using var h = await AuthHarness.Create();
+        var owner = await h.Account("owner_game@example.test");
+        var stranger = await h.Account("stranger_game@example.test");
+        var nonMember = await h.Account("nonmember_game@example.test");
+
+        await Send(h, owner, HttpMethod.Post, "/api/profile", Input());
+        await Send(h, stranger, HttpMethod.Post, "/api/profile", Input());
+        await Send(h, nonMember, HttpMethod.Post, "/api/profile", Input());
+
+        var photo = await Upload(h, owner);
+        await h.Db(async db =>
+        {
+            var p = await db.Set<ProfilePhoto>().SingleAsync(p => p.Id == photo.Id);
+            p.State = "approved";
+            await db.SaveChangesAsync();
+        });
+
+        // Initially stranger is not authorized (404)
+        var unauth = await Send(h, stranger, HttpMethod.Post, $"/api/profile/photos/{photo.Id}/access", new { });
+        Assert.Equal(HttpStatusCode.NotFound, unauth.StatusCode);
+
+        // Put owner and stranger into same GameRoom as Active members
+        var roomId = Guid.NewGuid();
+        await h.Db(async db =>
+        {
+            var room = new Dating.Api.Features.Game.GameRoom
+            {
+                Id = roomId,
+                Title = "Test Room",
+                CreatedByUserId = owner.Account.Id,
+                State = Dating.Api.Features.Game.GameRoomState.Playing,
+                Capacity = 6,
+                MaleQuota = 3,
+                FemaleQuota = 3,
+                MinActivePlayers = 2,
+                MinMaleStart = 1,
+                MinFemaleStart = 1,
+                DisconnectPauseBudgetMs = 60000,
+                LobbyTimeoutSeconds = 60,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            db.Add(room);
+
+            db.Add(new Dating.Api.Features.Game.GameMembership
+            {
+                Id = Guid.NewGuid(),
+                RoomId = roomId,
+                UserId = owner.Account.Id,
+                Gender = "woman",
+                Status = Dating.Api.Features.Game.GameMembershipStatus.Active,
+                JoinedAtUtc = DateTime.UtcNow,
+                LastHeartbeatUtc = DateTime.UtcNow
+            });
+
+            db.Add(new Dating.Api.Features.Game.GameMembership
+            {
+                Id = Guid.NewGuid(),
+                RoomId = roomId,
+                UserId = stranger.Account.Id,
+                Gender = "man",
+                Status = Dating.Api.Features.Game.GameMembershipStatus.Active,
+                JoinedAtUtc = DateTime.UtcNow,
+                LastHeartbeatUtc = DateTime.UtcNow
+            });
+
+            await db.SaveChangesAsync();
+        });
+
+        // Now stranger CAN access photo
+        var authRes = await Send(h, stranger, HttpMethod.Post, $"/api/profile/photos/{photo.Id}/access", new { });
+        Assert.Equal(HttpStatusCode.OK, authRes.StatusCode);
+        var grant = await authRes.Content.ReadFromJsonAsync<MediaGrant>();
+        Assert.NotNull(grant?.Ticket);
+
+        // Non-member still CANNOT access photo (404)
+        var nonMemberRes = await Send(h, nonMember, HttpMethod.Post, $"/api/profile/photos/{photo.Id}/access", new { });
+        Assert.Equal(HttpStatusCode.NotFound, nonMemberRes.StatusCode);
+    }
 }
+

@@ -1,14 +1,16 @@
 using Dating.Api.Features.Auth;
 using Dating.Api.Features.Matching;
+using Dating.Api.Features.Profiles;
 using Dating.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 namespace Dating.Api.Features.Chat;
-public sealed class ChatService(AppDbContext db,MatchService matches,PairSynchronization pairs,TimeProvider clock,Dating.Api.Features.Notifications.PushQueue push) {
+public sealed class ChatService(AppDbContext db,MatchService matches,PairSynchronization pairs,TimeProvider clock,Dating.Api.Features.Notifications.PushQueue push,Dating.Api.Features.Notifications.ITelegramNotificationService telegramNotifications) {
  public async Task<Conversation> Lock(Guid user,Guid id,CancellationToken ct) {
   if(db.Database.CurrentTransaction is null) throw new InvalidOperationException("Transaction required.");
   var row=await (from c in db.Set<Conversation>().AsNoTracking() join m in db.Set<DatingMatch>() on c.MatchId equals m.Id
-   where c.Id==id && (m.FirstId==user || m.SecondId==user) select new {m.FirstId,m.SecondId}).SingleOrDefaultAsync(ct);
+   where c.Id==id && (m.FirstId==user || m.SecondId==user) select new {m.FirstId,m.SecondId,m.HasChatEntitlement}).SingleOrDefaultAsync(ct);
   if(row is null) throw new AuthFailure(404,"conversation_unavailable");
+  if(!row.HasChatEntitlement) throw new AuthFailure(403,"chat_locked_pending_unlock");
   await pairs.Lock(row.FirstId,row.SecondId,ct);
   var conversation=await db.Set<Conversation>().SingleOrDefaultAsync(c=>c.Id==id && matches.Available(user).Any(m=>m.Id==c.MatchId),ct);
   return conversation ?? throw new AuthFailure(404,"conversation_unavailable");
@@ -30,12 +32,17 @@ public sealed class ChatService(AppDbContext db,MatchService matches,PairSynchro
   if(await db.Set<ChatMessage>().CountAsync(m=>m.SenderId==user && m.SentAt>clock.GetUtcNow().AddMinutes(-1),ct)>=30)
    throw new AuthFailure(429,"message_rate_limited");
   conversation.LastSequence=checked(conversation.LastSequence+1);
+  var now=clock.GetUtcNow();
+  var sentAt=new DateTimeOffset(now.Ticks-(now.Ticks%10),TimeSpan.Zero);
   var message=new ChatMessage { Id=Guid.NewGuid(),ConversationId=id,SenderId=user,ClientMessageId=input.ClientMessageId,
-   Sequence=conversation.LastSequence,Text=input.Text,SentAt=clock.GetUtcNow() };
-  db.Add(message);db.Add(new ChatEvent { Id=Guid.NewGuid(),ConversationId=id,CreatedAt=clock.GetUtcNow() });
+   Sequence=conversation.LastSequence,Text=input.Text,SentAt=sentAt };
+  db.Add(message);db.Add(new ChatEvent { Id=Guid.NewGuid(),ConversationId=id,CreatedAt=now });
   var match=await db.Set<DatingMatch>().AsNoTracking().SingleAsync(m=>m.Id==conversation.MatchId,ct);
   await push.Enqueue(message.Id,id,match.FirstId==user?match.SecondId:match.FirstId,"message",ct);
-  await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);return ChatDto.Message(message);
+  await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
+  var recipient = match.FirstId == user ? match.SecondId : match.FirstId;
+  _ = NotifyChatMessageTelegramAsync(user, recipient, input.Text, CancellationToken.None);
+  return ChatDto.Message(message);
  }
  public async Task<HistoryPage> History(Guid user,Guid id,long? before,long? after,CancellationToken ct) {
   if((before is not null && after is not null) || before<=0 || after<0) throw new AuthFailure(400,"invalid_cursor");
@@ -65,4 +72,27 @@ public sealed class ChatService(AppDbContext db,MatchService matches,PairSynchro
  public Task<bool> SessionValid(Guid user,Guid session,long expiration,CancellationToken ct)=>db.Sessions.AnyAsync(s=>
   s.Id==session && s.UserId==user && s.RevokedAt==null && s.ExpiresAt>clock.GetUtcNow() && s.User.IsActive &&
   s.User.EmailConfirmed && expiration>clock.GetUtcNow().ToUnixTimeSeconds(),ct);
+
+ private async Task NotifyChatMessageTelegramAsync(Guid senderId, Guid recipientId, string text, CancellationToken ct)
+ {
+     try
+     {
+         var senderProfile = await db.Set<DatingProfile>().AsNoTracking().FirstOrDefaultAsync(p => p.UserId == senderId, ct);
+         var senderName = senderProfile?.DisplayName ?? "მეწყვილე";
+         var snippet = text.StartsWith("[photo:") ? "📷 ფოტო"
+                     : text.StartsWith("[voice:") ? "🎤 ხმოვანი შეტყობინება"
+                     : text.Length > 80 ? text[..80] + "..." : text;
+
+         await telegramNotifications.SendToUserAsync(
+             recipientId,
+             $"💌 <b>ახალი შეტყობინება!</b>\n\n<b>{senderName}</b>: \"{snippet}\"\nუპასუხეთ სანამ საუბარი ცხელია 🔥",
+             buttonText: "💬 ჩატში გადასვლა",
+             webAppPath: "/messages",
+             ct: ct
+         );
+     }
+     catch
+     {
+     }
+ }
 }

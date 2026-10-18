@@ -8,7 +8,12 @@ export type Register = components['schemas']['RegisterRequest'];
 export type Refresh = components['schemas']['RefreshRequest'];
 export type Verify = components['schemas']['VerifyRequest'];
 export type Reset = components['schemas']['ResetRequest'];
+export type OtpSendRequest = components['schemas']['OtpSendRequest'];
+export type OtpSendResponse = components['schemas']['OtpSendResponse'];
+export type OtpVerifyRequest = components['schemas']['OtpVerifyRequest'];
+export type OtpVerifyResponse = components['schemas']['OtpVerifyResponse'];
 export class ApiError extends Error {
+
   constructor(public readonly status: number, public readonly code = 'request_failed') { super(code); }
 }
 const tokenSchema = z.object({
@@ -33,13 +38,16 @@ export class AuthApi implements SessionApi {
     signal?.addEventListener('abort', abort);
     if (signal?.aborted) abort();
     const timeout = setTimeout(abort, 15000);
+    const fullUrl = this.baseUrl.replace(/\/$/, '') + path;
+    console.log('[AuthApi.request] Calling:', fullUrl);
     try {
-      const response = await fetch(this.baseUrl.replace(/\/$/, '') + path, {
+      const response = await fetch(fullUrl, {
         method: body === undefined ? 'GET' : 'POST',
         headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           ...(accessToken ? { Authorization: 'Bearer ' + accessToken } : {}) },
         body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal,
       });
+      console.log('[AuthApi.request] Status:', response.status);
       if (!response.ok) {
         let code = 'request_failed';
         try {
@@ -49,6 +57,9 @@ export class AuthApi implements SessionApi {
         throw new ApiError(response.status, code);
       }
       return response.status === 204 ? undefined as T : await response.json() as T;
+    } catch (fetchErr) {
+      console.error('[AuthApi.request] Fetch threw:', fetchErr);
+      throw fetchErr;
     } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
   }
   async login(request: Login): Promise<Tokens> { return tokenSchema.parse(await this.request('/api/auth/login', request)); }
@@ -60,4 +71,17 @@ export class AuthApi implements SessionApi {
   async resend(email: string) { await this.request('/api/auth/verification-email', { email }); }
   async forgot(email: string) { await this.request('/api/auth/forgot-password', { email }); }
   async reset(request: Reset) { await this.request('/api/auth/reset-password', request); }
+  async sendOtp(request: OtpSendRequest): Promise<OtpSendResponse> {
+    return await this.request('/api/auth/otp/send', request);
+  }
+  async verifyOtp(request: OtpVerifyRequest): Promise<OtpVerifyResponse> {
+    const res = await this.request<OtpVerifyResponse>('/api/auth/otp/verify', request);
+    tokenSchema.parse(res.tokens);
+    return res;
+  }
+  async loginTelegram(request: { initData: string }): Promise<OtpVerifyResponse> {
+    const res = await this.request<OtpVerifyResponse>('/api/auth/telegram', request);
+    tokenSchema.parse(res.tokens);
+    return res;
+  }
 }

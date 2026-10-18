@@ -14,10 +14,16 @@ public sealed class ModerationAudit {
  public long Id {get;set;} public Guid ActorId {get;set;} public Guid TargetId {get;set;}
  public string Action {get;set;}=""; public string Reason {get;set;}=""; public DateTimeOffset At {get;set;}
 }
-public sealed record AdminLogin([Required,EmailAddress,MaxLength(254)] string Email,[Required,MaxLength(128)] string Password,[Required,RegularExpression("^[0-9]{6}$")] string Code);
+public sealed record AdminLogin([Required,EmailAddress,MaxLength(254)] string Email,[Required,MaxLength(128)] string Password,[RegularExpression("^[0-9]{6}$")] string? Code = null);
 public sealed record ReviewRequest([Required] string State,[Required,StringLength(500,MinimumLength=3)] string Reason);
 public sealed record AccountReview(bool Active,[Required,StringLength(500,MinimumLength=3)] string Reason);
 public sealed record AdminIdentity(Guid Id,string Role);
 public sealed record ReportSummary(Guid Id,Guid SubjectId,string Category,DateTimeOffset CreatedAt,bool Closed);
 public sealed record PhotoReview(Guid Id,Guid UserId,DateTimeOffset CreatedAt);
 public sealed record UserReview(Guid Id,string DisplayName,bool Active);
+public sealed record AdminProfileSummary(Guid UserId,string Email,string DisplayName,string Gender,string City,int Age,bool Active,bool EmailConfirmed,bool Visible,int PhotoCount,Guid? PrimaryPhotoId,int Crystals);
+public sealed record AdminPhotoDto(Guid Id,string State,int Position,DateTimeOffset CreatedAt);
+public sealed record AdminProfileDetail(Guid UserId,string Email,bool EmailConfirmed,bool Active,string DisplayName,string Bio,string Gender,string[] DesiredGenders,string City,string CityKey,DateOnly DateOfBirth,int Age,string[] Interests,string RelationshipGoal,string[] Languages,bool Visible,int MinAge,int MaxAge,int RadiusKm,string LocationMode,long Revision,AdminPhotoDto[] Photos,int Crystals);
+public sealed record AdminCreateUserRequest([Required,EmailAddress,MaxLength(254)] string Email,[Required,MinLength(8),MaxLength(128)] string Password,[Required,MinLength(2),MaxLength(64)] string DisplayName,[Required] DateOnly DateOfBirth,[Required] string Gender,string? City = "Tbilisi",int InitialCrystals = 0);
+public sealed record AdminAdjustCrystalsRequest(int Amount,string? Mode = "delta",string? Reason = null);
+public sealed record AdminCrystalAdjustmentResult(Guid UserId,int OldBalance,int NewBalance,int Delta);

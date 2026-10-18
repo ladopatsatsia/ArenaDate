@@ -169,4 +169,39 @@ public class AuthTests
         Assert.NotNull(rejected.Headers.RetryAfter);
         Assert.DoesNotContain("missing@example", await rejected.Content.ReadAsStringAsync());
     }
+
+    [Fact]
+    public async Task Otp_authentication_flow_handles_new_and_existing_users()
+    {
+        await using var h = await AuthHarness.Create();
+
+        // 1. Send OTP
+        var sendRes = await h.Client.PostAsJsonAsync("/api/auth/otp/send", new OtpSendRequest("otp.user@example.test"));
+        Assert.Equal(HttpStatusCode.OK, sendRes.StatusCode);
+        var sendData = await sendRes.Content.ReadFromJsonAsync<OtpSendResponse>();
+        Assert.NotNull(sendData);
+        Assert.Equal("1111", sendData.DevCode);
+
+        // 2. Invalid code returns 400
+        var badRes = await h.Client.PostAsJsonAsync("/api/auth/otp/verify", new OtpVerifyRequest("otp.user@example.test", "9999"));
+        Assert.Equal(HttpStatusCode.BadRequest, badRes.StatusCode);
+
+        // 3. New user verify with 1111 creates account and returns isNewUser = true
+        var verifyRes = await h.Client.PostAsJsonAsync("/api/auth/otp/verify", new OtpVerifyRequest("otp.user@example.test", "1111"));
+        Assert.Equal(HttpStatusCode.OK, verifyRes.StatusCode);
+        var verifyData = await verifyRes.Content.ReadFromJsonAsync<OtpVerifyResponse>();
+        Assert.NotNull(verifyData);
+        Assert.True(verifyData.IsNewUser);
+        Assert.False(verifyData.HasCompleteProfile);
+        Assert.NotNull(verifyData.Tokens.AccessToken);
+        Assert.NotNull(verifyData.Tokens.RefreshToken);
+
+        // 4. Verification for existing user returns isNewUser = false
+        var repeatRes = await h.Client.PostAsJsonAsync("/api/auth/otp/verify", new OtpVerifyRequest("otp.user@example.test", "1111"));
+        Assert.Equal(HttpStatusCode.OK, repeatRes.StatusCode);
+        var repeatData = await repeatRes.Content.ReadFromJsonAsync<OtpVerifyResponse>();
+        Assert.NotNull(repeatData);
+        Assert.False(repeatData.IsNewUser);
+    }
 }
+

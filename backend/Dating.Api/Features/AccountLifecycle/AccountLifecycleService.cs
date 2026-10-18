@@ -3,6 +3,7 @@ using System.Text;
 using Dating.Api.Features.Auth;
 using Dating.Api.Features.Auth.Email;
 using Dating.Api.Features.Chat;
+using Dating.Api.Features.Game;
 using Dating.Api.Features.Matching;
 using Dating.Api.Features.Moderation;
 using Dating.Api.Features.Notifications;
@@ -127,7 +128,7 @@ public sealed class AccountLifecycleService(
         await tx.CommitAsync(ct);
     }
 
-    private async Task ExecuteDeletionCore(AppUser user, CancellationToken ct)
+    public async Task ExecuteDeletionCore(AppUser user, CancellationToken ct)
     {
         var now = clock.GetUtcNow();
         var id = user.Id;
@@ -161,6 +162,9 @@ public sealed class AccountLifecycleService(
 
         await db.Set<PushDevice>().Where(d => d.UserId == id)
             .ExecuteUpdateAsync(d => d.SetProperty(x => x.Active, false).SetProperty(x => x.Ciphertext, "").SetProperty(x => x.TokenHash, ""), ct);
+
+        await db.Set<GameMembership>().Where(m => m.UserId == id && m.Status == GameMembershipStatus.Active)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Status, GameMembershipStatus.Left).SetProperty(m => m.LeftAtUtc, now), ct);
 
         var matches = await db.Set<DatingMatch>()
             .Where(m => (m.FirstId == id || m.SecondId == id) && m.Active)

@@ -7,7 +7,7 @@ import ChatRoute, { ChatScreen } from '../src/chat/ChatScreen';
 import { useAuth } from '../src/auth/AuthProvider';
 import type { Message } from '../src/chat/api';
 jest.mock('../src/auth/AuthProvider');
-jest.mock('expo-router',()=>({Link:require('react-native').Text,useFocusEffect:(fn:()=>void)=>require('react').useEffect(fn,[fn]),useLocalSearchParams:()=>({})}));
+jest.mock('expo-router',()=>({Link:require('react-native').Text,useFocusEffect:(fn:()=>void)=>require('react').useEffect(fn,[fn]),useLocalSearchParams:()=>({}),useRouter:()=>({push:jest.fn(),replace:jest.fn()})}));
 jest.mock('react-native-safe-area-context',()=>({SafeAreaView:require('react-native').View,useSafeAreaInsets:()=>({top:0,bottom:0,left:0,right:0})}));
 jest.mock('expo-crypto',()=>({randomUUID:()=> '73503d49-b7ee-41c5-832b-7223dca26105'}));
 jest.mock('../src/chat/storage',()=>({pendingStore:()=>({load:async()=>null,save:async()=>{}})}));
@@ -81,4 +81,34 @@ test('revocation clears visible messages, draft and cached previews and rejects 
  expect(screen.getByLabelText('Message').props.value).toBe('');expect(screen.getByLabelText('Message').props.editable).toBe(false);
  expect(cache.getQueryData(['account','A','matches'])).toBeUndefined();
  view.unmount();cache.clear();
+});
+
+test('storage failure during draft restore does not lock the composer and allows emoji and text input', async () => {
+ AppState.currentState = 'active';
+ const pendingMock = jest.requireMock('../src/chat/storage');
+ const originalPendingStore = pendingMock.pendingStore;
+ pendingMock.pendingStore = () => ({
+  load: async () => { throw new Error('storage_unavailable_on_web'); },
+  save: async () => {},
+ });
+
+ const request = jest.fn(async (path: string) => {
+  if (path.includes('/messages')) return { items: [], nextBefore: null, nextAfter: null, readSequence: '0', peerReadSequence: '0' };
+  return {};
+ });
+ const manager = { snapshot: () => ({ account: { id: 'A' } }), withAccess: async (action: (token: string) => Promise<unknown>) => action('token') };
+ jest.mocked(useAuth).mockReturnValue({ api: { baseUrl: 'https://api.test', request }, manager, state: { status: 'signedIn', account: { id: 'A' } } } as unknown as ReturnType<typeof useAuth>);
+ const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+ const view = render(<QueryClientProvider client={cache}><ChatScreen id="conversation" account="A" /></QueryClientProvider>);
+
+ await waitFor(() => expect(screen.getByLabelText('Message').props.editable).toBe(true));
+
+ fireEvent.changeText(screen.getByLabelText('Message'), '😊');
+ expect(screen.getByLabelText('Message').props.value).toBe('😊');
+ const sendBtn = screen.getByRole('button', { name: 'Send' });
+ expect(sendBtn.props.accessibilityState?.disabled).toBeFalsy();
+
+ pendingMock.pendingStore = originalPendingStore;
+ view.unmount();
+ cache.clear();
 });

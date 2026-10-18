@@ -6,6 +6,37 @@ namespace Dating.Api.Features.Moderation;
 // Operator-only process branch: never starts HTTP or background workers.
 public static class StaffCommand {
  public static async Task Run(IServiceProvider services,string[] args) {
+  Console.WriteLine("STAFF_ARGS: [" + string.Join("], [", args) + "]");
+  if (args.Length >= 4 && args[1] == "ensure-admin") {
+   using var s = services.CreateScope();
+   var dbCtx = s.ServiceProvider.GetRequiredService<AppDbContext>();
+   var uMgr = s.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+   var email = args[2];
+   var pwd = args[3];
+   var u = await uMgr.FindByEmailAsync(email);
+   if (u is null) {
+    u = new AppUser { UserName = email, Email = email, EmailConfirmed = true, IsActive = true, DateOfBirth = new DateOnly(1995, 1, 1) };
+    var res = await uMgr.CreateAsync(u, pwd);
+    if (!res.Succeeded) throw new InvalidOperationException(string.Join(", ", res.Errors.Select(e => e.Description)));
+   } else {
+    var token = await uMgr.GeneratePasswordResetTokenAsync(u);
+    await uMgr.ResetPasswordAsync(u, token, pwd);
+    u.EmailConfirmed = true;
+    u.IsActive = true;
+    await uMgr.UpdateAsync(u);
+   }
+   var staffAcct = await dbCtx.Set<StaffAccount>().SingleOrDefaultAsync(sa => sa.UserId == u.Id);
+   if (staffAcct is null) {
+    staffAcct = new StaffAccount { UserId = u.Id, Role = "Admin", Enabled = true };
+    dbCtx.Add(staffAcct);
+   } else {
+    staffAcct.Role = "Admin";
+    staffAcct.Enabled = true;
+   }
+   await dbCtx.SaveChangesAsync();
+   Console.WriteLine($"Admin account successfully configured: {email}");
+   return;
+  }
   if(args.Length!=4 || args[1] is not ("grant" or "revoke" or "reset-mfa") || args[3] is not ("Admin" or "Moderator"))throw new InvalidOperationException("Usage: staff grant|revoke|reset-mfa <verified-account-id> Admin|Moderator");
   if(!Guid.TryParse(args[2],out var id))throw new InvalidOperationException("Use the verified account UUID.");
   if(Console.IsOutputRedirected && args[1]!="revoke")throw new InvalidOperationException("Authenticator provisioning requires a private interactive terminal, not redirected output.");

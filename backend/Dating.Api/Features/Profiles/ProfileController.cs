@@ -11,7 +11,7 @@ public sealed class ProfileController(ProfileService profiles, MediaAccess media
 {
     private Guid UserId => Guid.Parse(User.FindFirst("sub")!.Value);
     [HttpGet] public Task<OwnProfileDto> Get(CancellationToken ct) => profiles.Get(UserId, ct);
-    [HttpGet("choices")] public ProfileChoices Choices() => new(ProfileRules.Genders, ProfileRules.Interests, ProfileRules.Goals);
+    [HttpGet("choices")] public ProfileChoices Choices() => new(ProfileRules.Genders, ProfileRules.Interests, ProfileRules.Goals, ProfileRules.Languages);
     [HttpPost, RequestSizeLimit(8192)] public Task<OwnProfileDto> Save(ProfileUpdate request, CancellationToken ct) => profiles.Save(UserId, request, ct);
     [HttpPost("photos/uploads"), RequestSizeLimit(1024)]
     public Task<PhotoDto> Begin(UploadRequest request, CancellationToken ct) => profiles.Begin(UserId, request.RequestId, ct);

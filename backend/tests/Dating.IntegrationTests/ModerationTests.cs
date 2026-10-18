@@ -134,4 +134,91 @@ public class ModerationTests {
   Assert.Empty(h.Push.Sent);
   await h.Db(async db=>{Assert.All(await db.Set<PushDevice>().ToArrayAsync(),d=>{Assert.False(d.Active);Assert.Empty(d.Ciphertext);});Assert.All(await db.Set<PushDelivery>().ToArrayAsync(),d=>Assert.NotNull(d.FinishedAt));});
  }
+ [Fact] public async Task Admin_can_delete_user_soft_deleting_profile_and_auditing_action() {
+  await using var h=await AuthHarness.Create();var target=await MatchingTests.Person(h,"target");var staff=await h.Account("staff@example.test");using var browser=await SignedIn(h,staff,"staff@example.test");
+  var response=await browser.DeleteAsync($"/api/moderation/users/{target.Account.Id}?reason=Account+permanently+removed");
+  Assert.Equal(HttpStatusCode.NoContent,response.StatusCode);
+  await h.Db(async db=>{
+   var u=await db.Users.IgnoreQueryFilters().SingleAsync(x=>x.Id==target.Account.Id);
+   Assert.True(u.IsDeleted);
+   Assert.False(u.IsActive);
+   Assert.Single(await db.Set<ModerationAudit>().Where(a=>a.TargetId==target.Account.Id && a.Action=="account_deleted").ToArrayAsync());
+  });
+  var profilesRes=await browser.GetFromJsonAsync<AdminProfileSummary[]>("/api/moderation/profiles");
+  Assert.DoesNotContain(profilesRes!,p=>p.UserId==target.Account.Id);
+ }
+ [Fact] public async Task Admin_can_create_new_user_and_wallet_is_initialized() {
+  await using var h=await AuthHarness.Create();
+  var staff=await h.Account("staff@example.test");
+  using var browser=await SignedIn(h,staff,"staff@example.test");
+
+  var createReq = new AdminCreateUserRequest(
+   "newperson@example.test",
+   "SuperPassword123!",
+   "New Candidate",
+   new DateOnly(2000, 5, 10),
+   "woman",
+   "Tbilisi",
+   50
+  );
+  var postRes = await browser.PostAsJsonAsync("/api/moderation/users", createReq);
+  Assert.Equal(HttpStatusCode.OK, postRes.StatusCode);
+  var created = await postRes.Content.ReadFromJsonAsync<AdminProfileSummary>();
+  Assert.NotNull(created);
+  Assert.Equal("newperson@example.test", created.Email);
+  Assert.Equal("New Candidate", created.DisplayName);
+  Assert.Equal(50, created.Crystals);
+
+  await h.Db(async db => {
+   var wallet = await db.Set<Dating.Api.Features.Game.Wallet.UserWallet>().SingleAsync(w => w.UserId == created.UserId);
+   Assert.Equal(50, wallet.Balance);
+   var tx = await db.Set<Dating.Api.Features.Game.Wallet.CrystalTransaction>().SingleAsync(t => t.UserId == created.UserId);
+   Assert.Equal(50, tx.Amount);
+   Assert.Equal("AdminGrant", tx.Type);
+   Assert.Single(await db.Set<ModerationAudit>().Where(a => a.TargetId == created.UserId && a.Action == "admin_user_created").ToArrayAsync());
+  });
+
+  var loginRes = await h.Client.PostAsJsonAsync("/api/auth/login", new LoginRequest("newperson@example.test", "SuperPassword123!"));
+  Assert.Equal(HttpStatusCode.OK, loginRes.StatusCode);
+ }
+ [Fact] public async Task Admin_can_adjust_user_crystals_and_ledger_is_recorded() {
+  await using var h=await AuthHarness.Create();
+  var target=await MatchingTests.Person(h,"target");
+  var staff=await h.Account("staff@example.test");
+  using var browser=await SignedIn(h,staff,"staff@example.test");
+
+  var adj1 = new AdminAdjustCrystalsRequest(100, "delta", "Admin test bonus");
+  var res1 = await browser.PostAsJsonAsync($"/api/moderation/users/{target.Account.Id}/crystals", adj1);
+  Assert.Equal(HttpStatusCode.OK, res1.StatusCode);
+  var result1 = await res1.Content.ReadFromJsonAsync<AdminCrystalAdjustmentResult>();
+  Assert.NotNull(result1);
+  Assert.Equal(0, result1.OldBalance);
+  Assert.Equal(100, result1.NewBalance);
+  Assert.Equal(100, result1.Delta);
+
+  var adj2 = new AdminAdjustCrystalsRequest(-30, "delta", "Admin penalty");
+  var res2 = await browser.PostAsJsonAsync($"/api/moderation/users/{target.Account.Id}/crystals", adj2);
+  Assert.Equal(HttpStatusCode.OK, res2.StatusCode);
+  var result2 = await res2.Content.ReadFromJsonAsync<AdminCrystalAdjustmentResult>();
+  Assert.NotNull(result2);
+  Assert.Equal(100, result2.OldBalance);
+  Assert.Equal(70, result2.NewBalance);
+  Assert.Equal(-30, result2.Delta);
+
+  var adj3 = new AdminAdjustCrystalsRequest(250, "set", "Set exact balance");
+  var res3 = await browser.PostAsJsonAsync($"/api/moderation/users/{target.Account.Id}/crystals", adj3);
+  Assert.Equal(HttpStatusCode.OK, res3.StatusCode);
+  var result3 = await res3.Content.ReadFromJsonAsync<AdminCrystalAdjustmentResult>();
+  Assert.NotNull(result3);
+  Assert.Equal(70, result3.OldBalance);
+  Assert.Equal(250, result3.NewBalance);
+  Assert.Equal(180, result3.Delta);
+
+  await h.Db(async db => {
+   var wallet = await db.Set<Dating.Api.Features.Game.Wallet.UserWallet>().SingleAsync(w => w.UserId == target.Account.Id);
+   Assert.Equal(250, wallet.Balance);
+   var audits = await db.Set<ModerationAudit>().Where(a => a.TargetId == target.Account.Id && a.Action == "crystal_adjustment").ToListAsync();
+   Assert.Equal(3, audits.Count);
+  });
+ }
 }

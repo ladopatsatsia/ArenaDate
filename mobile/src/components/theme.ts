@@ -1,7 +1,22 @@
 export const theme = {
- colors: { background: '#FFF8F4', surface: '#FFFFFF', soft: '#F9E7E8', text: '#38252D', muted: '#715A64', primary: '#9D3154', border: '#D9BBC5', danger: '#9C2434', disabled: '#E6DDE0', onPrimary: '#FFFFFF', ownMessage: '#F8DFE7' },
+ colors: {
+   primary: '#8B5CF6',     // ბრენდის მთავარი ფერი: ელექტრული იისფერი
+   background: '#120E1C',  // მთავარი ფონი: მუქი ქლიავისფერი
+   surface: '#211A30',     // ბარათები და პანელები: იისფერში გადასული მუქი
+   match: '#FB7185',       // კოცნა და match: თბილი ვარდისფერი
+   accent: '#FB7185',      // აქცენტი: თბილი ვარდისფერი
+   text: '#F7F4FC',        // მთავარი ტექსტი: რბილი თეთრი
+   muted: '#B9AFCB',       // დამატებითი ტექსტი: ღია ნაცრისფერი იისფერი
+   border: '#362B4E',      // იისფერი კონტური
+   soft: '#2D2342',        // რბილი იისფერი პანელი
+   danger: '#FB7185',      // შეცდომა / გაფრთხილება: თბილი ვარდისფერი
+   disabled: '#1C1628',    // გამორთული ელემენტის ფონი
+   onPrimary: '#0B0813',   // ტექსტი მთავარ ღილაკზე: მუქი ქლიავისფერი (WCAG AA 4.75:1 კონტრასტი #8B5CF6-ზე)
+   ownMessage: '#3B295C',  // საკუთარი შეტყობინების ბაბლი
+ },
  space: { xs: 4, sm: 8, md: 12, lg: 20, xl: 28, xxl: 40 },
  radius: { control: 14, card: 24 },
  type: { body: 16, small: 13, title: 30, heading: 22 },
  touch: 48,
 } as const;
+

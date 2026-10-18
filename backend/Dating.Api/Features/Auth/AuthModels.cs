@@ -41,6 +41,12 @@ public sealed record LogoutRequest([Required, MaxLength(128)] string RefreshToke
 public sealed record AccountResponse(Guid Id);
 public sealed record TokenResponse(string AccessToken, DateTimeOffset AccessExpiresAt, string RefreshToken, DateTimeOffset SessionExpiresAt, AccountResponse Account);
 public sealed record AcceptedResponse(string Message = "If the request is eligible, an email will be sent.");
+public sealed record OtpSendRequest([Required, EmailAddress, MaxLength(254)] string Email);
+public sealed record OtpSendResponse(string Message, string? DevCode = "1111");
+public sealed record OtpVerifyRequest([Required, EmailAddress, MaxLength(254)] string Email, [Required, MaxLength(10)] string Code);
+public sealed record OtpVerifyResponse(TokenResponse Tokens, bool IsNewUser, bool HasCompleteProfile);
+public sealed record TelegramAuthRequest([Required] string InitData);
+
 public sealed class AuthFailure(int status, string code) : Exception
 {
     public int Status { get; } = status;

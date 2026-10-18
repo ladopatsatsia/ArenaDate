@@ -62,6 +62,12 @@ export class SessionManager {
     if (epoch !== this.generation) throw new Error('session_changed');
     await this.accept(result, epoch);
   }
+  async signInWithTokens(tokens: Tokens) {
+    const epoch = await this.clear();
+    if (epoch !== this.generation) throw new Error('session_changed');
+    if (this.state.status === 'offline') throw new Error('storage_error');
+    await this.accept(tokens, epoch);
+  }
   private async accept(tokens: Tokens, epoch: number) {
     const record: Stored = { refreshToken: tokens.refreshToken, origin: this.origin };
     await this.persist(epoch, record);

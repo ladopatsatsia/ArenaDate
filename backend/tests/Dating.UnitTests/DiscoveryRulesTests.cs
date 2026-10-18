@@ -8,6 +8,13 @@ public class DiscoveryRulesTests
     [InlineData("  Tbilisi  ", "TBILISI")]
     [InlineData("New   York", "NEW YORK")]
     [InlineData("new\tyork", "NEW YORK")]
+    [InlineData("თბილისი", "TBILISI")]
+    [InlineData("ბათუმი", "BATUMI")]
+    [InlineData("ქუთაისი", "KUTAISI")]
+    [InlineData("სოხუმი", "SOKHUMI")]
+    [InlineData("ცხინვალი", "TSKHINVALI")]
+    [InlineData("აფხაზეთი", "ABKHAZIA")]
+    [InlineData("Tiflis", "TBILISI")]
     public void Cities_have_explicit_case_and_whitespace_normalization(string city,string expected)=>Assert.Equal(expected,DiscoveryRules.CityKey(city));
     [Theory]
     [InlineData(91,0)]

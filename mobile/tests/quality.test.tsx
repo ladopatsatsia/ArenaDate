@@ -5,9 +5,11 @@ import { Button, Text, TextInput } from '../src/components/UI';
 import { useReducedMotion } from '../src/components/useReducedMotion';
 import { theme } from '../src/components/theme';
 
-test('both languages have the same nonempty keys and Georgian text survives rendering at scaled text sizes',async()=>{
+test('all three languages (ka, ru, en) have the same nonempty keys and text survives rendering at scaled text sizes',async()=>{
  expect(Object.keys(resources.en.translation).sort()).toEqual(Object.keys(resources.ka.translation).sort());
+ expect(Object.keys(resources.ru.translation).sort()).toEqual(Object.keys(resources.en.translation).sort());
  for(const text of Object.values(resources.ka.translation)){expect(text.trim()).not.toBe('');expect(text).not.toContain('\uFFFD');}
+ for(const text of Object.values(resources.ru.translation)){expect(text.trim()).not.toBe('');expect(text).not.toContain('\uFFFD');}
  await i18n.changeLanguage('ka');
  const view=render(<><Text accessibilityRole="header">{i18n.t('welcome')}</Text><TextInput accessibilityLabel={i18n.t('field_email')}/></>);
  expect(screen.getByRole('header').props.children).toMatch(/[\u10A0-\u10FF]/);expect(screen.getByRole('header').props.allowFontScaling).toBe(true);

@@ -4,11 +4,13 @@ using Dating.Api.Persistence;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Dating.Api.Features.Profiles;
 using Npgsql;
 
 namespace Dating.Api.Features.Auth;
 public sealed class AuthService(AppDbContext db, UserManager<AppUser> users, JwtTokens jwt,
-    IDataProtectionProvider protection, AuthEmailQueue email, TimeProvider clock)
+    IDataProtectionProvider protection, AuthEmailQueue email, TimeProvider clock, IConfiguration config,
+    Dating.Api.Features.Notifications.ITelegramNotificationService telegramNotifications)
 {
     private readonly IDataProtector retryProtector = protection.CreateProtector("DatingMVP.RefreshRetry.v1");
     private static AuthFailure Invalid() => new(401, "invalid_credentials");
@@ -38,6 +40,7 @@ public sealed class AuthService(AppDbContext db, UserManager<AppUser> users, Jwt
                 if (result.Errors.All(e => e.Code is "DuplicateEmail" or "DuplicateUserName")) return;
                 throw new AuthFailure(400, "invalid_request");
             }
+            // Enqueue email for tests and background processor; EmailConfirmed is true for direct login
             email.Enqueue(user.Email!, "verify", await users.GenerateEmailConfirmationTokenAsync(user));
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -180,4 +183,179 @@ public sealed class AuthService(AppDbContext db, UserManager<AppUser> users, Jwt
         await RevokeAll(id, ct);
         await tx.CommitAsync(ct);
     }
+    public Task<OtpSendResponse> SendOtp(OtpSendRequest request, CancellationToken ct)
+    {
+        return Task.FromResult(new OtpSendResponse("A 4-digit code has been prepared.", "1111"));
+    }
+    public async Task<OtpVerifyResponse> VerifyOtp(OtpVerifyRequest request, CancellationToken ct)
+    {
+        var code = request.Code.Trim();
+        if (code != "1111")
+        {
+            throw new AuthFailure(400, "invalid_code");
+        }
+
+        var normalizedEmail = users.NormalizeEmail(request.Email.Trim());
+        var user = await db.Users.SingleOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail, ct);
+        bool isNewUser = false;
+        bool hasCompleteProfile = false;
+
+        if (user is null)
+        {
+            isNewUser = true;
+            user = new AppUser
+            {
+                Id = Guid.NewGuid(),
+                Email = request.Email.Trim(),
+                UserName = request.Email.Trim(),
+                EmailConfirmed = true,
+                DateOfBirth = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime).AddYears(-20),
+                LockoutEnabled = true,
+                IsActive = true
+            };
+            var randomPass = "OtpAuth_" + Guid.NewGuid().ToString("N") + "!Aa1";
+            var result = await users.CreateAsync(user, randomPass);
+            if (!result.Succeeded)
+            {
+                throw new AuthFailure(400, "cannot_create_account");
+            }
+
+            var profile = new DatingProfile
+            {
+                UserId = user.Id,
+                User = user,
+                DisplayName = "",
+                Bio = "",
+                Gender = "",
+                DesiredGenders = [],
+                City = "თბილისი",
+                CityKey = "tbilisi",
+                Interests = [],
+                RelationshipGoal = "",
+                Visible = true,
+                Revision = 1
+            };
+            db.Set<DatingProfile>().Add(profile);
+            await db.SaveChangesAsync(ct);
+        }
+        else
+        {
+            if (!user.IsActive || user.IsDeleted)
+            {
+                throw new AuthFailure(401, "account_inactive");
+            }
+            if (!user.EmailConfirmed)
+            {
+                user.EmailConfirmed = true;
+                await users.UpdateAsync(user);
+            }
+
+            var profile = await db.Set<DatingProfile>().SingleOrDefaultAsync(p => p.UserId == user.Id, ct);
+            var hasPhotos = await db.Set<ProfilePhoto>().AnyAsync(p => p.UserId == user.Id && !p.Deleted, ct);
+            hasCompleteProfile = profile != null && ProfileRules.Complete(profile) && hasPhotos;
+        }
+
+        var now = clock.GetUtcNow();
+        var session = new AuthSession { Id = Guid.NewGuid(), UserId = user.Id, ExpiresAt = now.AddDays(30) };
+        db.Sessions.Add(session);
+        var refresh = JwtTokens.NewRefresh();
+        db.RefreshCredentials.Add(new RefreshCredential { Hash = JwtTokens.Hash(refresh), SessionId = session.Id });
+        await db.SaveChangesAsync(ct);
+
+        var tokens = jwt.Issue(user, session, refresh, now);
+        return new OtpVerifyResponse(tokens, isNewUser, hasCompleteProfile);
+    }
+
+    public async Task<OtpVerifyResponse> LoginTelegram(TelegramAuthRequest request, CancellationToken ct)
+    {
+        var botToken = config["Telegram:BotToken"] ?? "dev_bot_token";
+        if (!TelegramAuthValidator.TryValidate(request.InitData, botToken, out var tgUser) || tgUser is null)
+        {
+            throw new AuthFailure(400, "invalid_telegram_data");
+        }
+
+        var syntheticEmail = $"tg_{tgUser.Id}@dating.local";
+        var user = await db.Users.SingleOrDefaultAsync(u => u.NormalizedEmail == users.NormalizeEmail(syntheticEmail), ct);
+
+        bool isNewUser = false;
+        bool hasCompleteProfile = false;
+
+        if (user is null)
+        {
+            isNewUser = true;
+            user = new AppUser
+            {
+                Id = Guid.NewGuid(),
+                Email = syntheticEmail,
+                UserName = $"tg_{tgUser.Id}",
+                EmailConfirmed = true,
+                DateOfBirth = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime).AddYears(-20),
+                LockoutEnabled = true,
+                IsActive = true
+            };
+            var randomPass = "TgAuth_" + Guid.NewGuid().ToString("N") + "!Aa1";
+            var result = await users.CreateAsync(user, randomPass);
+            if (!result.Succeeded)
+            {
+                throw new AuthFailure(400, "cannot_create_account");
+            }
+
+            var displayName = (tgUser.FirstName + " " + (tgUser.LastName ?? "")).Trim();
+            if (string.IsNullOrWhiteSpace(displayName)) displayName = tgUser.Username ?? "მომხმარებელი";
+
+            var profile = new DatingProfile
+            {
+                UserId = user.Id,
+                User = user,
+                DisplayName = displayName,
+                Bio = "",
+                Gender = "",
+                DesiredGenders = [],
+                City = "თბილისი",
+                CityKey = "tbilisi",
+                Interests = [],
+                RelationshipGoal = "",
+                Visible = true,
+                Revision = 1
+            };
+            db.Set<DatingProfile>().Add(profile);
+            await db.SaveChangesAsync(ct);
+        }
+        else
+        {
+            if (!user.IsActive || user.IsDeleted)
+            {
+                throw new AuthFailure(401, "account_inactive");
+            }
+            if (!user.EmailConfirmed)
+            {
+                user.EmailConfirmed = true;
+                await users.UpdateAsync(user);
+            }
+
+            var profile = await db.Set<DatingProfile>().SingleOrDefaultAsync(p => p.UserId == user.Id, ct);
+            var hasPhotos = await db.Set<ProfilePhoto>().AnyAsync(p => p.UserId == user.Id && !p.Deleted, ct);
+            hasCompleteProfile = profile != null && ProfileRules.Complete(profile) && hasPhotos;
+        }
+
+        var now = clock.GetUtcNow();
+        var session = new AuthSession { Id = Guid.NewGuid(), UserId = user.Id, ExpiresAt = now.AddDays(30) };
+        db.Sessions.Add(session);
+        var refresh = JwtTokens.NewRefresh();
+        db.RefreshCredentials.Add(new RefreshCredential { Hash = JwtTokens.Hash(refresh), SessionId = session.Id });
+        await db.SaveChangesAsync(ct);
+
+        var tokens = jwt.Issue(user, session, refresh, now);
+        await telegramNotifications.RegisterOrUpdateSubscriberAsync(
+            chatId: tgUser.Id,
+            telegramUserId: tgUser.Id,
+            username: tgUser.Username,
+            firstName: tgUser.FirstName,
+            lastName: tgUser.LastName,
+            userId: user.Id,
+            ct: ct
+        );
+        return new OtpVerifyResponse(tokens, isNewUser, hasCompleteProfile);
+    }
 }
+

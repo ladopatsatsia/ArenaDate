@@ -1,6 +1,7 @@
 import {createContext,type PropsWithChildren,useCallback,useContext,useEffect,useMemo,useRef,useState} from 'react';
-import { Alert, AppState } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useRootNavigationState, useRouter } from 'expo-router';
 import {useTranslation} from 'react-i18next';
 import {useQueryClient} from '@tanstack/react-query';
@@ -9,8 +10,18 @@ import {ApiError} from '../auth/api';
 import {PushApi,type Configuration,type Preferences} from './api';
 import {registerInstallation} from './native';
 import {authorizedNotification,notificationId} from './model';
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient || Platform.OS === 'web';
+
 // The OS may already have displayed background pushes. Foreground hints never reveal stale account data.
-Notifications.setNotificationHandler({handleNotification:async()=>({shouldShowBanner:false,shouldShowList:false,shouldPlaySound:false,shouldSetBadge:false})});
+if (!isExpoGo) {
+  try {
+    Notifications.setNotificationHandler({handleNotification:async()=>({shouldShowBanner:false,shouldShowList:false,shouldPlaySound:false,shouldSetBadge:false})});
+  } catch {
+    // Expo Go (SDK 53+) or unsupported platform safe fallback
+  }
+}
+
 interface ContextValue{configuration:Configuration|null;preferences:Preferences|null;busy:boolean;notice:string;save(value:Preferences):Promise<void>;reload():Promise<void>}
 const Context=createContext<ContextValue|null>(null);
 export function PushProvider({children}:PropsWithChildren){
@@ -25,17 +36,27 @@ export function PushProvider({children}:PropsWithChildren){
   if(!current())return;setBusy(true);
   try{const [configuration,preferences]=await Promise.all([api.configuration(),api.preferences()]);if(!current())return;
    setData({account,configuration,preferences});setNotice('');
-   if(configuration.enabled)await registerInstallation(api,auth.baseUrl,configuration,false,preferences.matches||preferences.messages);
+   if(configuration.enabled&&!isExpoGo)await registerInstallation(api,auth.baseUrl,configuration,false,preferences.matches||preferences.messages);
   }catch(error){if(current())setNotice(failure(error));}finally{if(current()){setBusy(false);setTap(v=>v+1);}}
  }),[api,auth.baseUrl,account,current,run]);
  useEffect(()=>{void reload();const app=AppState.addEventListener('change',next=>{if(next==='active')void reload();});
-  const token=Notifications.addPushTokenListener(()=>{void reload();});return()=>{app.remove();token.remove();};
+  let tokenListener:{remove():void}|null=null;
+  if(!isExpoGo){
+   try{tokenListener=Notifications.addPushTokenListener(()=>{void reload();});}catch { /* ignore */ }
+  }
+  return()=>{app.remove();tokenListener?.remove();};
  },[reload]);
  useEffect(()=>{
   const receive=(response:Notifications.NotificationResponse)=>{const value=response.notification.request.content.data;const id=notificationId(value);if(id&&!handled.current.has(id)){pending.current=value;setTap(v=>v+1);}};
-  const listener=Notifications.addNotificationResponseReceivedListener(receive);
-  let active=true;void Notifications.getLastNotificationResponseAsync().then(value=>{if(active&&value)receive(value);},()=>{if(active)setNotice('push_failed');});
-  return()=>{active=false;listener.remove();};
+  let listener:{remove():void}|null=null;
+  let active=true;
+  if(!isExpoGo){
+   try{
+    listener=Notifications.addNotificationResponseReceivedListener(receive);
+    void Notifications.getLastNotificationResponseAsync().then(value=>{if(active&&value)receive(value);},()=>{if(active)setNotice('push_failed');});
+   }catch { /* ignore */ }
+  }
+  return()=>{active=false;listener?.remove();};
  },[]);
  useEffect(()=>{
   if(!account||!navigation?.key||!pending.current||handling.current)return;
@@ -46,24 +67,30 @@ export function PushProvider({children}:PropsWithChildren){
    if(conversation){router.push({pathname:'/chat/[id]',params:{id:conversation}});setNotice('');}
    else {setNotice('push_unavailable');Alert.alert(t('push_title'),t('push_unavailable'));}
    if(selectedId){handled.current.add(selectedId);if(handled.current.size>100)handled.current.delete(handled.current.values().next().value!);}
-   if(pending.current===value)pending.current=null;await Notifications.clearLastNotificationResponseAsync();
+   if(pending.current===value)pending.current=null;try{await Notifications.clearLastNotificationResponseAsync();}catch { /* ignore */ }
   }).catch(error=>{
    if(current()){setNotice(error instanceof ApiError&&[403,404].includes(error.status)?'push_unavailable':'push_failed');
-    if(error instanceof ApiError&&[400,403,404].includes(error.status)){if(selectedId)handled.current.add(selectedId);Alert.alert(t('push_title'),t('push_unavailable'));if(pending.current===value)pending.current=null;void Notifications.clearLastNotificationResponseAsync().catch(()=>setNotice('push_failed'));}
+    if(error instanceof ApiError&&[400,403,404].includes(error.status)){if(selectedId)handled.current.add(selectedId);Alert.alert(t('push_title'),t('push_unavailable'));if(pending.current===value)pending.current=null;try{void Notifications.clearLastNotificationResponseAsync().catch(()=>setNotice('push_failed'));}catch { /* ignore */ }}
    }
   }).finally(()=>{handling.current=false;if(pending.current&&(pending.current!==value||!current()))setTap(v=>v+1);});
  },[api,account,current,navigation?.key,router,tap,t]);
  useEffect(()=>{
-  const listener=Notifications.addNotificationReceivedListener(notification=>{
-   void authorizedNotification(notification.request.content.data,api.resolve,current).then(target=>{
-    if(target&&current())void cache.invalidateQueries({queryKey:['account',account,'matches']});
-   }).catch(()=>{/* Untrusted or no-longer-authorized hints cause no navigation or display. */});
-  });return()=>listener.remove();
+  let listener:{remove():void}|null=null;
+  if(!isExpoGo){
+   try{
+    listener=Notifications.addNotificationReceivedListener(notification=>{
+     void authorizedNotification(notification.request.content.data,api.resolve,current).then(target=>{
+      if(target&&current())void cache.invalidateQueries({queryKey:['account',account,'matches']});
+     }).catch(()=>{/* Untrusted or no-longer-authorized hints cause no navigation or display. */});
+    });
+   }catch { /* ignore */ }
+  }
+  return()=>listener?.remove();
  },[api,current,cache,account]);
  function save(value:Preferences){return run(async()=>{
   if(!current()||!data||data.account!==account)return;setBusy(true);setNotice('');
   try{
-   if(value.matches||value.messages)await registerInstallation(api,auth.baseUrl,data.configuration,true);
+   if(data.configuration.enabled&&!isExpoGo&&(value.matches||value.messages))await registerInstallation(api,auth.baseUrl,data.configuration,true);
    await api.save(value);if(current()){setData({...data,preferences:value});setNotice('push_saved');}
   }catch(error){if(current())setNotice(failure(error));}finally{if(current())setBusy(false);}
  });}

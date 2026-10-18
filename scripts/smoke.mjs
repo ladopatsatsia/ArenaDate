@@ -13,7 +13,8 @@ if (!process.env.ConnectionStrings__Database) {
     const envContent = await readFile(resolve('infra/.env'), 'utf8');
     const match = envContent.match(/^POSTGRES_PASSWORD=(.*)$/m);
     if (match) {
-      process.env.ConnectionStrings__Database = `Host=127.0.0.1;Port=55432;Database=dating;Username=dating;Password=${match[1].trim()}`;
+      const port = process.env.POSTGRES_PORT || '54432';
+      process.env.ConnectionStrings__Database = `Host=127.0.0.1;Port=${port};Database=dating;Username=dating;Password=${match[1].trim()}`;
     }
   }
 }
