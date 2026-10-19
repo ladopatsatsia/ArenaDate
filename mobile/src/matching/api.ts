@@ -11,7 +11,7 @@ export type LikeRequest = components['schemas']['LikeRequestSummary'] & {
   note?: string | null;
 };
 export type MatchSummary = components['schemas']['MatchSummary'];
-export type ProfileViewSummary = components['schemas']['ProfileViewSummary'];
+export type ProfileViewSummary = components['schemas']['ProfileViewSummary'] & { isBlurred?: boolean };
 export class MatchApi {
  private readonly accountId: string | undefined;
  constructor(private readonly api: AuthApi, private readonly session: SessionManager) { this.accountId = session.snapshot().account?.id; }

@@ -57,56 +57,6 @@ function formatRelativeTime(dateString?: string | null, t?: TFunction): string {
   return t ? t('viewed_days_ago', { count: days, defaultValue: `${days} დღის წინ` }) : `${days} დღის წინ`;
 }
 
-function PremiumGateView({
-  icon,
-  title,
-  subtitle,
-  benefits,
-  onOpenPremium,
-  testId,
-}: {
-  icon: string;
-  title: string;
-  subtitle: string;
-  benefits: string[];
-  onOpenPremium: () => void;
-  testId: string;
-}) {
-  const { t } = useTranslation();
-  return (
-    <ScrollView contentContainerStyle={styles.gateScrollContent}>
-      <Card style={styles.gateCard}>
-        <View style={styles.gateIconCircle}>
-          <Text style={styles.gateIconEmoji}>{icon}</Text>
-          <View style={styles.gateLockBadge}>
-            <Text style={styles.gateLockEmoji}>🔒</Text>
-          </View>
-        </View>
-
-        <Text style={styles.gateTitle}>{title}</Text>
-        <Text style={styles.gateSubtitle}>{subtitle}</Text>
-
-        <View style={styles.gateBenefitsList}>
-          {benefits.map((b, idx) => (
-            <View key={idx} style={styles.gateBenefitItem}>
-              <Text style={styles.gateBenefitCheck}>✓</Text>
-              <Text style={styles.gateBenefitText}>{b}</Text>
-            </View>
-          ))}
-        </View>
-
-        <Button
-          variant="primary"
-          title={t('matches_vip_activate', '🖤 Arena Black-ის გააქტიურება')}
-          onPress={onOpenPremium}
-          style={styles.gateActionBtn}
-          textStyle={styles.gateActionBtnText}
-          testID={testId}
-        />
-      </Card>
-    </ScrollView>
-  );
-}
 
 export default function Matches() {
   const { t, i18n } = useTranslation();
@@ -320,7 +270,7 @@ export default function Matches() {
             style={[styles.gridTile, section === 'you_viewed' && styles.gridTileActive]}
           >
             <Text style={[styles.gridTileText, section === 'you_viewed' && styles.gridTileTextActive]}>
-              👀 {t('you_viewed')} {!hasPremium ? '🔒' : youViewedItems.length > 0 ? `(${youViewedItems.length})` : ''}
+              👀 {t('you_viewed')} {youViewedItems.length > 0 ? `(${youViewedItems.length})` : ''}
             </Text>
           </Pressable>
 
@@ -332,27 +282,13 @@ export default function Matches() {
             style={[styles.gridTile, section === 'viewed_you' && styles.gridTileActive]}
           >
             <Text style={[styles.gridTileText, section === 'viewed_you' && styles.gridTileTextActive]}>
-              👁️ {t('viewed_you')} {!hasPremium ? '🔒' : viewedYouItems.length > 0 ? `(${viewedYouItems.length})` : ''}
+              👁️ {t('viewed_you')} {viewedYouItems.length > 0 ? `(${viewedYouItems.length})` : ''}
             </Text>
           </Pressable>
         </View>
       </View>
 
       {section === 'viewed_you' ? (
-        !hasPremium ? (
-          <PremiumGateView
-            icon="👁️"
-            title={t('matches_who_viewed_title', 'ვინ მნახა — Arena Black')}
-            subtitle={t('matches_who_viewed_sub', 'გაიგე ვინ დაათვალიერა შენი პროფილი და არ გამოტოვო შესაძლებლობა.')}
-            benefits={[
-              t('matches_who_viewed_perk1', 'პროფილის ყველა სტუმრის სრული სია'),
-              t('matches_who_viewed_perk2', 'ნახვის ზუსტი დრო და თარიღი'),
-              t('matches_who_viewed_perk3', 'პირდაპირი დაკავშირება სტუმრებთან'),
-            ]}
-            onOpenPremium={() => setPremiumModalVisible(true)}
-            testId="viewed-you-gate-btn"
-          />
-        ) : (
         <FlatList
           data={viewedYou.isError ? [] : viewedYouItems}
           keyExtractor={v => v.userId}
@@ -362,6 +298,36 @@ export default function Matches() {
           contentContainerStyle={styles.listContent}
           refreshing={refreshing}
           onRefresh={() => { void handleManualRefresh(); }}
+          ListHeaderComponent={
+            viewedYou.isPending || viewedYou.isError || viewedYouItems.length === 0 ? null : !hasPremium ? (
+              <Pressable
+                style={styles.premiumPromoBanner}
+                onPress={() => setPremiumModalVisible(true)}
+                testID="viewed-you-promo-banner"
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={styles.crownBannerIcon}>
+                    <Text style={{ fontSize: 22 }}>👁️</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.promoBannerTitle}>
+                      {t('matches_who_viewed_title', 'ვინ მნახა — Arena Black')}
+                    </Text>
+                    <Text style={styles.promoBannerDesc}>
+                      {t('matches_who_viewed_sub', 'ჩართე Arena Black ფოტოების და პროფილების სანახავად')}
+                    </Text>
+                  </View>
+                  <Text style={styles.promoBannerArrow}>›</Text>
+                </View>
+              </Pressable>
+            ) : (
+              <View style={styles.premiumActiveBadge}>
+                <Text style={styles.premiumActiveBadgeText}>
+                  {t('matches_who_viewed_active', '👁️ Arena Black — ყველა ნახვა სრულად ხილვადია')}
+                </Text>
+              </View>
+            )
+          }
           ListEmptyComponent={
             viewedYou.isPending ? (
               <MatchListSkeleton count={4} />
@@ -371,14 +337,275 @@ export default function Matches() {
               />
             )
           }
-          renderItem={({ item: viewUser }) => (
-            <Card style={styles.card}>
+          renderItem={({ item: viewUser }) => {
+            const isLocked = !hasPremium || viewUser.isBlurred;
+            if (isLocked) {
+              return (
+                <Card style={[styles.card, styles.lockedCard]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${viewUser.displayName}, ${viewUser.age}. ${t('matches_unlock_photo_btn', '🖤 Arena Black — გახსნა')}`}
+                    onPress={() => setPremiumModalVisible(true)}
+                    style={({ pressed }) => [styles.cardPressable, pressed && { opacity: 0.85 }]}
+                    testID={`viewed-you-locked-${viewUser.userId}`}
+                  >
+                    <View style={styles.cardHeaderRow}>
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <View style={styles.nameRow}>
+                          <Text accessibilityRole="header" style={styles.nameHeading}>
+                            {viewUser.displayName}, {viewUser.age}
+                          </Text>
+                          <View style={styles.blurTagBadge}>
+                            <Text style={styles.blurTagBadgeText}>
+                              {t('matches_photo_blurred', '🔒 ფოტო დაფარულია')}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.timeBadge}>
+                          <Text style={styles.timeBadgeText}>
+                            👁️ {formatRelativeTime(viewUser.viewedAt, t)}
+                          </Text>
+                        </View>
+                        <Text style={styles.blurHintText}>
+                          {t('matches_enable_black_to_unlock', 'ჩართე Arena Black ფოტოს გასახსნელად და სანახავად')}
+                        </Text>
+                      </View>
+
+                      <View style={styles.blurredAvatarWrapper}>
+                        {viewUser.photo ? (
+                          <View style={styles.blurPhotoWrapper}>
+                            <PrivatePhoto photo={viewUser.photo} avatar blurRadius={20} style={styles.blurredPhotoImage} />
+                            <View style={styles.blurGlassOverlay}>
+                              <Text style={styles.blurLockIcon}>🔒</Text>
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={styles.avatarOvalLocked}>
+                            <Text style={{ fontSize: 22 }}>🔒</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </Pressable>
+                  <View style={styles.requestActionsRow}>
+                    <Button
+                      variant="primary"
+                      title={t('matches_unlock_photo_btn', '🖤 Arena Black — გახსნა')}
+                      onPress={() => setPremiumModalVisible(true)}
+                      style={styles.premiumUnlockBtn}
+                      textStyle={styles.premiumUnlockBtnText}
+                      testID={`unlock-premium-viewed-you-${viewUser.userId}`}
+                    />
+                  </View>
+                </Card>
+              );
+            }
+
+            return (
+              <Card style={styles.card}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${viewUser.displayName}, ${viewUser.age}. ${t('view_profile')}`}
+                  onPress={() => {
+                    setSelectedProfile({
+                      mode: 'view',
+                      id: viewUser.userId,
+                      userId: viewUser.userId,
+                      displayName: viewUser.displayName,
+                      age: viewUser.age,
+                      city: viewUser.city,
+                      bio: viewUser.bio,
+                      gender: viewUser.gender,
+                      relationshipGoal: viewUser.relationshipGoal,
+                      interests: viewUser.interests,
+                      photo: viewUser.photo,
+                      photos: viewUser.photos,
+                      viewedAt: viewUser.viewedAt,
+                    });
+                    void api.recordView(viewUser.userId).catch(() => {});
+                  }}
+                  style={({ pressed }) => [styles.cardPressable, pressed && { opacity: 0.85 }]}
+                >
+                  <View style={styles.cardHeaderRow}>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <View style={styles.nameRow}>
+                        <Text accessibilityRole="header" style={styles.nameHeading}>
+                          {viewUser.displayName}, {viewUser.age}
+                        </Text>
+                        <View style={styles.timeBadge}>
+                          <Text style={styles.timeBadgeText}>
+                            👁️ {formatRelativeTime(viewUser.viewedAt, t)}
+                          </Text>
+                        </View>
+                      </View>
+                      {!!viewUser.city && <Text style={styles.subText}>📍 {formatCityName(viewUser.city, i18n.language)}</Text>}
+                      {!!viewUser.bio && <Text style={styles.bioText} numberOfLines={2}>{viewUser.bio}</Text>}
+                      <Text style={styles.viewBadge}>{t('view_profile')} ›</Text>
+                    </View>
+                    <View style={styles.cardRightGroup}>
+                      <View style={styles.avatarOvalLarge}>
+                        {viewUser.photo ? (
+                          <PrivatePhoto photo={viewUser.photo} avatar />
+                        ) : (
+                          <Text style={{ fontSize: 24, color: theme.colors.muted }}>👤</Text>
+                        )}
+                      </View>
+                      <SafetyActions
+                        targetId={viewUser.userId}
+                        variant="dots"
+                        onDone={() => { void handleManualRefresh(); }}
+                      />
+                    </View>
+                  </View>
+                </Pressable>
+
+                <View style={styles.swipeSuperLikeCardRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('swipe_superlike', 'სუპერ ლაიქი')}
+                    testID={`card-superlike-${viewUser.userId}`}
+                    onPress={() => {
+                      setSuperLikeTarget({
+                        id: viewUser.userId,
+                        displayName: viewUser.displayName,
+                        age: viewUser.age,
+                        photo: viewUser.photo,
+                      });
+                    }}
+                    style={({ pressed }) => [
+                      styles.swipeSuperLikeButton,
+                      pressed && styles.swipeSuperLikeButtonPressed,
+                    ]}
+                  >
+                    <View style={styles.swipeSuperLikeStarContainer}>
+                      <Text style={styles.swipeSuperLikeStarEmoji}>⭐</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              </Card>
+            );
+          }}
+        />
+      ) : section === 'you_viewed' ? (
+        <FlatList
+          data={youViewed.isError ? [] : youViewedItems}
+          keyExtractor={v => v.userId}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          contentContainerStyle={styles.listContent}
+          refreshing={refreshing}
+          onRefresh={() => { void handleManualRefresh(); }}
+          ListHeaderComponent={
+            youViewed.isPending || youViewed.isError || youViewedItems.length === 0 ? null : !hasPremium ? (
               <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${viewUser.displayName}, ${viewUser.age}. ${t('view_profile')}`}
-                onPress={() => {
-                  setSelectedProfile({
-                    mode: 'view',
+                style={styles.premiumPromoBanner}
+                onPress={() => setPremiumModalVisible(true)}
+                testID="you-viewed-promo-banner"
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={styles.crownBannerIcon}>
+                    <Text style={{ fontSize: 22 }}>👀</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.promoBannerTitle}>
+                      {t('matches_who_i_viewed_title', 'ვინ ვნახე — Arena Black')}
+                    </Text>
+                    <Text style={styles.promoBannerDesc}>
+                      {t('matches_who_i_viewed_sub', 'ჩართე Arena Black მონახულებული პროფილების სრულად სანახავად')}
+                    </Text>
+                  </View>
+                  <Text style={styles.promoBannerArrow}>›</Text>
+                </View>
+              </Pressable>
+            ) : (
+              <View style={styles.premiumActiveBadge}>
+                <Text style={styles.premiumActiveBadgeText}>
+                  {t('matches_who_i_viewed_active', '👀 Arena Black — ყველა ნახვა სრულად ხილვადია')}
+                </Text>
+              </View>
+            )
+          }
+          ListEmptyComponent={
+            youViewed.isPending ? (
+              <MatchListSkeleton count={4} />
+            ) : (
+              <StateMessage
+                title={t(youViewed.isError ? 'connection_error' : 'you_viewed_empty')}
+              />
+            )
+          }
+          renderItem={({ item: viewUser }) => {
+            const isLocked = !hasPremium || viewUser.isBlurred;
+            if (isLocked) {
+              return (
+                <Card style={[styles.card, styles.lockedCard]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${viewUser.displayName}, ${viewUser.age}. ${t('matches_unlock_photo_btn', '🖤 Arena Black — გახსნა')}`}
+                    onPress={() => setPremiumModalVisible(true)}
+                    style={({ pressed }) => [styles.cardPressable, pressed && { opacity: 0.85 }]}
+                    testID={`you-viewed-locked-${viewUser.userId}`}
+                  >
+                    <View style={styles.cardHeaderRow}>
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <View style={styles.nameRow}>
+                          <Text accessibilityRole="header" style={styles.nameHeading}>
+                            {viewUser.displayName}, {viewUser.age}
+                          </Text>
+                          <View style={styles.blurTagBadge}>
+                            <Text style={styles.blurTagBadgeText}>
+                              {t('matches_photo_blurred', '🔒 ფოტო დაფარულია')}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.timeBadge}>
+                          <Text style={styles.timeBadgeText}>
+                            👀 {formatRelativeTime(viewUser.viewedAt, t)}
+                          </Text>
+                        </View>
+                        <Text style={styles.blurHintText}>
+                          {t('matches_enable_black_to_unlock', 'ჩართე Arena Black ფოტოს გასახსნელად და სანახავად')}
+                        </Text>
+                      </View>
+
+                      <View style={styles.blurredAvatarWrapper}>
+                        {viewUser.photo ? (
+                          <View style={styles.blurPhotoWrapper}>
+                            <PrivatePhoto photo={viewUser.photo} avatar blurRadius={20} style={styles.blurredPhotoImage} />
+                            <View style={styles.blurGlassOverlay}>
+                              <Text style={styles.blurLockIcon}>🔒</Text>
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={styles.avatarOvalLocked}>
+                            <Text style={{ fontSize: 22 }}>🔒</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </Pressable>
+                  <View style={styles.requestActionsRow}>
+                    <Button
+                      variant="primary"
+                      title={t('matches_unlock_photo_btn', '🖤 Arena Black — გახსნა')}
+                      onPress={() => setPremiumModalVisible(true)}
+                      style={styles.premiumUnlockBtn}
+                      textStyle={styles.premiumUnlockBtnText}
+                      testID={`unlock-premium-you-viewed-${viewUser.userId}`}
+                    />
+                  </View>
+                </Card>
+              );
+            }
+
+            return (
+              <Card style={styles.card}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${viewUser.displayName}, ${viewUser.age}. ${t('view_profile')}`}
+                  onPress={() => setSelectedProfile({
+                    mode: 'you_viewed',
                     id: viewUser.userId,
                     userId: viewUser.userId,
                     displayName: viewUser.displayName,
@@ -391,185 +618,69 @@ export default function Matches() {
                     photo: viewUser.photo,
                     photos: viewUser.photos,
                     viewedAt: viewUser.viewedAt,
-                  });
-                  void api.recordView(viewUser.userId).catch(() => {});
-                }}
-                style={({ pressed }) => [styles.cardPressable, pressed && { opacity: 0.85 }]}
-              >
-                <View style={styles.cardHeaderRow}>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <View style={styles.nameRow}>
-                      <Text accessibilityRole="header" style={styles.nameHeading}>
-                        {viewUser.displayName}, {viewUser.age}
-                      </Text>
-                      <View style={styles.timeBadge}>
-                        <Text style={styles.timeBadgeText}>
-                          👁️ {formatRelativeTime(viewUser.viewedAt, t)}
-                        </Text>
-                      </View>
-                    </View>
-                    {!!viewUser.city && <Text style={styles.subText}>📍 {formatCityName(viewUser.city, i18n.language)}</Text>}
-                    {!!viewUser.bio && <Text style={styles.bioText} numberOfLines={2}>{viewUser.bio}</Text>}
-                    <Text style={styles.viewBadge}>{t('view_profile')} ›</Text>
-                  </View>
-                  <View style={styles.cardRightGroup}>
-                    <View style={styles.avatarOvalLarge}>
-                      {viewUser.photo ? (
-                        <PrivatePhoto photo={viewUser.photo} avatar />
-                      ) : (
-                        <Text style={{ fontSize: 24, color: theme.colors.muted }}>👤</Text>
-                      )}
-                    </View>
-                    <SafetyActions
-                      targetId={viewUser.userId}
-                      variant="dots"
-                      onDone={() => { void handleManualRefresh(); }}
-                    />
-                  </View>
-                </View>
-              </Pressable>
-
-              <View style={styles.swipeSuperLikeCardRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('swipe_superlike', 'სუპერ ლაიქი')}
-                  testID={`card-superlike-${viewUser.userId}`}
-                  onPress={() => {
-                    setSuperLikeTarget({
-                      id: viewUser.userId,
-                      displayName: viewUser.displayName,
-                      age: viewUser.age,
-                      photo: viewUser.photo,
-                    });
-                  }}
-                  style={({ pressed }) => [
-                    styles.swipeSuperLikeButton,
-                    pressed && styles.swipeSuperLikeButtonPressed,
-                  ]}
+                  })}
+                  style={({ pressed }) => [styles.cardPressable, pressed && { opacity: 0.85 }]}
                 >
-                  <View style={styles.swipeSuperLikeStarContainer}>
-                    <Text style={styles.swipeSuperLikeStarEmoji}>⭐</Text>
+                  <View style={styles.cardHeaderRow}>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <View style={styles.nameRow}>
+                        <Text accessibilityRole="header" style={styles.nameHeading}>
+                          {viewUser.displayName}, {viewUser.age}
+                        </Text>
+                        <View style={styles.timeBadge}>
+                          <Text style={styles.timeBadgeText}>
+                            👀 {formatRelativeTime(viewUser.viewedAt, t)}
+                          </Text>
+                        </View>
+                      </View>
+                      {!!viewUser.city && <Text style={styles.subText}>📍 {formatCityName(viewUser.city, i18n.language)}</Text>}
+                      {!!viewUser.bio && <Text style={styles.bioText} numberOfLines={2}>{viewUser.bio}</Text>}
+                      <Text style={styles.viewBadge}>{t('view_profile')} ›</Text>
+                    </View>
+                    <View style={styles.cardRightGroup}>
+                      <View style={styles.avatarOvalLarge}>
+                        {viewUser.photo ? (
+                          <PrivatePhoto photo={viewUser.photo} avatar />
+                        ) : (
+                          <Text style={{ fontSize: 24, color: theme.colors.muted }}>👤</Text>
+                        )}
+                      </View>
+                      <SafetyActions
+                        targetId={viewUser.userId}
+                        variant="dots"
+                        onDone={() => { void handleManualRefresh(); }}
+                      />
+                    </View>
                   </View>
                 </Pressable>
-              </View>
-            </Card>
-          )}
-        />
-        )
-      ) : section === 'you_viewed' ? (
-        !hasPremium ? (
-          <PremiumGateView
-            icon="👀"
-            title={t('matches_who_i_viewed_title', 'ვინ ვნახე — Arena Black')}
-            subtitle={t('matches_who_i_viewed_sub', 'შენ მიერ მონახულებული პროფილების ისტორია ხელმისაწვდომია მხოლოდ Arena Black წევრებისთვის.')}
-            benefits={[
-              t('matches_who_i_viewed_perk1', 'მონახულებული პროფილების სრული ისტორია'),
-              t('matches_who_i_viewed_perk2', 'ნებისმიერ დროს უკან დაბრუნება და დაკავშირება'),
-            ]}
-            onOpenPremium={() => setPremiumModalVisible(true)}
-            testId="you-viewed-gate-btn"
-          />
-        ) : (
-        <FlatList
-          data={youViewed.isError ? [] : youViewedItems}
-          keyExtractor={v => v.userId}
-          initialNumToRender={8}
-          maxToRenderPerBatch={8}
-          windowSize={5}
-          contentContainerStyle={styles.listContent}
-          refreshing={refreshing}
-          onRefresh={() => { void handleManualRefresh(); }}
-          ListEmptyComponent={
-            youViewed.isPending ? (
-              <MatchListSkeleton count={4} />
-            ) : (
-              <StateMessage
-                title={t(youViewed.isError ? 'connection_error' : 'you_viewed_empty')}
-              />
-            )
-          }
-          renderItem={({ item: viewUser }) => (
-            <Card style={styles.card}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${viewUser.displayName}, ${viewUser.age}. ${t('view_profile')}`}
-                onPress={() => setSelectedProfile({
-                  mode: 'you_viewed',
-                  id: viewUser.userId,
-                  userId: viewUser.userId,
-                  displayName: viewUser.displayName,
-                  age: viewUser.age,
-                  city: viewUser.city,
-                  bio: viewUser.bio,
-                  gender: viewUser.gender,
-                  relationshipGoal: viewUser.relationshipGoal,
-                  interests: viewUser.interests,
-                  photo: viewUser.photo,
-                  photos: viewUser.photos,
-                  viewedAt: viewUser.viewedAt,
-                })}
-                style={({ pressed }) => [styles.cardPressable, pressed && { opacity: 0.85 }]}
-              >
-                <View style={styles.cardHeaderRow}>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <View style={styles.nameRow}>
-                      <Text accessibilityRole="header" style={styles.nameHeading}>
-                        {viewUser.displayName}, {viewUser.age}
-                      </Text>
-                      <View style={styles.timeBadge}>
-                        <Text style={styles.timeBadgeText}>
-                          👀 {formatRelativeTime(viewUser.viewedAt, t)}
-                        </Text>
-                      </View>
-                    </View>
-                    {!!viewUser.city && <Text style={styles.subText}>📍 {formatCityName(viewUser.city, i18n.language)}</Text>}
-                    {!!viewUser.bio && <Text style={styles.bioText} numberOfLines={2}>{viewUser.bio}</Text>}
-                    <Text style={styles.viewBadge}>{t('view_profile')} ›</Text>
-                  </View>
-                  <View style={styles.cardRightGroup}>
-                    <View style={styles.avatarOvalLarge}>
-                      {viewUser.photo ? (
-                        <PrivatePhoto photo={viewUser.photo} avatar />
-                      ) : (
-                        <Text style={{ fontSize: 24, color: theme.colors.muted }}>👤</Text>
-                      )}
-                    </View>
-                    <SafetyActions
-                      targetId={viewUser.userId}
-                      variant="dots"
-                      onDone={() => { void handleManualRefresh(); }}
-                    />
-                  </View>
-                </View>
-              </Pressable>
 
-              <View style={styles.swipeSuperLikeCardRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('swipe_superlike', 'სუპერ ლაიქი')}
-                  testID={`card-superlike-${viewUser.userId}`}
-                  onPress={() => {
-                    setSuperLikeTarget({
-                      id: viewUser.userId,
-                      displayName: viewUser.displayName,
-                      age: viewUser.age,
-                      photo: viewUser.photo,
-                    });
-                  }}
-                  style={({ pressed }) => [
-                    styles.swipeSuperLikeButton,
-                    pressed && styles.swipeSuperLikeButtonPressed,
-                  ]}
-                >
-                  <View style={styles.swipeSuperLikeStarContainer}>
-                    <Text style={styles.swipeSuperLikeStarEmoji}>⭐</Text>
-                  </View>
-                </Pressable>
-              </View>
-            </Card>
-          )}
+                <View style={styles.swipeSuperLikeCardRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('swipe_superlike', 'სუპერ ლაიქი')}
+                    testID={`card-superlike-${viewUser.userId}`}
+                    onPress={() => {
+                      setSuperLikeTarget({
+                        id: viewUser.userId,
+                        displayName: viewUser.displayName,
+                        age: viewUser.age,
+                        photo: viewUser.photo,
+                      });
+                    }}
+                    style={({ pressed }) => [
+                      styles.swipeSuperLikeButton,
+                      pressed && styles.swipeSuperLikeButtonPressed,
+                    ]}
+                  >
+                    <View style={styles.swipeSuperLikeStarContainer}>
+                      <Text style={styles.swipeSuperLikeStarEmoji}>⭐</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              </Card>
+            );
+          }}
         />
-        )
       ) : section === 'matches' ? (
         <FlatList
           data={matches.isError ? [] : matchItems}

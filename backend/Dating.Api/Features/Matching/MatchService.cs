@@ -70,6 +70,14 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
       .Distinct()
       .ToListAsync(ct);
 
+  var pendingGameDirectSenders = await db.Set<Dating.Api.Features.Game.GameDirectMatchRequest>()
+      .Where(d => d.TargetUserId == user && d.Status == "Pending")
+      .Select(d => d.SenderUserId)
+      .Distinct()
+      .ToListAsync(ct);
+
+  var allBottleGameSenders = pendingGameKissSenders.Concat(pendingGameDirectSenders).ToHashSet();
+
   var superLikes = await db.Set<DiscoverySuperLike>().AsNoTracking()
       .Where(s => s.TargetUserId == user)
       .ToDictionaryAsync(s => s.SenderUserId, ct);
@@ -92,8 +100,8 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
                profile.User.DateOfBirth
               };
   var rawRows = await query.Take(50).ToArrayAsync(ct);
-  // Prioritize Super Likes at the top of incoming requests
-  var rows = rawRows.OrderByDescending(r => superLikes.ContainsKey(r.UserId)).ToArray();
+  // Prioritize Super Likes and Bottle Game matches at the top of incoming requests
+  var rows = rawRows.OrderByDescending(r => superLikes.ContainsKey(r.UserId) || allBottleGameSenders.Contains(r.UserId)).ToArray();
 
   var ids = rows.Select(r => r.UserId).ToArray();
   var photos = await db.Set<ProfilePhoto>().AsNoTracking()
@@ -109,21 +117,21 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
    return rows.Select(r => {
     var userPhotos = photos.Where(f => f.UserId == r.UserId).Select(f => f.Photo).ToArray();
     var isSuperLike = superLikes.TryGetValue(r.UserId, out _);
-    var isArenaKiss = pendingGameKissSenders.Contains(r.UserId);
+    var isArenaKiss = allBottleGameSenders.Contains(r.UserId);
     var origin = isSuperLike ? "SuperLike" : (isArenaKiss ? "GameArena" : "Discovery");
-    var note = isSuperLike ? "⭐ გამოგიგზავნა სუპერ ლაიქი" : (isArenaKiss ? "💋 დავიმეჩე ბოთლის თამაშში" : null);
+    var note = isSuperLike ? "⭐ გამოგიგზავნა სუპერ ლაიქი" : (isArenaKiss ? "🍾 ბოთლის თამაშიდან არის მეჩი" : null);
     var isBlurred = !isArenaKiss;
     return new LikeRequestSummary(
      UserId: r.UserId,
      DisplayName: r.DisplayName,
      Age: ProfileRules.Age(r.DateOfBirth, clock.GetUtcNow()),
-     City: r.City,
+     City: isArenaKiss ? r.City : "",
      Bio: isArenaKiss ? r.Bio : "",
      Photo: userPhotos.FirstOrDefault(),
-     Gender: r.Gender,
+     Gender: isArenaKiss ? r.Gender : "",
      RelationshipGoal: isArenaKiss ? r.RelationshipGoal : "",
      Interests: isArenaKiss ? r.Interests : null,
-     Photos: userPhotos,
+     Photos: isArenaKiss ? userPhotos : null,
      Origin: origin,
      Note: note,
      IsBlurred: isBlurred
@@ -134,9 +142,9 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
   return rows.Select(r => {
    var userPhotos = photos.Where(f => f.UserId == r.UserId).Select(f => f.Photo).ToArray();
    var isSuperLike = superLikes.TryGetValue(r.UserId, out var sl);
-   var isArenaKiss = pendingGameKissSenders.Contains(r.UserId);
+   var isArenaKiss = allBottleGameSenders.Contains(r.UserId);
    var origin = isSuperLike ? "SuperLike" : (isArenaKiss ? "GameArena" : "Discovery");
-   var note = isSuperLike ? (sl?.Note ?? "⭐ სუპერ ლაიქი") : (isArenaKiss ? "დავიმეჩე ბოთლის თამაშში" : null);
+   var note = isSuperLike ? (sl?.Note ?? "⭐ სუპერ ლაიქი") : (isArenaKiss ? "🍾 ბოთლის თამაშიდან არის მეჩი" : null);
    return new LikeRequestSummary(
     r.UserId,
     r.DisplayName,
@@ -488,8 +496,26 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
               .Select(f => new { f.UserId, Photo = new PhotoDto(f.Id, f.State, f.Position, f.Width, f.Height) })
               .ToListAsync(ct);
 
+  var hasPremium = await premiumService.HasActivePremiumAsync(user, ct);
   return rows.Select(r => {
    var userPhotos = photos.Where(f => f.UserId == r.UserId).Select(f => f.Photo).ToArray();
+   if (!hasPremium)
+   {
+    return new ProfileViewSummary(
+     r.UserId,
+     r.DisplayName,
+     ProfileRules.Age(r.DateOfBirth, clock.GetUtcNow()),
+     "",
+     "",
+     r.ViewedAt,
+     userPhotos.FirstOrDefault(),
+     "",
+     "",
+     null,
+     null,
+     IsBlurred: true
+    );
+   }
    return new ProfileViewSummary(
     r.UserId,
     r.DisplayName,
@@ -501,7 +527,8 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
     r.Gender ?? "",
     r.RelationshipGoal ?? "",
     r.Interests ?? [],
-    userPhotos
+    userPhotos,
+    IsBlurred: false
    );
   }).ToArray();
  }
@@ -534,8 +561,26 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
               .Select(f => new { f.UserId, Photo = new PhotoDto(f.Id, f.State, f.Position, f.Width, f.Height) })
               .ToListAsync(ct);
 
+  var hasPremium = await premiumService.HasActivePremiumAsync(user, ct);
   return rows.Select(r => {
    var userPhotos = photos.Where(f => f.UserId == r.UserId).Select(f => f.Photo).ToArray();
+   if (!hasPremium)
+   {
+    return new ProfileViewSummary(
+     r.UserId,
+     r.DisplayName,
+     ProfileRules.Age(r.DateOfBirth, clock.GetUtcNow()),
+     "",
+     "",
+     r.ViewedAt,
+     userPhotos.FirstOrDefault(),
+     "",
+     "",
+     null,
+     null,
+     IsBlurred: true
+    );
+   }
    return new ProfileViewSummary(
     r.UserId,
     r.DisplayName,
@@ -547,7 +592,8 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
     r.Gender ?? "",
     r.RelationshipGoal ?? "",
     r.Interests ?? [],
-    userPhotos
+    userPhotos,
+    IsBlurred: false
    );
   }).ToArray();
  }

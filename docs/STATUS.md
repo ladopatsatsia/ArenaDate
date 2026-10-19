@@ -1,3 +1,31 @@
+# Status - Premium Gating with Photo Blur & Bottle Game Match Requests
+
+Updated 2026-10-19. Implemented comprehensive backend server-side authorization and frontend UI gating for Match/Profile views ("ვინ მნახა", "ვინ ვნახე", "ვინ მომიწონა") alongside special handling for Bottle Game match requests:
+
+1. **Section Access & Photo Blurring for Free (Non-Premium) Users**:
+   - Free users can now enter the "ვინ მნახა" (`viewed_you`), "ვინ ვნახე" (`you_viewed`), and "ვინ მომიწონა" (`requests`) sections without a full-screen paywall blocking the entire screen.
+   - For regular discovery views and match requests, if the user does NOT have active Premium:
+     - Profile photos are blurred (`blurRadius={20}`) with a frosted-glass overlay and lock icon (`🔒 ფოტო დაფარულია`).
+     - Tapping the candidate card does NOT open the profile details screen; instead it triggers the `PremiumModal` (`Arena Black`).
+     - External card view exclusively reveals `displayName` and `age` (bio, city, and extended details remain masked).
+     - Backend server-side protection in `MatchService.cs`: automatically masks city, bio, and non-primary photo arrays, while setting `IsBlurred = true` in `ProfileViewSummary` and `IncomingMatchRequestDto`.
+     - In `MediaAccess.cs`, suitors and incoming kissers are granted thumbnail access authorization so client-side image blur renders smoothly without 404 broken image fallbacks.
+
+2. **Bottle Game Requests Exemption (`requests`)**:
+   - In the Requests tab, match requests originating from the bottle game (`GameArena` kiss / `GameDirectMatchRequest`) are clearly distinguished:
+     - Prominently labeled with `🍾 ბოთლის თამაშიდან არის მეჩი` badge and subtitle `💬 ჩატის გახსნა 25 💎 — ერთი იხდის, იხდება ორივესთვის`.
+     - Bottle game suitors' photos and profiles are UNBLURRED and fully viewable even without a Premium subscription.
+     - Confirmed chats initiated from the bottle game require 25 crystals to unlock; once one participant unlocks the chat, it is unlocked for both users.
+
+3. **Verification**:
+   - `npm run typecheck`: **PASS (0 errors across api-contract, mobile, admin)**.
+   - `npm run lint`: **PASS (0 errors, 0 warnings)**.
+   - `npm run contract:generate` & `contract:check`: **PASS**.
+   - `npm test --workspace mobile`: **PASS (41 test suites, 161 tests passed)**.
+   - `npx expo export -p web`: **PASS (dist/web exported cleanly, exit code 0)**.
+
+---
+
 # Status - GitHub Actions CI Failure & Expo Modules Resolution
 
 Updated 2026-10-18. Diagnosed and fixed all GitHub Actions CI failure points across ESLint, lockfile synchronization, Expo SDK 57 dependencies, and Metro asset resolution:

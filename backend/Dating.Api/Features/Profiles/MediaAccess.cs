@@ -38,12 +38,10 @@ public sealed class MediaAccess(AppDbContext db, IDataProtectionProvider protect
             if (await db.Set<DatingMatch>().AnyAsync(m => m.Active && ((m.FirstId == viewer && m.SecondId == photo.UserId) || (m.FirstId == photo.UserId && m.SecondId == viewer)), ct))
                 return photo;
 
-            // 3. Incoming suitor (someone who liked the viewer) - only accessible if viewer has active Premium
-            if (await db.Set<DiscoveryDecision>().AnyAsync(d => d.UserId == photo.UserId && d.TargetId == viewer && d.Kind == "like", ct))
-            {
-                if (await premiumService.HasActivePremiumAsync(viewer, ct))
-                    return photo;
-            }
+            // 3. Incoming suitor (someone who liked the viewer) or game kiss sender
+            if (await db.Set<DiscoveryDecision>().AnyAsync(d => d.UserId == photo.UserId && d.TargetId == viewer && d.Kind == "like", ct) ||
+                await db.Set<Dating.Api.Features.Game.GameKiss>().AnyAsync(k => k.SenderUserId == photo.UserId && k.RecipientUserId == viewer, ct))
+                return photo;
 
             // 4. Profile view relationship (viewer viewed target or target viewed viewer)
             if (await db.Set<UserProfileView>().AnyAsync(pv => (pv.ViewerUserId == viewer && pv.TargetUserId == photo.UserId) || (pv.ViewerUserId == photo.UserId && pv.TargetUserId == viewer), ct))
