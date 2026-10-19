@@ -37,6 +37,7 @@ export class ProfileApi {
   save = (input: ProfileInput) => this.authorized(t => this.api.request<OwnProfile>('/api/profile', input, t));
   begin = (requestId: string) => this.authorized(t => this.api.request<Photo>('/api/profile/photos/uploads', { requestId }, t));
   reorder = (revision: OwnProfile['revision'], photoIds: string[]) => this.authorized(t => this.api.request<OwnProfile>('/api/profile/photos/reorder', { revision, photoIds }, t));
+  setLanguage = (language: string) => this.authorized(t => this.api.request<void>('/api/profile/language', { language }, t));
   pauseDiscoverability = (paused: boolean) => this.authorized(t => this.api.request<void>('/api/account/discoverability-pause', { paused }, t));
   deleteAccount = (password: string) => this.authorized(t => this.api.request<void>('/api/account/delete', { password }, t));
   private async fetch(path: string, token: string, init?: RequestInit) {

@@ -20,7 +20,15 @@ public sealed class ProfileService(AppDbContext db, IPrivateStorage storage, Pho
         var photos = await db.Set<ProfilePhoto>().AsNoTracking().Where(p => p.UserId == id && !p.Deleted).OrderBy(p => p.Position)
             .Select(p => new PhotoDto(p.Id, p.State, p.Position, p.Width, p.Height)).ToArrayAsync(ct);
         return new(p.Revision, p.DisplayName, ProfileRules.Age(user.DateOfBirth, clock.GetUtcNow()), p.Bio, p.Gender,
-            p.DesiredGenders, p.City, p.Interests, p.RelationshipGoal, p.Visible, ProfileRules.Complete(p), photos, p.Languages);
+            p.DesiredGenders, p.City, p.Interests, p.RelationshipGoal, p.Visible, ProfileRules.Complete(p), photos, p.Languages, p.AppLanguage ?? "ka");
+    }
+    public async Task SetAppLanguage(Guid id, string language, CancellationToken ct)
+    {
+        var norm = language.Trim().ToLowerInvariant();
+        if (norm is not ("ka" or "ru" or "en")) norm = "ka";
+        var p = await Lock(id, ct);
+        p.AppLanguage = norm;
+        await db.SaveChangesAsync(ct);
     }
     public async Task<OwnProfileDto> Save(Guid id, ProfileUpdate request, CancellationToken ct)
     {
@@ -38,6 +46,11 @@ public sealed class ProfileService(AppDbContext db, IPrivateStorage storage, Pho
         p.Languages = request.Languages ?? [];
         p.RelationshipGoal = request.RelationshipGoal ?? "";
         p.Visible = request.Visible;
+        if (!string.IsNullOrWhiteSpace(request.AppLanguage))
+        {
+            var norm = request.AppLanguage.Trim().ToLowerInvariant();
+            if (norm is "ka" or "ru" or "en") p.AppLanguage = norm;
+        }
         if (request.DateOfBirth.HasValue)
         {
             if (!AdultPolicy.IsAdult(request.DateOfBirth.Value, clock.GetUtcNow()))

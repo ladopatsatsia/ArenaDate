@@ -50,6 +50,7 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["Media:Mode"]))
 }
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
+builder.Services.AddOpenApi();
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
     options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(
         SafeProblems.Create(context.HttpContext, 400, "Invalid request.")));

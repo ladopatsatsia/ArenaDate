@@ -113,6 +113,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
         modelBuilder.Entity<DatingProfile>().Property(p => p.DisplayName).HasMaxLength(50);
         modelBuilder.Entity<DatingProfile>().Property(p => p.Bio).HasMaxLength(500);
         modelBuilder.Entity<DatingProfile>().Property(p => p.City).HasMaxLength(80);
+        modelBuilder.Entity<DatingProfile>().Property(p => p.AppLanguage).HasMaxLength(10).HasDefaultValue("ka");
         modelBuilder.Entity<ProfilePhoto>().HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId);
         modelBuilder.Entity<ProfilePhoto>().HasIndex(p => new { p.UserId, p.RequestId }).IsUnique();
         modelBuilder.Entity<ProfilePhoto>().HasIndex(p => new { p.UserId, p.Position }).IsUnique().HasFilter("NOT \"Deleted\"");

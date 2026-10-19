@@ -1,6 +1,45 @@
 {
   "components": {
     "schemas": {
+      "AcceptPlanResponseResult": {
+        "properties": {
+          "companionUserId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "conversationId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "matchedAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "planId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "responseId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planId",
+          "responseId",
+          "companionUserId",
+          "state",
+          "conversationId",
+          "matchedAtUtc"
+        ],
+        "type": "object"
+      },
       "AcceptedResponse": {
         "properties": {
           "message": {
@@ -34,6 +73,118 @@
         "required": [
           "active",
           "reason"
+        ],
+        "type": "object"
+      },
+      "AdminAdjustCrystalsRequest": {
+        "properties": {
+          "amount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "mode": {
+            "default": "delta",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "type": "object"
+      },
+      "AdminCreateUserRequest": {
+        "properties": {
+          "city": {
+            "default": "Tbilisi",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dateOfBirth": {
+            "format": "date",
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "initialCrystals": {
+            "default": 0,
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "displayName",
+          "dateOfBirth",
+          "gender"
+        ],
+        "type": "object"
+      },
+      "AdminCrystalAdjustmentResult": {
+        "properties": {
+          "delta": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "newBalance": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "oldBalance": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "oldBalance",
+          "newBalance",
+          "delta"
         ],
         "type": "object"
       },
@@ -125,6 +276,14 @@
           },
           "cityKey": {
             "type": "string"
+          },
+          "crystals": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
           },
           "dateOfBirth": {
             "format": "date",
@@ -234,7 +393,8 @@
           "radiusKm",
           "locationMode",
           "revision",
-          "photos"
+          "photos",
+          "crystals"
         ],
         "type": "object"
       },
@@ -253,6 +413,14 @@
           },
           "city": {
             "type": "string"
+          },
+          "crystals": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
           },
           "displayName": {
             "type": "string"
@@ -300,7 +468,8 @@
           "emailConfirmed",
           "visible",
           "photoCount",
-          "primaryPhotoId"
+          "primaryPhotoId",
+          "crystals"
         ],
         "type": "object"
       },
@@ -426,6 +595,36 @@
         ],
         "type": "object"
       },
+      "ChatMediaUploadResult": {
+        "properties": {
+          "duration": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "mediaType",
+          "url",
+          "duration"
+        ],
+        "type": "object"
+      },
       "ConfirmPublicDeletionRequest": {
         "properties": {
           "email": {
@@ -474,6 +673,12 @@
               "string"
             ]
           },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "title": {
             "type": [
               "null",
@@ -481,6 +686,82 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "CreateTodayPlanRequest": {
+        "properties": {
+          "activity": {
+            "type": "string"
+          },
+          "budgetAmount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "city": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "district": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startsAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "targetParticipantsCount": {
+            "default": 1,
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "city",
+          "district",
+          "activity",
+          "title",
+          "description",
+          "startsAtUtc",
+          "expiresAtUtc",
+          "budgetAmount"
+        ],
+        "type": "object"
+      },
+      "CreateTodayPlanResponseRequest": {
+        "properties": {
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "message"
+        ],
         "type": "object"
       },
       "CrystalTransactionDto": {
@@ -1233,6 +1514,10 @@
               "string"
             ]
           },
+          "hasPassword": {
+            "default": false,
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "type": "string"
@@ -1594,6 +1879,10 @@
               "string"
             ]
           },
+          "hasPassword": {
+            "default": false,
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "type": "string"
@@ -1932,6 +2221,17 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "JoinRoomRequest": {
+        "properties": {
+          "password": {
+            "type": [
+              "null",
               "string"
             ]
           }
@@ -2409,6 +2709,10 @@
               "string"
             ]
           },
+          "appLanguage": {
+            "default": "ka",
+            "type": "string"
+          },
           "bio": {
             "type": "string"
           },
@@ -2775,6 +3079,12 @@
       },
       "ProfileUpdate": {
         "properties": {
+          "appLanguage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "bio": {
             "type": [
               "null",
@@ -2889,6 +3199,10 @@
               "null",
               "array"
             ]
+          },
+          "isBlurred": {
+            "default": false,
+            "type": "boolean"
           },
           "photo": {
             "oneOf": [
@@ -4158,6 +4472,133 @@
         ],
         "type": "object"
       },
+      "TelegramBroadcastRequest": {
+        "properties": {
+          "buttonText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "webAppRelativePath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "TelegramBroadcastResult": {
+        "properties": {
+          "blockedCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "completedAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "failedCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "successCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "targeted": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "totalSubscribers": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "totalSubscribers",
+          "targeted",
+          "successCount",
+          "failedCount",
+          "blockedCount",
+          "completedAtUtc"
+        ],
+        "type": "object"
+      },
+      "TelegramLinkRequest": {
+        "properties": {
+          "chatId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "firstName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telegramUserId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "telegramUserId",
+          "chatId",
+          "username",
+          "firstName",
+          "lastName"
+        ],
+        "type": "object"
+      },
       "TelegramPreCheckoutQuery": {
         "properties": {
           "currency": {
@@ -4292,6 +4733,91 @@
         ],
         "type": "object"
       },
+      "TelegramStatsDto": {
+        "properties": {
+          "activeSubscribers": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "latestActivityUtc": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "linkedUsersCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "totalSubscribers": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "totalSubscribers",
+          "activeSubscribers",
+          "linkedUsersCount",
+          "latestActivityUtc"
+        ],
+        "type": "object"
+      },
+      "TelegramSubscriberStatusDto": {
+        "properties": {
+          "botUsername": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isLinked": {
+            "type": "boolean"
+          },
+          "telegramUserId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "isLinked",
+          "isActive",
+          "username",
+          "firstName",
+          "telegramUserId",
+          "botUsername"
+        ],
+        "type": "object"
+      },
       "TelegramSuccessfulPayment": {
         "properties": {
           "currency": {
@@ -4322,6 +4848,17 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "TelegramToggleRequest": {
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isActive"
+        ],
         "type": "object"
       },
       "TelegramUpdate": {
@@ -4467,6 +5004,598 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "TodayPlanApplicantDto": {
+        "properties": {
+          "age": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "applicantUserId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhotoDto"
+              }
+            ]
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoDto"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "applicantUserId",
+          "displayName",
+          "age",
+          "city",
+          "photo",
+          "photos",
+          "bio",
+          "message",
+          "state",
+          "createdAtUtc"
+        ],
+        "type": "object"
+      },
+      "TodayPlanDetailDto": {
+        "properties": {
+          "activity": {
+            "type": "string"
+          },
+          "authorAge": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "authorBio": {
+            "type": "string"
+          },
+          "authorCity": {
+            "type": "string"
+          },
+          "authorDisplayName": {
+            "type": "string"
+          },
+          "authorPhoto": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhotoDto"
+              }
+            ]
+          },
+          "authorPhotos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoDto"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "authorUserId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "budgetAmount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "city": {
+            "type": "string"
+          },
+          "conversationId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "district": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hasApplied": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isAuthor": {
+            "type": "boolean"
+          },
+          "matchedAtUtc": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "myResponseId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "myResponseState": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "responsesCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "selectedCompanionUserId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startsAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "targetParticipantsCount": {
+            "default": 1,
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorUserId",
+          "authorDisplayName",
+          "authorAge",
+          "authorCity",
+          "authorPhoto",
+          "authorPhotos",
+          "authorBio",
+          "city",
+          "district",
+          "activity",
+          "title",
+          "description",
+          "startsAtUtc",
+          "expiresAtUtc",
+          "budgetAmount",
+          "currency",
+          "state",
+          "responsesCount",
+          "isAuthor",
+          "hasApplied",
+          "myResponseState",
+          "myResponseId",
+          "selectedCompanionUserId",
+          "matchedAtUtc",
+          "createdAtUtc"
+        ],
+        "type": "object"
+      },
+      "TodayPlanFeedPageDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TodayPlanSummaryDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "totalCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "totalCount"
+        ],
+        "type": "object"
+      },
+      "TodayPlanLimitsDto": {
+        "properties": {
+          "activePlansCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "activePlansLimit": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "canApply": {
+            "type": "boolean"
+          },
+          "canCreatePlan": {
+            "type": "boolean"
+          },
+          "dailyResponsesLimit": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "dailyResponsesRemaining": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "dailyResponsesUsed": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "hasPremium": {
+            "type": "boolean"
+          },
+          "resetsAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hasPremium",
+          "activePlansCount",
+          "activePlansLimit",
+          "canCreatePlan",
+          "dailyResponsesUsed",
+          "dailyResponsesLimit",
+          "dailyResponsesRemaining",
+          "canApply",
+          "resetsAtUtc",
+          "timeZone"
+        ],
+        "type": "object"
+      },
+      "TodayPlanMyResponseDto": {
+        "properties": {
+          "authorDisplayName": {
+            "type": "string"
+          },
+          "authorPhoto": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhotoDto"
+              }
+            ]
+          },
+          "authorUserId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "conversationId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "planActivity": {
+            "type": "string"
+          },
+          "planCity": {
+            "type": "string"
+          },
+          "planDistrict": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "planExpiresAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "planId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "planStartsAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "planState": {
+            "type": "string"
+          },
+          "planTitle": {
+            "type": "string"
+          },
+          "responseId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "responseId",
+          "planId",
+          "planTitle",
+          "planActivity",
+          "planCity",
+          "planDistrict",
+          "planStartsAtUtc",
+          "planExpiresAtUtc",
+          "planState",
+          "authorUserId",
+          "authorDisplayName",
+          "authorPhoto",
+          "message",
+          "state",
+          "createdAtUtc"
+        ],
+        "type": "object"
+      },
+      "TodayPlanSummaryDto": {
+        "properties": {
+          "activity": {
+            "type": "string"
+          },
+          "authorAge": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "authorCity": {
+            "type": "string"
+          },
+          "authorDisplayName": {
+            "type": "string"
+          },
+          "authorPhoto": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhotoDto"
+              }
+            ]
+          },
+          "authorUserId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "budgetAmount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "city": {
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "district": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hasApplied": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isAuthor": {
+            "type": "boolean"
+          },
+          "myResponseId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "myResponseState": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "responsesCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "startsAtUtc": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "targetParticipantsCount": {
+            "default": 1,
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorUserId",
+          "authorDisplayName",
+          "authorAge",
+          "authorCity",
+          "authorPhoto",
+          "city",
+          "district",
+          "activity",
+          "title",
+          "description",
+          "startsAtUtc",
+          "expiresAtUtc",
+          "budgetAmount",
+          "currency",
+          "state",
+          "responsesCount",
+          "isAuthor",
+          "hasApplied",
+          "myResponseState",
+          "myResponseId",
+          "createdAtUtc"
+        ],
         "type": "object"
       },
       "TokenResponse": {
@@ -4623,6 +5752,17 @@
         },
         "required": [
           "aiConsent"
+        ],
+        "type": "object"
+      },
+      "UpdateLanguageRequest": {
+        "properties": {
+          "language": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "language"
         ],
         "type": "object"
       },
@@ -5557,6 +6697,120 @@
         },
         "tags": [
           "Auth"
+        ]
+      }
+    },
+    "/api/chat/media/upload": {
+      "post": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "duration",
+            "schema": {
+              "format": "double",
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "properties": {
+                  "ContentDisposition": {
+                    "type": "string"
+                  },
+                  "ContentType": {
+                    "type": "string"
+                  },
+                  "FileName": {
+                    "type": "string"
+                  },
+                  "Headers": {
+                    "additionalProperties": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "type": "object"
+                  },
+                  "Length": {
+                    "format": "int64",
+                    "pattern": "^-?(?:0|[1-9]\\d*)$",
+                    "type": [
+                      "integer",
+                      "string"
+                    ]
+                  },
+                  "Name": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatMediaUploadResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatMediaUploadResult"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatMediaUploadResult"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "ChatMedia"
+        ]
+      }
+    },
+    "/api/chat/media/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "ChatMedia"
         ]
       }
     },
@@ -6722,6 +7976,46 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/JoinRoomRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/JoinRoomRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/JoinRoomRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -8186,6 +9480,55 @@
         ]
       }
     },
+    "/api/moderation/broadcast-telegram": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramBroadcastRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramBroadcastRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramBroadcastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramBroadcastResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramBroadcastResult"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramBroadcastResult"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Moderation"
+        ]
+      }
+    },
     "/api/moderation/csrf": {
       "get": {
         "responses": {
@@ -8825,6 +10168,84 @@
         ]
       }
     },
+    "/api/moderation/telegram-stats": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatsDto"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatsDto"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Moderation"
+        ]
+      }
+    },
+    "/api/moderation/users": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCreateUserRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCreateUserRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCreateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProfileSummary"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProfileSummary"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProfileSummary"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Moderation"
+        ]
+      }
+    },
     "/api/moderation/users/{id}": {
       "delete": {
         "parameters": [
@@ -8926,6 +10347,66 @@
         },
         "responses": {
           "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Moderation"
+        ]
+      }
+    },
+    "/api/moderation/users/{id}/crystals": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminAdjustCrystalsRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminAdjustCrystalsRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminAdjustCrystalsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCrystalAdjustmentResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCrystalAdjustmentResult"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCrystalAdjustmentResult"
+                }
+              }
+            },
             "description": "OK"
           }
         },
@@ -9095,6 +10576,111 @@
                 }
               }
             },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Push"
+        ]
+      }
+    },
+    "/api/notifications/telegram": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramSubscriberStatusDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramSubscriberStatusDto"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramSubscriberStatusDto"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Push"
+        ]
+      }
+    },
+    "/api/notifications/telegram/link": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramLinkRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramLinkRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Push"
+        ]
+      }
+    },
+    "/api/notifications/telegram/test": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Push"
+        ]
+      }
+    },
+    "/api/notifications/telegram/toggle": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramToggleRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramToggleRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramToggleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
             "description": "OK"
           }
         },
@@ -9463,6 +11049,68 @@
                 }
               }
             },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Profile"
+        ]
+      }
+    },
+    "/api/profile/language": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLanguageRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLanguageRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLanguageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Profile"
+        ]
+      },
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLanguageRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLanguageRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLanguageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
             "description": "OK"
           }
         },
@@ -9956,9 +11604,538 @@
           "Match"
         ]
       }
+    },
+    "/api/today-plans": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "city",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "activity",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanFeedPageDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanFeedPageDto"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanFeedPageDto"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodayPlanRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodayPlanRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodayPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/limits": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanLimitsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanLimitsDto"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanLimitsDto"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/my": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanSummaryDto"
+                  },
+                  "type": "array"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanSummaryDto"
+                  },
+                  "type": "array"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanSummaryDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/my-responses": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanMyResponseDto"
+                  },
+                  "type": "array"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanMyResponseDto"
+                  },
+                  "type": "array"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanMyResponseDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/{id}/applicants": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanApplicantDto"
+                  },
+                  "type": "array"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanApplicantDto"
+                  },
+                  "type": "array"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TodayPlanApplicantDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/{id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanDetailDto"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/{id}/responses": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodayPlanResponseRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodayPlanResponseRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodayPlanResponseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanMyResponseDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanMyResponseDto"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayPlanMyResponseDto"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/{id}/responses/{responseId}/accept": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "responseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptPlanResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptPlanResponseResult"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptPlanResponseResult"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/{id}/responses/{responseId}/reject": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "responseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
+    },
+    "/api/today-plans/{id}/responses/{responseId}/withdraw": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "responseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TodayPlans"
+        ]
+      }
     }
   },
   "tags": [
+    {
+      "name": "TodayPlans"
+    },
     {
       "name": "Safety"
     },
@@ -9994,6 +12171,9 @@
     },
     {
       "name": "Chat"
+    },
+    {
+      "name": "ChatMedia"
     },
     {
       "name": "Auth"

@@ -1635,6 +1635,13 @@ namespace Dating.Api.Persistence.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AppLanguage")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("ka");
+
                     b.Property<string>("Bio")
                         .IsRequired()
                         .HasMaxLength(500)

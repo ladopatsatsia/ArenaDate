@@ -111,9 +111,23 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+let activeSyncHandler: ((lang: SupportedLanguage) => void) | null = null;
+
+export function registerLanguageBackendSync(fn: ((lang: SupportedLanguage) => void) | null): void {
+  activeSyncHandler = fn;
+}
+
 // Automatically persist language whenever i18n.changeLanguage is called
 i18n.on('languageChanged', (lng: string) => {
   persistLanguage(lng);
+  const code = normalizeLanguageCode(lng);
+  if (code && activeSyncHandler) {
+    try {
+      activeSyncHandler(code);
+    } catch {
+      // ignore
+    }
+  }
 });
 
 // On native platforms (iOS/Android), asynchronously load persisted language from SecureStore

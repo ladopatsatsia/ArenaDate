@@ -13,22 +13,48 @@ const port = reservation.address().port;
 await new Promise(resolve => reservation.close(resolve));
 const base = 'http://127.0.0.1:' + port;
 const dotnet = process.env.DOTNET_COMMAND || (existsSync(resolve('.tools/dotnet/dotnet.exe')) ? resolve('.tools/dotnet/dotnet.exe') : 'dotnet');
-const dllPath = existsSync(resolve('backend/Dating.Api/bin/Debug/net10.0/build2/net10.0/Dating.Api.dll'))
-  ? resolve('backend/Dating.Api/bin/Debug/net10.0/build2/net10.0/Dating.Api.dll')
-  : resolve('backend/Dating.Api/bin/Debug/net10.0/Dating.Api.dll');
+const candidatePaths = [
+  'backend/Dating.Api/bin/Debug/net10.0/build4/net10.0/Dating.Api.dll',
+  'backend/Dating.Api/bin/Debug/net10.0/build3/net10.0/Dating.Api.dll',
+  'backend/Dating.Api/bin/Debug/net10.0/build2/net10.0/Dating.Api.dll',
+  'backend/Dating.Api/bin/Debug/net10.0/Dating.Api.dll'
+];
+let dbConn = process.env.ConnectionStrings__Database;
+if (!dbConn && existsSync(resolve('infra/.env'))) {
+  const envContent = await readFile(resolve('infra/.env'), 'utf8');
+  const match = envContent.match(/POSTGRES_PASSWORD=(.+)/);
+  if (match) {
+    dbConn = `Host=127.0.0.1;Port=54432;Database=dating;Username=dating;Password=${match[1].trim()}`;
+  }
+}
+const dotnetRoot = existsSync(resolve('.tools/dotnet')) ? resolve('.tools/dotnet') : undefined;
+const dllPath = resolve(candidatePaths.find(p => existsSync(resolve(p))) || candidatePaths[0]);
 const child = spawn(dotnet, [
   dllPath
-], { cwd: resolve('backend/Dating.Api'), env: { ...process.env, ...developmentAuthEnv(), ASPNETCORE_ENVIRONMENT: 'Development', ASPNETCORE_URLS: base,
-  ConnectionStrings__Database: process.env.ConnectionStrings__Database || 'Host=localhost;Database=contract;Username=unused;Password=unused' },
+], { cwd: resolve('backend/Dating.Api'), env: {
+  ...process.env,
+  ...(dotnetRoot ? {
+    DOTNET_ROOT: dotnetRoot,
+    PATH: `${dotnetRoot};${process.env.PATH || ''}`,
+    DOTNET_CLI_HOME: resolve('.tools/dotnet-home'),
+    NUGET_PACKAGES: resolve('.tools/nuget'),
+  } : {}),
+  ...developmentAuthEnv(),
+  ASPNETCORE_ENVIRONMENT: 'Development',
+  ASPNETCORE_URLS: base,
+  ConnectionStrings__Database: dbConn || 'Host=localhost;Database=contract;Username=unused;Password=unused' },
   stdio: ['ignore', 'pipe', 'pipe'] });
 let failed;
+let childLogs = '';
+child.stdout.on('data', d => { childLogs += d.toString(); });
+child.stderr.on('data', d => { childLogs += d.toString(); });
 child.on('error', error => { failed = error; });
-child.on('exit', code => { failed ||= new Error('API exited: ' + code); });
-child.stdout.resume(); child.stderr.resume();
+child.on('exit', code => { failed ||= new Error(`API exited (${code}): ${childLogs}`); });
 try {
   let document;
   for (let attempt = 0; attempt < 120; attempt++) {
     if (failed) throw failed;
+    if (attempt > 0 && attempt % 10 === 0) console.log(`[contract.mjs] attempt ${attempt}:`, childLogs.slice(-300));
     try {
       const response = await fetch(base + '/openapi/v1.json');
       if (response.ok) { document = await response.json(); break; }

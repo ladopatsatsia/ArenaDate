@@ -1,6 +1,33 @@
-# Status - Premium Gating with Photo Blur & Bottle Game Match Requests
+# Status - App Language Database Persistence & Default Auto-Load
 
-Updated 2026-10-19. Implemented comprehensive backend server-side authorization and frontend UI gating for Match/Profile views ("ვინ მნახა", "ვინ ვნახე", "ვინ მომიწონა") alongside special handling for Bottle Game match requests:
+Updated 2026-10-19. Implemented database persistence for user application language preference (`DatingProfile.AppLanguage` in PostgreSQL) with automatic default synchronization across sessions:
+
+1. **Database Schema & Backend Implementation**:
+   - Added `AppLanguage` column (varchar(10), default `'ka'`) to `DatingProfile` entity in `AppDbContext`.
+   - Created and applied EF Core migration `20261019131859_AddProfileAppLanguage` to PostgreSQL database (`dating-mvp-database-1`).
+   - Exposed `appLanguage` in `OwnProfileDto` and `ProfileUpdate`.
+   - Added dedicated language update endpoints `POST /api/profile/language` & `PUT /api/profile/language` in `ProfileController` and `ProfileService.SetAppLanguage` with regex validation (`ka|ru|en`).
+   - Added `builder.Services.AddOpenApi()` in `backend/Dating.Api/Program.cs` and regenerated OpenAPI contracts and TypeScript definitions.
+
+2. **Frontend Synchronization & Persistence**:
+   - `mobile/src/i18n.ts`: Registered dynamic backend synchronization hook (`registerLanguageBackendSync`) to notify backend whenever user switches languages.
+   - `mobile/app/_layout.tsx`:
+     - When profile loads on login/session restore, automatically sets i18next language to `profile.appLanguage`.
+     - Whenever user updates language while signed in, calls `profileApi.setLanguage(lang)` to persist preference directly in PostgreSQL database.
+   - `mobile/src/profile/api.ts`: Added `setLanguage(language: string)` client method.
+
+3. **Verification**:
+   - `powershell -File ./scripts/dev.ps1 -Task build`: **PASS (0 warnings, 0 errors)**.
+   - `npm run contract:generate`: **PASS (generated schema.d.ts & openapi.json)**.
+   - `npm run typecheck`: **PASS (0 errors across api-contract, mobile, admin)**.
+   - `npm run lint`: **PASS (0 warnings, 0 errors)**.
+   - `npm test --workspace mobile`: **PASS (41 test suites, 161 tests passed)**.
+   - `npx expo export -p web`: **PASS (exported clean web bundle to dist/web)**.
+   - `http://127.0.0.1:8081/api/health/ready`: **PASS (ready)**.
+
+---
+
+
 
 1. **Section Access & Photo Blurring for Free (Non-Premium) Users**:
    - Free users can now enter the "ვინ მნახა" (`viewed_you`), "ვინ ვნახე" (`you_viewed`), and "ვინ მომიწონა" (`requests`) sections without a full-screen paywall blocking the entire screen.

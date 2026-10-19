@@ -41,8 +41,8 @@ $env:Email__Sender = 'no-reply@dating.local'
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
 switch ($Task) {
     'admin-api' { dotnet run --project backend/Dating.Api --no-launch-profile --urls 'http://localhost:5180;https://localhost:5181' }
-    'staff' { dotnet backend/Dating.Api/bin/Debug/net10.0/build3/net10.0/Dating.Api.dll staff @StaffArguments }
-    'api' { $env:ASPNETCORE_ENVIRONMENT = 'Development'; $env:ASPNETCORE_URLS = 'http://0.0.0.0:5180;https://0.0.0.0:5181'; dotnet backend/Dating.Api/bin/Debug/net10.0/build3/net10.0/Dating.Api.dll }
+    'staff' { dotnet backend/Dating.Api/bin/Debug/net10.0/build4/net10.0/Dating.Api.dll staff @StaffArguments }
+    'api' { $env:ASPNETCORE_ENVIRONMENT = 'Development'; $env:ASPNETCORE_URLS = 'http://0.0.0.0:5180;https://0.0.0.0:5181'; dotnet backend/Dating.Api/bin/Debug/net10.0/build4/net10.0/Dating.Api.dll }
     'migrate' { dotnet ef database update --project backend/Dating.Api }
     'check-migrations' { dotnet ef migrations has-pending-model-changes --project backend/Dating.Api --no-build }
     'add-migration' { dotnet ef migrations add $MigrationName --project backend/Dating.Api }

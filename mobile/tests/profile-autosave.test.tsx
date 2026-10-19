@@ -24,6 +24,7 @@ const initialProfile: OwnProfile = {
   visible: true,
   age: 25,
   complete: true,
+  appLanguage: 'ka',
   photos: [],
 };
 

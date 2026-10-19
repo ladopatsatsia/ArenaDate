@@ -22,6 +22,7 @@ public sealed class DatingProfile
     public int RadiusKm { get; set; } = 25;
     public string LocationMode { get; set; } = "city";
     public NetTopologySuite.Geometries.Point? Location { get; set; }
+    public string AppLanguage { get; set; } = "ka";
 }
 public sealed class ProfilePhoto
 {
@@ -41,6 +42,7 @@ public sealed class ProfilePhoto
 }
 // Shared exclusion record. User-facing block actions belong to the safety stage.
 public sealed class UserBlock { public Guid BlockerId { get; set; } public Guid BlockedId { get; set; } }
+public sealed record UpdateLanguageRequest([Required, RegularExpression("^(ka|ru|en)$")] string Language);
 public sealed record ProfileUpdate(long Revision,
     [Required, StringLength(50, MinimumLength = 2)] string DisplayName,
     [StringLength(500)] string? Bio,
@@ -51,11 +53,13 @@ public sealed record ProfileUpdate(long Revision,
     string? RelationshipGoal,
     bool Visible,
     DateOnly? DateOfBirth = null,
-    [MaxLength(8)] string[]? Languages = null);
+    [MaxLength(8)] string[]? Languages = null,
+    string? AppLanguage = null);
 public sealed record PhotoDto(Guid Id, string State, int Position, int Width, int Height);
 public sealed record OwnProfileDto(long Revision, string DisplayName, int Age, string Bio, string Gender,
     string[] DesiredGenders, string City, string[] Interests, string RelationshipGoal, bool Visible, bool Complete, PhotoDto[] Photos,
-    string[]? Languages = null);
+    string[]? Languages = null,
+    string AppLanguage = "ka");
 public sealed record ProfileChoices(string[] Genders, string[] Interests, string[] RelationshipGoals, string[] Languages);
 public sealed record UploadRequest(Guid RequestId);
 public sealed record ReorderRequest(long Revision, [Required, MaxLength(6)] Guid[] PhotoIds);

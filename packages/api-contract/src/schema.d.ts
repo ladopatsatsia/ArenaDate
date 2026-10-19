@@ -801,6 +801,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chat/media/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: {
+                    type?: string;
+                    duration?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/x-www-form-urlencoded": {
+                        ContentDisposition?: string;
+                        ContentType?: string;
+                        FileName?: string;
+                        Headers?: {
+                            [key: string]: string[];
+                        };
+                        /** Format: int64 */
+                        Length?: number | string;
+                        Name?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ChatMediaUploadResult"];
+                        "text/json": components["schemas"]["ChatMediaUploadResult"];
+                        "text/plain": components["schemas"]["ChatMediaUploadResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chat/media/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/conversations/{conversation}/messages": {
         parameters: {
             query?: never;
@@ -1827,7 +1916,13 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/*+json": null | components["schemas"]["JoinRoomRequest"];
+                    "application/json": null | components["schemas"]["JoinRoomRequest"];
+                    "text/json": null | components["schemas"]["JoinRoomRequest"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -2971,6 +3066,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/moderation/broadcast-telegram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["TelegramBroadcastRequest"];
+                    "application/json": components["schemas"]["TelegramBroadcastRequest"];
+                    "text/json": components["schemas"]["TelegramBroadcastRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramBroadcastResult"];
+                        "text/json": components["schemas"]["TelegramBroadcastResult"];
+                        "text/plain": components["schemas"]["TelegramBroadcastResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/moderation/csrf": {
         parameters: {
             query?: never;
@@ -3591,6 +3729,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/moderation/telegram-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramStatsDto"];
+                        "text/json": components["schemas"]["TelegramStatsDto"];
+                        "text/plain": components["schemas"]["TelegramStatsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moderation/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["AdminCreateUserRequest"];
+                    "application/json": components["schemas"]["AdminCreateUserRequest"];
+                    "text/json": components["schemas"]["AdminCreateUserRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProfileSummary"];
+                        "text/json": components["schemas"]["AdminProfileSummary"];
+                        "text/plain": components["schemas"]["AdminProfileSummary"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/moderation/users/{id}": {
         parameters: {
             query?: never;
@@ -3671,6 +3889,51 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moderation/users/{id}/crystals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["AdminAdjustCrystalsRequest"];
+                    "application/json": components["schemas"]["AdminAdjustCrystalsRequest"];
+                    "text/json": components["schemas"]["AdminAdjustCrystalsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminCrystalAdjustmentResult"];
+                        "text/json": components["schemas"]["AdminCrystalAdjustmentResult"];
+                        "text/plain": components["schemas"]["AdminCrystalAdjustmentResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3846,6 +4109,154 @@ export interface paths {
                         "text/json": components["schemas"]["NotificationTarget"];
                         "text/plain": components["schemas"]["NotificationTarget"];
                     };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/telegram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramSubscriberStatusDto"];
+                        "text/json": components["schemas"]["TelegramSubscriberStatusDto"];
+                        "text/plain": components["schemas"]["TelegramSubscriberStatusDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/telegram/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["TelegramLinkRequest"];
+                    "application/json": components["schemas"]["TelegramLinkRequest"];
+                    "text/json": components["schemas"]["TelegramLinkRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/telegram/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/telegram/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["TelegramToggleRequest"];
+                    "application/json": components["schemas"]["TelegramToggleRequest"];
+                    "text/json": components["schemas"]["TelegramToggleRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -4196,6 +4607,68 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/profile/language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["UpdateLanguageRequest"];
+                    "application/json": components["schemas"]["UpdateLanguageRequest"];
+                    "text/json": components["schemas"]["UpdateLanguageRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["UpdateLanguageRequest"];
+                    "application/json": components["schemas"]["UpdateLanguageRequest"];
+                    "text/json": components["schemas"]["UpdateLanguageRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -4681,10 +5154,478 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/today-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    city?: string;
+                    activity?: string;
+                    day?: string;
+                    cursor?: string;
+                    limit?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanFeedPageDto"];
+                        "text/json": components["schemas"]["TodayPlanFeedPageDto"];
+                        "text/plain": components["schemas"]["TodayPlanFeedPageDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["CreateTodayPlanRequest"];
+                    "application/json": components["schemas"]["CreateTodayPlanRequest"];
+                    "text/json": components["schemas"]["CreateTodayPlanRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanDetailDto"];
+                        "text/json": components["schemas"]["TodayPlanDetailDto"];
+                        "text/plain": components["schemas"]["TodayPlanDetailDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanLimitsDto"];
+                        "text/json": components["schemas"]["TodayPlanLimitsDto"];
+                        "text/plain": components["schemas"]["TodayPlanLimitsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/my": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanSummaryDto"][];
+                        "text/json": components["schemas"]["TodayPlanSummaryDto"][];
+                        "text/plain": components["schemas"]["TodayPlanSummaryDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/my-responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanMyResponseDto"][];
+                        "text/json": components["schemas"]["TodayPlanMyResponseDto"][];
+                        "text/plain": components["schemas"]["TodayPlanMyResponseDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanDetailDto"];
+                        "text/json": components["schemas"]["TodayPlanDetailDto"];
+                        "text/plain": components["schemas"]["TodayPlanDetailDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/{id}/applicants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanApplicantDto"][];
+                        "text/json": components["schemas"]["TodayPlanApplicantDto"][];
+                        "text/plain": components["schemas"]["TodayPlanApplicantDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanDetailDto"];
+                        "text/json": components["schemas"]["TodayPlanDetailDto"];
+                        "text/plain": components["schemas"]["TodayPlanDetailDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/{id}/responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["CreateTodayPlanResponseRequest"];
+                    "application/json": components["schemas"]["CreateTodayPlanResponseRequest"];
+                    "text/json": components["schemas"]["CreateTodayPlanResponseRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TodayPlanMyResponseDto"];
+                        "text/json": components["schemas"]["TodayPlanMyResponseDto"];
+                        "text/plain": components["schemas"]["TodayPlanMyResponseDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/{id}/responses/{responseId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    responseId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AcceptPlanResponseResult"];
+                        "text/json": components["schemas"]["AcceptPlanResponseResult"];
+                        "text/plain": components["schemas"]["AcceptPlanResponseResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/{id}/responses/{responseId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    responseId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/today-plans/{id}/responses/{responseId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    responseId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptPlanResponseResult: {
+            /** Format: uuid */
+            companionUserId: string;
+            /** Format: uuid */
+            conversationId: null | string;
+            /** Format: date-time */
+            matchedAtUtc: string;
+            /** Format: uuid */
+            planId: string;
+            /** Format: uuid */
+            responseId: string;
+            state: string;
+        };
         AcceptedResponse: {
             /** @default If the request is eligible, an email will be sent. */
             message: string;
@@ -4696,6 +5637,38 @@ export interface components {
         AccountReview: {
             active: boolean;
             reason: string;
+        };
+        AdminAdjustCrystalsRequest: {
+            /** Format: int32 */
+            amount: number | string;
+            /** @default delta */
+            mode: null | string;
+            reason?: null | string;
+        };
+        AdminCreateUserRequest: {
+            /** @default Tbilisi */
+            city: null | string;
+            /** Format: date */
+            dateOfBirth: string;
+            displayName: string;
+            email: string;
+            gender: string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            initialCrystals: number | string;
+            password: string;
+        };
+        AdminCrystalAdjustmentResult: {
+            /** Format: int32 */
+            delta: number | string;
+            /** Format: int32 */
+            newBalance: number | string;
+            /** Format: int32 */
+            oldBalance: number | string;
+            /** Format: uuid */
+            userId: string;
         };
         AdminIdentity: {
             /** Format: uuid */
@@ -4723,6 +5696,8 @@ export interface components {
             bio: string;
             city: string;
             cityKey: string;
+            /** Format: int32 */
+            crystals: number | string;
             /** Format: date */
             dateOfBirth: string;
             desiredGenders: string[];
@@ -4752,6 +5727,8 @@ export interface components {
             /** Format: int32 */
             age: number | string;
             city: string;
+            /** Format: int32 */
+            crystals: number | string;
             displayName: string;
             email: string;
             emailConfirmed: boolean;
@@ -4796,6 +5773,14 @@ export interface components {
             /** Format: uuid */
             targetId: string;
         };
+        ChatMediaUploadResult: {
+            /** Format: double */
+            duration: null | number | string;
+            /** Format: uuid */
+            id: string;
+            mediaType: string;
+            url: string;
+        };
         ConfirmPublicDeletionRequest: {
             email: string;
             token: string;
@@ -4811,7 +5796,29 @@ export interface components {
              * @default 10
              */
             capacity: number | string;
+            password?: null | string;
             title?: null | string;
+        };
+        CreateTodayPlanRequest: {
+            activity: string;
+            /** Format: double */
+            budgetAmount: null | number | string;
+            city: string;
+            description: null | string;
+            district: null | string;
+            /** Format: date-time */
+            expiresAtUtc: string;
+            /** Format: date-time */
+            startsAtUtc: string;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            targetParticipantsCount: number | string;
+            title: string;
+        };
+        CreateTodayPlanResponseRequest: {
+            message: null | string;
         };
         CrystalTransactionDto: {
             /** Format: int32 */
@@ -5018,6 +6025,8 @@ export interface components {
             femaleCount: number | string;
             /** Format: int32 */
             femaleQuota: number | string;
+            /** @default false */
+            hasPassword: boolean;
             /** Format: uuid */
             id: string;
             isJoined: boolean;
@@ -5102,6 +6111,8 @@ export interface components {
             femaleCount: number | string;
             /** Format: int32 */
             femaleQuota: number | string;
+            /** @default false */
+            hasPassword: boolean;
             /** Format: uuid */
             id: string;
             /** Format: date-time */
@@ -5190,6 +6201,9 @@ export interface components {
              * @default 10
              */
             capacity: number | string;
+        };
+        JoinRoomRequest: {
+            password?: null | string;
         };
         JoinRoomResult: {
             /** Format: uuid */
@@ -5323,6 +6337,8 @@ export interface components {
         OwnProfileDto: {
             /** Format: int32 */
             age: number | string;
+            /** @default ka */
+            appLanguage: string;
             bio: string;
             city: string;
             complete: boolean;
@@ -5412,6 +6428,7 @@ export interface components {
             relationshipGoals: string[];
         };
         ProfileUpdate: {
+            appLanguage?: null | string;
             bio: null | string;
             city: null | string;
             /** Format: date */
@@ -5435,6 +6452,8 @@ export interface components {
             /** @default  */
             gender: string;
             interests?: null | string[];
+            /** @default false */
+            isBlurred: boolean;
             photo?: null | components["schemas"]["PhotoDto"];
             photos?: null | components["schemas"]["PhotoDto"][];
             /** @default  */
@@ -5780,6 +6799,34 @@ export interface components {
         TelegramAuthRequest: {
             initData: string;
         };
+        TelegramBroadcastRequest: {
+            buttonText?: null | string;
+            message: string;
+            webAppRelativePath?: null | string;
+        };
+        TelegramBroadcastResult: {
+            /** Format: int32 */
+            blockedCount: number | string;
+            /** Format: date-time */
+            completedAtUtc: string;
+            /** Format: int32 */
+            failedCount: number | string;
+            /** Format: int32 */
+            successCount: number | string;
+            /** Format: int32 */
+            targeted: number | string;
+            /** Format: int32 */
+            totalSubscribers: number | string;
+        };
+        TelegramLinkRequest: {
+            /** Format: int64 */
+            chatId: null | number | string;
+            firstName: null | string;
+            lastName: null | string;
+            /** Format: int64 */
+            telegramUserId: number | string;
+            username: null | string;
+        };
         TelegramPreCheckoutQuery: {
             /** @default XTR */
             currency: string;
@@ -5817,6 +6864,25 @@ export interface components {
             /** Format: int32 */
             walletBalance?: null | number | string;
         };
+        TelegramStatsDto: {
+            /** Format: int32 */
+            activeSubscribers: number | string;
+            /** Format: date-time */
+            latestActivityUtc: null | string;
+            /** Format: int32 */
+            linkedUsersCount: number | string;
+            /** Format: int32 */
+            totalSubscribers: number | string;
+        };
+        TelegramSubscriberStatusDto: {
+            botUsername: string;
+            firstName: null | string;
+            isActive: boolean;
+            isLinked: boolean;
+            /** Format: int64 */
+            telegramUserId: null | number | string;
+            username: null | string;
+        };
         TelegramSuccessfulPayment: {
             /** @default XTR */
             currency: string;
@@ -5830,6 +6896,9 @@ export interface components {
              * @default 0
              */
             total_amount: number | string;
+        };
+        TelegramToggleRequest: {
+            isActive: boolean;
         };
         TelegramUpdate: {
             message?: null | components["schemas"]["TelegramWebhookMessage"];
@@ -5872,6 +6941,156 @@ export interface components {
             id: number | string;
             username?: null | string;
         };
+        TodayPlanApplicantDto: {
+            /** Format: int32 */
+            age: number | string;
+            /** Format: uuid */
+            applicantUserId: string;
+            bio: string;
+            city: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            displayName: string;
+            /** Format: uuid */
+            id: string;
+            message: null | string;
+            photo: null | components["schemas"]["PhotoDto"];
+            photos: null | components["schemas"]["PhotoDto"][];
+            state: string;
+        };
+        TodayPlanDetailDto: {
+            activity: string;
+            /** Format: int32 */
+            authorAge: number | string;
+            authorBio: string;
+            authorCity: string;
+            authorDisplayName: string;
+            authorPhoto: null | components["schemas"]["PhotoDto"];
+            authorPhotos: null | components["schemas"]["PhotoDto"][];
+            /** Format: uuid */
+            authorUserId: string;
+            /** Format: double */
+            budgetAmount: null | number | string;
+            city: string;
+            /** Format: uuid */
+            conversationId?: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            currency: string;
+            description: string;
+            district: null | string;
+            /** Format: date-time */
+            expiresAtUtc: string;
+            hasApplied: boolean;
+            /** Format: uuid */
+            id: string;
+            isAuthor: boolean;
+            /** Format: date-time */
+            matchedAtUtc: null | string;
+            /** Format: uuid */
+            myResponseId: null | string;
+            myResponseState: null | string;
+            /** Format: int32 */
+            responsesCount: number | string;
+            /** Format: uuid */
+            selectedCompanionUserId: null | string;
+            /** Format: date-time */
+            startsAtUtc: string;
+            state: string;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            targetParticipantsCount: number | string;
+            title: string;
+        };
+        TodayPlanFeedPageDto: {
+            items: components["schemas"]["TodayPlanSummaryDto"][];
+            nextCursor: null | string;
+            /** Format: int32 */
+            totalCount: number | string;
+        };
+        TodayPlanLimitsDto: {
+            /** Format: int32 */
+            activePlansCount: number | string;
+            /** Format: int32 */
+            activePlansLimit: number | string;
+            canApply: boolean;
+            canCreatePlan: boolean;
+            /** Format: int32 */
+            dailyResponsesLimit: number | string;
+            /** Format: int32 */
+            dailyResponsesRemaining: number | string;
+            /** Format: int32 */
+            dailyResponsesUsed: number | string;
+            hasPremium: boolean;
+            /** Format: date-time */
+            resetsAtUtc: string;
+            timeZone: string;
+        };
+        TodayPlanMyResponseDto: {
+            authorDisplayName: string;
+            authorPhoto: null | components["schemas"]["PhotoDto"];
+            /** Format: uuid */
+            authorUserId: string;
+            /** Format: uuid */
+            conversationId?: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            message: null | string;
+            planActivity: string;
+            planCity: string;
+            planDistrict: null | string;
+            /** Format: date-time */
+            planExpiresAtUtc: string;
+            /** Format: uuid */
+            planId: string;
+            /** Format: date-time */
+            planStartsAtUtc: string;
+            planState: string;
+            planTitle: string;
+            /** Format: uuid */
+            responseId: string;
+            state: string;
+        };
+        TodayPlanSummaryDto: {
+            activity: string;
+            /** Format: int32 */
+            authorAge: number | string;
+            authorCity: string;
+            authorDisplayName: string;
+            authorPhoto: null | components["schemas"]["PhotoDto"];
+            /** Format: uuid */
+            authorUserId: string;
+            /** Format: double */
+            budgetAmount: null | number | string;
+            city: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            currency: string;
+            description: string;
+            district: null | string;
+            /** Format: date-time */
+            expiresAtUtc: string;
+            hasApplied: boolean;
+            /** Format: uuid */
+            id: string;
+            isAuthor: boolean;
+            /** Format: uuid */
+            myResponseId: null | string;
+            myResponseState: null | string;
+            /** Format: int32 */
+            responsesCount: number | string;
+            /** Format: date-time */
+            startsAtUtc: string;
+            state: string;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            targetParticipantsCount: number | string;
+            title: string;
+        };
         TokenResponse: {
             /** Format: date-time */
             accessExpiresAt: string;
@@ -5912,6 +7131,9 @@ export interface components {
         };
         UpdateAiConsentRequest: {
             aiConsent: boolean;
+        };
+        UpdateLanguageRequest: {
+            language: string;
         };
         UpdateQuestionRequest: {
             category: string;
