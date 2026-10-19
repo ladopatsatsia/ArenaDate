@@ -180,8 +180,21 @@ public sealed class TelegramPaymentService(
                 ct: ct
             );
 
-            var botToken = config["Telegram:BotToken"];
-            var webAppUrl = config["Telegram:WebAppUrl"];
+            var botToken = config["Telegram:BotToken"] ?? Environment.GetEnvironmentVariable("Telegram__BotToken");
+            var webAppUrl = Environment.GetEnvironmentVariable("Telegram__WebAppUrl") ?? config["Telegram:WebAppUrl"];
+            if (string.IsNullOrWhiteSpace(webAppUrl) || webAppUrl.Contains("decided-configure-forecasts"))
+            {
+                try
+                {
+                    var envPath = Path.Combine(Directory.GetCurrentDirectory(), "infra", ".env");
+                    if (File.Exists(envPath))
+                    {
+                        var match = File.ReadAllLines(envPath).FirstOrDefault(l => l.StartsWith("TELEGRAM_WEB_APP_URL="));
+                        if (match != null) webAppUrl = match["TELEGRAM_WEB_APP_URL=".Length..].Trim();
+                    }
+                }
+                catch { }
+            }
 
             if (!string.IsNullOrWhiteSpace(botToken) && botToken != "dev_bot_token" && !string.IsNullOrWhiteSpace(webAppUrl))
             {

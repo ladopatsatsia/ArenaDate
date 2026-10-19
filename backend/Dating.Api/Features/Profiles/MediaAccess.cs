@@ -7,7 +7,7 @@ using Dating.Api.Persistence;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 namespace Dating.Api.Features.Profiles;
-public sealed class MediaAccess(AppDbContext db, IDataProtectionProvider protection, TimeProvider clock, Dating.Api.Features.Discovery.DiscoveryEligibility discovery, Dating.Api.Features.Premium.IPremiumService premiumService)
+public sealed class MediaAccess(AppDbContext db, IDataProtectionProvider protection, TimeProvider clock, Dating.Api.Features.Discovery.DiscoveryEligibility discovery)
 {
     private readonly IDataProtector signer = protection.CreateProtector("DatingMVP.PrivateMedia.v1");
     private sealed record Ticket(Guid Viewer, Guid Photo, DateTimeOffset Expires);
