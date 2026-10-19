@@ -17,12 +17,21 @@ Updated 2026-10-19. Implemented comprehensive backend server-side authorization 
      - Bottle game suitors' photos and profiles are UNBLURRED and fully viewable even without a Premium subscription.
      - Confirmed chats initiated from the bottle game require 25 crystals to unlock; once one participant unlocks the chat, it is unlocked for both users.
 
-3. **Verification**:
+3. **Live Telegram Mini App Deployment & Self-Healing**:
+   - Cloudflare Tunnel: `https://kits-dns-optional-pulling.trycloudflare.com` (verified healthy, HTTP 200).
+   - Public Health API: `https://kits-dns-optional-pulling.trycloudflare.com/api/health/live` (status: ok).
+   - Telegram Bot: `@ArenaDate_Bot` (`setChatMenuButton` successfully updated to point directly to `https://kits-dns-optional-pulling.trycloudflare.com/`).
+   - Webhook: `https://kits-dns-optional-pulling.trycloudflare.com/api/payments/telegram-stars/webhook` (verified).
+   - Watchdog: Active background self-healing daemon monitoring DB, API, Web, and Cloudflare tunnel every 15s.
+
+4. **Verification**:
    - `npm run typecheck`: **PASS (0 errors across api-contract, mobile, admin)**.
    - `npm run lint`: **PASS (0 errors, 0 warnings)**.
    - `npm run contract:generate` & `contract:check`: **PASS**.
    - `npm test --workspace mobile`: **PASS (41 test suites, 161 tests passed)**.
    - `npx expo export -p web`: **PASS (dist/web exported cleanly, exit code 0)**.
+   - Public Tunnel Health via `curl`: **PASS (`{"status":"ok"}`)**.
+   - Telegram Bot API `getChatMenuButton`: **PASS (points to active tunnel)**.
 
 ---
 

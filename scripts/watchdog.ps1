@@ -183,6 +183,17 @@ function Check-WebServer {
 
 function Check-Tunnel {
     $running = Get-Process -Name cloudflared -ErrorAction SilentlyContinue
+    # Check if existing quick tunnel failed or expired
+    if ($running -and (Test-Path $TunnelLog)) {
+        $tail = Get-Content $TunnelLog -Tail 10 -ErrorAction SilentlyContinue | Out-String
+        if ($tail -match "Register tunnel error" -or $tail -match "Unauthorized: Tunnel not found") {
+            Write-WatchdogLog "[Tunnel] Detected expired Cloudflare quick tunnel session. Restarting tunnel..."
+            Stop-Process -Name cloudflared -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+            $running = $null
+        }
+    }
+
     if (-not $running) {
         Write-WatchdogLog "[Tunnel] cloudflared is not running. Starting tunnel..."
         if (Test-Path $TunnelLog) { Remove-Item $TunnelLog -Force -ErrorAction SilentlyContinue }
