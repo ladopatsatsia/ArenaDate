@@ -45,10 +45,10 @@ Updated 2026-10-19. Implemented database persistence for user application langua
      - Confirmed chats initiated from the bottle game require 25 crystals to unlock; once one participant unlocks the chat, it is unlocked for both users.
 
 3. **Live Telegram Mini App Deployment & Self-Healing**:
-   - Cloudflare Tunnel: `https://kits-dns-optional-pulling.trycloudflare.com` (verified healthy, HTTP 200).
-   - Public Health API: `https://kits-dns-optional-pulling.trycloudflare.com/api/health/live` (status: ok).
-   - Telegram Bot: `@ArenaDate_Bot` (`setChatMenuButton` successfully updated to point directly to `https://kits-dns-optional-pulling.trycloudflare.com/`).
-   - Webhook: `https://kits-dns-optional-pulling.trycloudflare.com/api/payments/telegram-stars/webhook` (verified).
+   - Cloudflare Tunnel: `https://freight-helmet-division-special.trycloudflare.com` (verified healthy, HTTP 200).
+   - Public Health API: `https://freight-helmet-division-special.trycloudflare.com/api/health/ready` (status: ready).
+   - Telegram Bot: `@ArenaDate_Bot` (`setChatMenuButton` successfully updated to point directly to `https://freight-helmet-division-special.trycloudflare.com/`).
+   - Webhook: `https://freight-helmet-division-special.trycloudflare.com/api/payments/telegram-stars/webhook` (verified).
    - Watchdog: Active background self-healing daemon monitoring DB, API, Web, and Cloudflare tunnel every 15s.
 
 4. **Verification**:
