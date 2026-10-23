@@ -1,3 +1,25 @@
+# Status - Railway 1-Click Self-Contained Deployment
+
+Updated 2026-10-23. Configured repository for zero-friction 1-click deployment on Railway (`Add New Service > GitHub Repo > ArenaDate > Deploy`):
+
+1. **Unified Root Dockerfile (`Dockerfile`)**:
+   - Multi-stage production build:
+     - Stage 1: Builds Angular Admin Panel (`admin/dist/admin/browser`) & Expo Web Mini App (`mobile/dist/web`).
+     - Stage 2: Publishes ASP.NET Core .NET 10 API (`backend/Dating.Api/`).
+     - Stage 3: Unified Ubuntu 24.04 LTS runtime container with .NET 10 ASP.NET runtime, Node 22, and PostgreSQL 16 + PostGIS 3.
+2. **Auto-Detecting Dynamic Entrypoint (`scripts/docker-entrypoint.sh`)**:
+   - If external Railway `DATABASE_URL` or `PGHOST` is provided: automatically links and connects to Railway Postgres service.
+   - If no external database is configured: automatically boots built-in PostgreSQL 16 + PostGIS 3 on localhost with user `dating`.
+   - Runs automatic database migrations on startup.
+   - Idempotently provisions administrator account (`admin@appdate.ge` / `AdminPassword123!`).
+   - Serves Mini App on `/`, Admin Panel on `/admin/`, REST API on `/api/`, and SignalR WebSocket hubs on `/hubs/`.
+3. **Railway Orchestration Config (`railway.json`)**:
+   - Explicitly instructs Railway builder to use `DOCKERFILE` (`Dockerfile`), preventing accidental splitting into multiple disconnected npm workspaces.
+4. **Git Synchronization**:
+   - Changes committed and pushed to `origin/main` (`d3b48bc`).
+
+---
+
 # Status - Admin Panel Transactions History & Financial Analytics
 
 Updated 2026-10-23. Implemented full transaction and payment history in the Admin Moderation Panel (Angular + ASP.NET Core) with real-time financial statistics and categorization:
