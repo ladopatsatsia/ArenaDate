@@ -394,8 +394,9 @@ public sealed class WalletService(
         }
 
         var primaryPhoto = await db.Set<ProfilePhoto>().AsNoTracking()
-            .Where(p => p.UserId == targetUserId && !p.Deleted && p.State == "approved")
-            .OrderBy(p => p.Position)
+            .Where(p => p.UserId == targetUserId && !p.Deleted && p.State != "rejected" && p.State != "uploading")
+            .OrderBy(p => p.State == "approved" ? 0 : 1)
+            .ThenBy(p => p.Position)
             .Select(p => new PhotoDto(p.Id, p.State, p.Position, p.Width, p.Height))
             .FirstOrDefaultAsync(ct);
 
@@ -430,8 +431,9 @@ public sealed class WalletService(
         var profile = await db.Set<DatingProfile>().SingleAsync(p => p.UserId == targetUserId, ct);
 
         var photos = await db.Set<ProfilePhoto>().AsNoTracking()
-            .Where(p => p.UserId == targetUserId && !p.Deleted && p.State == "approved")
-            .OrderBy(p => p.Position)
+            .Where(p => p.UserId == targetUserId && !p.Deleted && p.State != "rejected" && p.State != "uploading")
+            .OrderBy(p => p.State == "approved" ? 0 : 1)
+            .ThenBy(p => p.Position)
             .Select(p => new PhotoDto(p.Id, p.State, p.Position, p.Width, p.Height))
             .ToArrayAsync(ct);
 
@@ -873,9 +875,15 @@ public sealed class WalletService(
             .Where(p => allOtherUserIds.Contains(p.UserId))
             .ToDictionaryAsync(p => p.UserId, ct);
 
-        var photos = await db.Set<ProfilePhoto>().AsNoTracking()
-            .Where(p => allOtherUserIds.Contains(p.UserId) && !p.Deleted && p.State == "approved" && p.Position == 0)
-            .ToDictionaryAsync(p => p.UserId, p => new PhotoDto(p.Id, p.State, p.Position, p.Width, p.Height), ct);
+        var rawPhotos = await db.Set<ProfilePhoto>().AsNoTracking()
+            .Where(p => allOtherUserIds.Contains(p.UserId) && !p.Deleted && p.State != "rejected" && p.State != "uploading")
+            .OrderBy(p => p.State == "approved" ? 0 : 1)
+            .ThenBy(p => p.Position)
+            .ToListAsync(ct);
+
+        var photos = rawPhotos
+            .GroupBy(p => p.UserId)
+            .ToDictionary(g => g.Key, g => new PhotoDto(g.First().Id, g.First().State, g.First().Position, g.First().Width, g.First().Height));
 
         var receivedDtos = received.Select(g =>
         {

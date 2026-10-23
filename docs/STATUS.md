@@ -1,3 +1,16 @@
+# Status - Bottle Game Photo Requirement Removal
+
+Updated 2026-10-23. Removed mandatory verified/approved photo restriction for joining and playing the bottle game:
+
+1. **Bottle Game Eligibility (`backend/Dating.Api/Features/Game/GameService.cs`)**:
+   - Removed `hasApprovedPhoto` / `photo_required` (403) check from `ValidateEligibilityAsync`. Users can now join quick play, public tables, private tables, and create tables without an approved photo requirement.
+2. **Game Table Photo Loading (`backend/Dating.Api/Features/Game/GameService.cs` & `WalletService.cs`)**:
+   - Updated photo queries in `GetTableDetailsAsync`, `GetRoomAsync`, `GetDirectRequestPendingAsync`, and `SendRoomMessageAsync` to load non-rejected photos (`!p.Deleted && p.State != "rejected" && p.State != "uploading"`), ordering by approved first. Users with pending photos will now have their avatars visible at the game table instead of being omitted.
+3. **Media Access Authorization (`backend/Dating.Api/Features/Profiles/MediaAccess.cs`)**:
+   - Extended photo authorization to allow pending photos for co-members at the same active game room, game kisses, and unlocked profiles, preventing 404 media errors at the bottle game table.
+
+---
+
 # Status - Telegram Bot /start Webhook & WebApp Authentication Fix
 
 Updated 2026-10-23. Resolved Telegram bot `/start` message responsiveness and WebApp authentication failure:

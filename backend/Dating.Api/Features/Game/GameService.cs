@@ -279,8 +279,14 @@ public sealed class GameService(
 
         var photos = await db.Set<ProfilePhoto>()
             .AsNoTracking()
-            .Where(p => memberUserIds.Contains(p.UserId) && !p.Deleted && p.State == "approved" && p.Position == 0)
-            .ToDictionaryAsync(p => p.UserId, ct);
+            .Where(p => memberUserIds.Contains(p.UserId) && !p.Deleted && p.State != "rejected" && p.State != "uploading")
+            .OrderBy(p => p.State == "approved" ? 0 : 1)
+            .ThenBy(p => p.Position)
+            .ToListAsync(ct);
+
+        var photoByUser = photos
+            .GroupBy(p => p.UserId)
+            .ToDictionary(g => g.Key, g => g.First());
 
         var memberDtos = new List<GameMemberDto>();
         foreach (var m in activeMembers)
@@ -288,7 +294,7 @@ public sealed class GameService(
             if (!users.TryGetValue(m.UserId, out var u) || !profiles.TryGetValue(m.UserId, out var p))
                 continue;
 
-            photos.TryGetValue(m.UserId, out var ph);
+            photoByUser.TryGetValue(m.UserId, out var ph);
             var photoDto = ph is not null ? new PhotoDto(ph.Id, ph.State, ph.Position, ph.Width, ph.Height) : null;
             var age = ProfileRules.Age(u.DateOfBirth, now);
 
@@ -346,13 +352,7 @@ public sealed class GameService(
         var profile = await db.Set<DatingProfile>().AsNoTracking().SingleOrDefaultAsync(p => p.UserId == userId, ct);
         if (profile is null || !ProfileRules.Complete(profile))
             throw new AuthFailure(403, "profile_incomplete");
-
-        var hasApprovedPhoto = await db.Set<ProfilePhoto>()
-            .AsNoTracking()
-            .AnyAsync(p => p.UserId == userId && !p.Deleted && p.State == "approved", ct);
-
-        if (!hasApprovedPhoto)
-            throw new AuthFailure(403, "photo_required");
+        // Bottle game photo restriction removed per user request: players can join without an approved photo
 
         // Default 5F/5M format requires reciprocal matching preferences
         if (profile.Gender == "woman")
@@ -1223,8 +1223,9 @@ public sealed class GameService(
 
         var photos = await db.Set<ProfilePhoto>()
             .AsNoTracking()
-            .Where(p => userIds.Contains(p.UserId) && !p.Deleted && p.State == "approved")
-            .OrderBy(p => p.Position)
+            .Where(p => userIds.Contains(p.UserId) && !p.Deleted && p.State != "rejected" && p.State != "uploading")
+            .OrderBy(p => p.State == "approved" ? 0 : 1)
+            .ThenBy(p => p.Position)
             .ToListAsync(ct);
 
         var photoByUser = photos
@@ -1370,8 +1371,9 @@ public sealed class GameService(
 
             var senderPhotos = await db.Set<ProfilePhoto>()
                 .AsNoTracking()
-                .Where(p => senderIds.Contains(p.UserId) && !p.Deleted && p.State == "approved")
-                .OrderBy(p => p.Position)
+                .Where(p => senderIds.Contains(p.UserId) && !p.Deleted && p.State != "rejected" && p.State != "uploading")
+                .OrderBy(p => p.State == "approved" ? 0 : 1)
+                .ThenBy(p => p.Position)
                 .ToListAsync(ct);
 
             var senderPhotoByUser = senderPhotos
@@ -3239,8 +3241,9 @@ public sealed class GameService(
 
         var primaryPhoto = await db.Set<ProfilePhoto>()
             .AsNoTracking()
-            .Where(p => p.UserId == userId && p.State == "approved")
-            .OrderBy(p => p.Position)
+            .Where(p => p.UserId == userId && !p.Deleted && p.State != "rejected" && p.State != "uploading")
+            .OrderBy(p => p.State == "approved" ? 0 : 1)
+            .ThenBy(p => p.Position)
             .FirstOrDefaultAsync(ct);
 
         var now = clock.GetUtcNow();
