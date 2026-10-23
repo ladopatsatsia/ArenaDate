@@ -4,46 +4,45 @@ set -e
 echo "=== Starting DatingMVP All-In-One Unified Service ==="
 
 # 1. Database detection & PostGIS verification
-USE_BUILTIN_DB=0
+USE_BUILTIN_DB=1
 
 if [ "$FORCE_BUILTIN_DB" = "true" ]; then
   echo "FORCE_BUILTIN_DB=true is set. Using built-in PostgreSQL 16 + PostGIS."
   USE_BUILTIN_DB=1
-elif [ -n "$DATABASE_URL" ]; then
-  echo "Detected external DATABASE_URL. Verifying PostGIS extension support..."
-  CHECK_OUTPUT=$(psql "$DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS postgis;" 2>&1 || true)
-  if echo "$CHECK_OUTPUT" | grep -qiE "not available|could not open extension|No such file|extension \"postgis\""; then
+elif [ -n "$DATABASE_URL" ] || [ -n "$PGHOST" ]; then
+  TARGET_CONN="${DATABASE_URL}"
+  if [ -z "$TARGET_CONN" ]; then
+    TARGET_CONN="Host=${PGHOST};Port=${PGPORT:-5432};Database=${PGDATABASE:-railway};Username=${PGUSER:-postgres};Password=${PGPASSWORD}"
+    TARGET_URL="postgresql://${PGUSER:-postgres}:${PGPASSWORD}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE:-railway}"
+  else
+    TARGET_URL="$DATABASE_URL"
+  fi
+  
+  echo "Testing external PostgreSQL for PostGIS extension compatibility..."
+  if su - postgres -c "psql \"$TARGET_URL\" -c \"CREATE EXTENSION IF NOT EXISTS postgis; SELECT postgis_version();\"" > /dev/null 2>&1; then
+    echo "External PostgreSQL has verified PostGIS extension! Using external database."
+    export ConnectionStrings__Database="${DATABASE_URL:-$TARGET_CONN}"
+    USE_BUILTIN_DB=0
+  else
     echo "=========================================================================="
-    echo "WARNING: External PostgreSQL does NOT support PostGIS (binaries missing)."
-    echo "EF Core spatial queries require PostGIS."
-    echo "Falling back automatically to built-in PostgreSQL 16 + PostGIS inside container!"
+    echo "NOTICE: External PostgreSQL does NOT have working PostGIS extension."
+    echo "PostGIS is required for spatial coordinates and location discovery."
+    echo "Automatically falling back to built-in PostgreSQL 16 + PostGIS 3 inside container!"
     echo "=========================================================================="
     USE_BUILTIN_DB=1
-  else
-    echo "External PostgreSQL has PostGIS verified! Connecting..."
-    export ConnectionStrings__Database="$DATABASE_URL"
   fi
-elif [ -n "$PGHOST" ]; then
-  echo "Detected Railway PG variables. Verifying PostGIS extension support..."
-  CHECK_CONN="postgresql://${PGUSER:-postgres}:${PGPASSWORD}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE:-railway}"
-  CHECK_OUTPUT=$(psql "$CHECK_CONN" -c "CREATE EXTENSION IF NOT EXISTS postgis;" 2>&1 || true)
-  if echo "$CHECK_OUTPUT" | grep -qiE "not available|could not open extension|No such file|extension \"postgis\""; then
-    echo "=========================================================================="
-    echo "WARNING: External PostgreSQL does NOT support PostGIS."
-    echo "Falling back automatically to built-in PostgreSQL 16 + PostGIS inside container!"
-    echo "=========================================================================="
-    USE_BUILTIN_DB=1
-  else
-    echo "External PostgreSQL has PostGIS verified! Connecting..."
-    export ConnectionStrings__Database="Host=${PGHOST};Port=${PGPORT:-5432};Database=${PGDATABASE:-railway};Username=${PGUSER:-postgres};Password=${PGPASSWORD}"
-  fi
-else
-  USE_BUILTIN_DB=1
 fi
 
 # 2. If built-in database is selected, initialize and start local PostgreSQL 16 + PostGIS
 if [ "$USE_BUILTIN_DB" = "1" ]; then
   echo "Initializing built-in PostgreSQL 16 + PostGIS..."
+  unset DATABASE_URL
+  unset PGHOST
+  unset PGPORT
+  unset PGUSER
+  unset PGPASSWORD
+  unset PGDATABASE
+  
   DB_DIR="/var/lib/postgresql/16/main"
   if [ ! -d "$DB_DIR" ] || [ ! -f "$DB_DIR/PG_VERSION" ]; then
     mkdir -p "$DB_DIR"
@@ -71,6 +70,7 @@ export Auth__Audience="${Auth__Audience:-DatingMVP-Users}"
 export Auth__KeyRingPath="/app/auth-keyring"
 export Media__LocalPath="/app/private-media"
 export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Development}"
+export Telegram__BotToken="${Telegram__BotToken:-${TELEGRAM_BOT_TOKEN:-8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg}}"
 
 mkdir -p /app/auth-keyring /app/private-media
 

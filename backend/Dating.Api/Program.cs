@@ -53,6 +53,11 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["Media:Mode"]))
     Directory.CreateDirectory(mediaDir);
     builder.Configuration["Media:LocalPath"] = mediaDir;
 }
+if (string.IsNullOrWhiteSpace(builder.Configuration["Telegram:BotToken"]))
+{
+    var tgToken = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN") ?? Environment.GetEnvironmentVariable("Telegram__BotToken") ?? "8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg";
+    builder.Configuration["Telegram:BotToken"] = tgToken;
+}
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddOpenApi();
@@ -217,6 +222,21 @@ app.MapHub<Dating.Api.Features.Game.GameHub>("/hubs/game", options => {
  options.CloseOnAuthenticationExpiration=true;
  options.LongPolling.PollTimeout=TimeSpan.FromSeconds(25);
 }).RequireRateLimiting("chat");
+
+app.MapGet("/api/health/live", () => Results.Ok(new { status = "live" }));
+app.MapGet("/api/health/ready", async (AppDbContext db) =>
+{
+    try
+    {
+        var canConnect = await db.Database.CanConnectAsync();
+        return canConnect ? Results.Ok(new { status = "ready", database = "connected" })
+                          : Results.Problem(statusCode: 503, title: "Database unavailable");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(statusCode: 503, title: ex.Message);
+    }
+});
 
 if (!app.Environment.IsEnvironment("Testing") && builder.Configuration["DisableStartupMigration"] != "true")
 {
