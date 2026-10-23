@@ -1,3 +1,23 @@
+# Status - Railway Backend Port Collision Fix & PostGIS Self-Healing Fallback
+
+Updated 2026-10-23. Resolved backend port collision, PostGIS extension incompatibility, and web authentication handling:
+
+1. **Backend Port Isolation (`backend/Dating.Api/Program.cs` & `scripts/docker-entrypoint.sh`)**:
+   - Resolved port collision where Railway passes dynamic `PORT` (e.g. 8080) to the container. Previously, `Program.cs` overrode Kestrel binding to `http://0.0.0.0:8080`, conflicting with Node `serve-web.mjs` and causing `connect ECONNREFUSED 127.0.0.1:5180` (502 Bad Gateway).
+   - `Program.cs` now prioritizes `API_PORT` (5180), binding strictly to `http://127.0.0.1:5180` for internal proxy communication.
+   - `docker-entrypoint.sh` executes dotnet with `API_PORT=5180 PORT=5180 ASPNETCORE_URLS="http://127.0.0.1:5180"`.
+2. **PostGIS Self-Healing Fallback (`scripts/docker-entrypoint.sh`)**:
+   - Standard Railway PostgreSQL lacks the `postgis` binary package (`58P01: could not open extension control file "postgis.control"`), which previously prevented EF Core migrations from executing and left database tables empty ("You have no tables").
+   - `docker-entrypoint.sh` now dynamically verifies PostGIS capability on any external database (`DATABASE_URL` or `PGHOST`). If PostGIS is absent or unsupported, it automatically falls back to the container's built-in PostgreSQL 16 + PostGIS 3 instance, ensuring migrations run cleanly and spatial discovery functions without error.
+3. **Node Reverse Proxy Headers (`scripts/serve-web.mjs`)**:
+   - Injected `x-forwarded-proto` and `x-forwarded-for` into reverse-proxied requests to ensure ASP.NET Core ForwardedHeadersMiddleware recognizes client HTTPS connections.
+4. **Git Synchronization**:
+   - Changes committed and pushed to `origin/main` (`1f47aae`).
+5. **NOT RUN**:
+   - Production cloud deployment monitoring requires Railway builder completion. Physical device store verification requires Apple App Store / Google Play credentials.
+
+---
+
 # Status - Railway 1-Click Self-Contained Deployment
 
 Updated 2026-10-23. Configured repository for zero-friction 1-click deployment on Railway (`Add New Service > GitHub Repo > ArenaDate > Deploy`):
