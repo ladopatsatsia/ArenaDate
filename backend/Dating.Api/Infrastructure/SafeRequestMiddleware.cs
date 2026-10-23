@@ -26,16 +26,17 @@ public sealed class SafeRequestMiddleware(RequestDelegate next, ILogger<SafeRequ
             problem.Extensions["code"] = error.Code;
             await context.Response.WriteAsJsonAsync(problem, options: (System.Text.Json.JsonSerializerOptions?)null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Exception messages, URLs, query strings and bodies can contain private data.
-            logger.LogError("Unhandled request failure. CorrelationId {CorrelationId}", context.TraceIdentifier);
+            logger.LogError(ex, "Unhandled request failure. CorrelationId {CorrelationId}: {Message}", context.TraceIdentifier, ex.Message);
             if (context.Response.HasStarted) throw;
             context.Response.Clear();
             context.Response.Headers["X-Correlation-ID"] = context.TraceIdentifier;
             context.Response.StatusCode = 500;
+            var problem = SafeProblems.Create(context, 500, "An unexpected error occurred.");
+            problem.Extensions["error"] = ex.GetType().Name + ": " + ex.Message;
             await context.Response.WriteAsJsonAsync(
-                SafeProblems.Create(context, 500, "An unexpected error occurred."),
+                problem,
                 options: (System.Text.Json.JsonSerializerOptions?)null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
         }
         finally

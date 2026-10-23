@@ -223,6 +223,10 @@ function Check-Tunnel {
         if ($content -match '(https://[a-zA-Z0-9-]+\.trycloudflare\.com)') {
             $currentUrl = $Matches[1]
             $savedUrl = Get-EnvVar 'TELEGRAM_WEB_APP_URL'
+            if ($savedUrl -match "railway\.app" -or $savedUrl -match "appdate\.ge") {
+                # Production Railway deployment is active; do NOT override Telegram bot with local quick tunnel!
+                return
+            }
             if ($currentUrl -ne $savedUrl) {
                 Write-WatchdogLog "[Tunnel] New Cloudflare Tunnel URL detected: $currentUrl (was: $savedUrl)"
                 Update-TelegramBot -PublicUrl $currentUrl
