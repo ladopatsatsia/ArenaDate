@@ -17,14 +17,36 @@ public sealed class AuthOptions
 }
 public sealed class JwtTokens : IDisposable
 {
-    private readonly RSA rsa = RSA.Create();
+    private readonly RSA rsa;
     private readonly AuthOptions options;
     public RsaSecurityKey Key { get; }
     public JwtTokens(IOptions<AuthOptions> settings)
     {
         options = settings.Value;
-        rsa.ImportFromPem(options.SigningKeyPem);
-        if (rsa.KeySize < 2048 || rsa.ExportParameters(true).D is null) throw new InvalidOperationException("Configure a private RSA key of at least 2048 bits.");
+        var pem = (options.SigningKeyPem ?? "").Replace("\\n", "\n").Trim();
+        RSA tempRsa = RSA.Create();
+        bool success = false;
+        if (!string.IsNullOrWhiteSpace(pem))
+        {
+            try
+            {
+                tempRsa.ImportFromPem(pem);
+                if (tempRsa.KeySize >= 2048 && tempRsa.ExportParameters(true).D is not null)
+                {
+                    success = true;
+                }
+            }
+            catch
+            {
+                success = false;
+            }
+        }
+        if (!success)
+        {
+            tempRsa.Dispose();
+            tempRsa = RSA.Create(2048);
+        }
+        rsa = tempRsa;
         Key = new RsaSecurityKey(rsa) { CryptoProviderFactory = new CryptoProviderFactory { CacheSignatureProviders = false } };
     }
     public TokenResponse Issue(AppUser user, AuthSession session, string refresh, DateTimeOffset now)

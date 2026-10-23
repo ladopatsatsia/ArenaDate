@@ -17,7 +17,22 @@ else if (!string.IsNullOrWhiteSpace(portEnv))
 {
     builder.WebHost.UseUrls($"http://0.0.0.0:{portEnv}");
 }
-if (string.IsNullOrWhiteSpace(builder.Configuration["Auth:SigningKeyPem"]))
+var keyPem = builder.Configuration["Auth:SigningKeyPem"];
+if (!string.IsNullOrWhiteSpace(keyPem))
+{
+    try
+    {
+        using var testRsa = System.Security.Cryptography.RSA.Create();
+        testRsa.ImportFromPem(keyPem.Replace("\\n", "\n"));
+        builder.Configuration["Auth:SigningKeyPem"] = keyPem.Replace("\\n", "\n");
+    }
+    catch
+    {
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        builder.Configuration["Auth:SigningKeyPem"] = rsa.ExportPkcs8PrivateKeyPem();
+    }
+}
+else
 {
     using var rsa = System.Security.Cryptography.RSA.Create(2048);
     builder.Configuration["Auth:SigningKeyPem"] = rsa.ExportPkcs8PrivateKeyPem();

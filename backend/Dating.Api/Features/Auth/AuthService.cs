@@ -268,7 +268,10 @@ public sealed class AuthService(AppDbContext db, UserManager<AppUser> users, Jwt
 
     public async Task<OtpVerifyResponse> LoginTelegram(TelegramAuthRequest request, CancellationToken ct)
     {
-        var botToken = config["Telegram:BotToken"] ?? "dev_bot_token";
+        var botToken = config["Telegram:BotToken"] 
+            ?? Environment.GetEnvironmentVariable("Telegram__BotToken")
+            ?? Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
+            ?? "8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg";
         if (!TelegramAuthValidator.TryValidate(request.InitData, botToken, out var tgUser) || tgUser is null)
         {
             throw new AuthFailure(400, "invalid_telegram_data");

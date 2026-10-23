@@ -170,17 +170,28 @@ public sealed class TelegramPaymentService(
         {
             var chatId = update.Message.Chat.Id;
             var from = update.Message.From;
-            await telegramNotifications.RegisterOrUpdateSubscriberAsync(
-                chatId: chatId,
-                telegramUserId: from?.Id ?? chatId,
-                username: from?.Username,
-                firstName: from?.FirstName,
-                lastName: null,
-                userId: null,
-                ct: ct
-            );
+            try
+            {
+                await telegramNotifications.RegisterOrUpdateSubscriberAsync(
+                    chatId: chatId,
+                    telegramUserId: from?.Id ?? chatId,
+                    username: from?.Username,
+                    firstName: from?.FirstName,
+                    lastName: null,
+                    userId: null,
+                    ct: ct
+                );
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to register subscriber for ChatId={ChatId}", chatId);
+            }
 
-            var botToken = config["Telegram:BotToken"] ?? Environment.GetEnvironmentVariable("Telegram__BotToken");
+            var botToken = config["Telegram:BotToken"] 
+                ?? Environment.GetEnvironmentVariable("Telegram__BotToken")
+                ?? Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
+                ?? "8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg";
+
             string? webAppUrl = null;
             try
             {
@@ -195,7 +206,9 @@ public sealed class TelegramPaymentService(
 
             if (string.IsNullOrWhiteSpace(webAppUrl))
             {
-                webAppUrl = Environment.GetEnvironmentVariable("Telegram__WebAppUrl") ?? config["Telegram:WebAppUrl"];
+                webAppUrl = Environment.GetEnvironmentVariable("Telegram__WebAppUrl") 
+                    ?? config["Telegram:WebAppUrl"]
+                    ?? "https://arenadate-production.up.railway.app";
             }
 
             if (!string.IsNullOrWhiteSpace(botToken) && botToken != "dev_bot_token" && !string.IsNullOrWhiteSpace(webAppUrl))
