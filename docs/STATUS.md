@@ -1,3 +1,17 @@
+# Status - Production Database Population & Full User Synchronization
+
+Updated 2026-10-23. Synchronized all 24 registered user accounts, profiles, game questions, and 95 media photo assets into Railway production:
+
+1. **Root Cause Diagnosis**:
+   - Railway container initializes with a fresh built-in PostgreSQL 16 database. Previously, genuine user accounts (`tg_8270750378` [Luka], `tg_6338972277`, `tg_8557795870`, `facacialado@gmail.com`, etc.) and the 8 curated female discovery profiles (`mariam.georgia@appdate.ge`, etc.) were stored solely in the local Docker database `dating-mvp-database-1`, leaving only newly logged-in accounts on Railway.
+2. **Production Database Seed (`scripts/seed-production.sql` & `scripts/docker-entrypoint.sh`)**:
+   - Generated idempotent seed dump with `session_replication_role = 'replica'` and `ON CONFLICT DO NOTHING` across all relational tables (`AspNetUsers`, `DatingProfile`, `ProfilePhoto`, `GameQuestions`, `UserWallets`, `UserSubscriptions`, etc.).
+   - Configured `docker-entrypoint.sh` to execute `scripts/seed-production.sql` automatically upon startup.
+3. **Media Asset Packaging (`Dockerfile` & `infra/seed-media/`)**:
+   - Packaged all 95 profile photo and game media files into `infra/seed-media/` and updated `Dockerfile` to copy them directly into `/app/private-media/`.
+
+---
+
 # Status - Bottle Game Photo Requirement Removal
 
 Updated 2026-10-23. Removed mandatory verified/approved photo restriction for joining and playing the bottle game:

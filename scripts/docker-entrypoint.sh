@@ -76,12 +76,18 @@ cd /app/backend
 API_PORT=5180 PORT=5180 ASPNETCORE_URLS="http://127.0.0.1:5180" dotnet Dating.Api.dll &
 BACKEND_PID=$!
 
-# 5. Ensure admin account (admin@appdate.ge / AdminPassword123!) exists in background
+# 5. Ensure admin account (admin@appdate.ge / AdminPassword123!) and seed data in background
 (
   sleep 4
   echo "Ensuring administrator account (admin@appdate.ge)..."
   cd /app/backend
   dotnet Dating.Api.dll staff ensure-admin admin@appdate.ge AdminPassword123! || true
+
+  if [ -f /app/scripts/seed-production.sql ]; then
+    echo "Importing registered users, profiles, and questions into database..."
+    su - postgres -c "psql -d dating -f /app/scripts/seed-production.sql" > /tmp/seed.log 2>&1 || true
+    echo "Database seed completed."
+  fi
 ) &
 
 # 6. Start Web Server (serves Mini App, Admin Panel, and proxies /api to .NET 10)

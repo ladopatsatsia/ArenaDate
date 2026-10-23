@@ -49,13 +49,15 @@ COPY --from=backend-build /app/backend /app/backend
 COPY --from=web-build /app/mobile/dist/web /app/mobile/dist/web
 COPY --from=web-build /app/admin/dist/admin/browser /app/admin/dist/admin/browser
 
-# Copy serving scripts
+# Copy serving scripts & seed data
 COPY scripts/serve-web.mjs /app/scripts/serve-web.mjs
+COPY scripts/seed-production.sql /app/scripts/seed-production.sql
 COPY scripts/docker-entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Persistent directories
+# Persistent directories & media assets
 RUN mkdir -p /app/auth-keyring /app/private-media
+COPY infra/seed-media/ /app/private-media/
 
 ENV PORT=8080
 EXPOSE 8080
