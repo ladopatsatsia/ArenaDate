@@ -223,21 +223,6 @@ app.MapHub<Dating.Api.Features.Game.GameHub>("/hubs/game", options => {
  options.LongPolling.PollTimeout=TimeSpan.FromSeconds(25);
 }).RequireRateLimiting("chat");
 
-app.MapGet("/api/health/live", () => Results.Ok(new { status = "live" }));
-app.MapGet("/api/health/ready", async (AppDbContext db) =>
-{
-    try
-    {
-        var canConnect = await db.Database.CanConnectAsync();
-        return canConnect ? Results.Ok(new { status = "ready", database = "connected" })
-                          : Results.Problem(statusCode: 503, title: "Database unavailable");
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(statusCode: 503, title: ex.Message);
-    }
-});
-
 if (!app.Environment.IsEnvironment("Testing") && builder.Configuration["DisableStartupMigration"] != "true")
 {
     using var scope = app.Services.CreateScope();
