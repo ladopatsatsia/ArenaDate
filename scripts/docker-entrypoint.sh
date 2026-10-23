@@ -3,18 +3,47 @@ set -e
 
 echo "=== Starting DatingMVP All-In-One Unified Service ==="
 
-# 1. Detect external database environment variables (e.g. from Railway Postgres)
-if [ -n "$DATABASE_URL" ]; then
-  echo "Linking external DATABASE_URL..."
-  export ConnectionStrings__Database="$DATABASE_URL"
+# 1. Database detection & PostGIS verification
+USE_BUILTIN_DB=0
+
+if [ "$FORCE_BUILTIN_DB" = "true" ]; then
+  echo "FORCE_BUILTIN_DB=true is set. Using built-in PostgreSQL 16 + PostGIS."
+  USE_BUILTIN_DB=1
+elif [ -n "$DATABASE_URL" ]; then
+  echo "Detected external DATABASE_URL. Verifying PostGIS extension support..."
+  CHECK_OUTPUT=$(psql "$DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS postgis;" 2>&1 || true)
+  if echo "$CHECK_OUTPUT" | grep -qiE "not available|could not open extension|No such file|extension \"postgis\""; then
+    echo "=========================================================================="
+    echo "WARNING: External PostgreSQL does NOT support PostGIS (binaries missing)."
+    echo "EF Core spatial queries require PostGIS."
+    echo "Falling back automatically to built-in PostgreSQL 16 + PostGIS inside container!"
+    echo "=========================================================================="
+    USE_BUILTIN_DB=1
+  else
+    echo "External PostgreSQL has PostGIS verified! Connecting..."
+    export ConnectionStrings__Database="$DATABASE_URL"
+  fi
 elif [ -n "$PGHOST" ]; then
-  echo "Linking external Railway PG variables..."
-  export ConnectionStrings__Database="Host=${PGHOST};Port=${PGPORT:-5432};Database=${PGDATABASE:-railway};Username=${PGUSER:-postgres};Password=${PGPASSWORD}"
+  echo "Detected Railway PG variables. Verifying PostGIS extension support..."
+  CHECK_CONN="postgresql://${PGUSER:-postgres}:${PGPASSWORD}@${PGHOST}:${PGPORT:-5432}/${PGDATABASE:-railway}"
+  CHECK_OUTPUT=$(psql "$CHECK_CONN" -c "CREATE EXTENSION IF NOT EXISTS postgis;" 2>&1 || true)
+  if echo "$CHECK_OUTPUT" | grep -qiE "not available|could not open extension|No such file|extension \"postgis\""; then
+    echo "=========================================================================="
+    echo "WARNING: External PostgreSQL does NOT support PostGIS."
+    echo "Falling back automatically to built-in PostgreSQL 16 + PostGIS inside container!"
+    echo "=========================================================================="
+    USE_BUILTIN_DB=1
+  else
+    echo "External PostgreSQL has PostGIS verified! Connecting..."
+    export ConnectionStrings__Database="Host=${PGHOST};Port=${PGPORT:-5432};Database=${PGDATABASE:-railway};Username=${PGUSER:-postgres};Password=${PGPASSWORD}"
+  fi
+else
+  USE_BUILTIN_DB=1
 fi
 
-# 2. If no external database was configured, start built-in PostgreSQL + PostGIS
-if [ -z "$ConnectionStrings__Database" ]; then
-  echo "No external PostgreSQL detected. Initializing built-in PostgreSQL 16 + PostGIS..."
+# 2. If built-in database is selected, initialize and start local PostgreSQL 16 + PostGIS
+if [ "$USE_BUILTIN_DB" = "1" ]; then
+  echo "Initializing built-in PostgreSQL 16 + PostGIS..."
   DB_DIR="/var/lib/postgresql/16/main"
   if [ ! -d "$DB_DIR" ] || [ ! -f "$DB_DIR/PG_VERSION" ]; then
     mkdir -p "$DB_DIR"
@@ -48,7 +77,7 @@ mkdir -p /app/auth-keyring /app/private-media
 # 4. Start .NET 10 API
 echo "Starting .NET 10 Backend API on 127.0.0.1:5180..."
 cd /app/backend
-ASPNETCORE_URLS="http://127.0.0.1:5180" dotnet Dating.Api.dll &
+API_PORT=5180 PORT=5180 ASPNETCORE_URLS="http://127.0.0.1:5180" dotnet Dating.Api.dll &
 BACKEND_PID=$!
 
 # 5. Ensure admin account (admin@appdate.ge / AdminPassword123!) exists in background

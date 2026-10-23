@@ -7,8 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var apiPortEnv = Environment.GetEnvironmentVariable("API_PORT");
 var portEnv = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrWhiteSpace(portEnv))
+if (!string.IsNullOrWhiteSpace(apiPortEnv))
+{
+    builder.WebHost.UseUrls($"http://127.0.0.1:{apiPortEnv}");
+}
+else if (!string.IsNullOrWhiteSpace(portEnv))
 {
     builder.WebHost.UseUrls($"http://0.0.0.0:{portEnv}");
 }

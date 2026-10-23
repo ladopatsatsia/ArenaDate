@@ -40,7 +40,12 @@ const server = http.createServer((req, res) => {
 
   // Reverse proxy API, Hubs and OpenAPI requests directly to backend API
   if (pathname.startsWith('/api') || pathname.startsWith('/hubs') || pathname.startsWith('/openapi')) {
-    const proxyHeaders = { ...req.headers, host: `${API_HOST}:${API_PORT}` };
+    const proxyHeaders = {
+      ...req.headers,
+      host: `${API_HOST}:${API_PORT}`,
+      'x-forwarded-proto': req.headers['x-forwarded-proto'] || 'https',
+      'x-forwarded-for': req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+    };
     const proxyReq = httpModule.request(
       {
         host: API_HOST,
