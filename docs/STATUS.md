@@ -11,9 +11,13 @@ Updated 2026-10-23. Resolved backend port collision, PostGIS extension incompati
    - `docker-entrypoint.sh` now dynamically verifies PostGIS capability on any external database (`DATABASE_URL` or `PGHOST`). If PostGIS is absent or unsupported, it automatically falls back to the container's built-in PostgreSQL 16 + PostGIS 3 instance, ensuring migrations run cleanly and spatial discovery functions without error.
 3. **Node Reverse Proxy Headers (`scripts/serve-web.mjs`)**:
    - Injected `x-forwarded-proto` and `x-forwarded-for` into reverse-proxied requests to ensure ASP.NET Core ForwardedHeadersMiddleware recognizes client HTTPS connections.
-4. **Git Synchronization**:
-   - Changes committed and pushed to both `origin/main` and `origin/master` (`94f3359`), including Telegram bot token injection and strict PostGIS fallback database unsetting.
-5. **NOT RUN**:
+4. **Decoupling Telegram Bot from Local PC (`scripts/watchdog.ps1` & Windows Startup)**:
+   - Diagnosed root cause of Telegram bot failing when user's PC is shut down: `watchdog.ps1` had been installed into the Windows Startup folder (`ARENA-Production.lnk`), continuously running `cloudflared.exe` quick tunnels on localhost and overwriting Telegram's `setChatMenuButton` and `setWebhook` with ephemeral `trycloudflare.com` URLs.
+   - Terminated `cloudflared.exe`, deleted `ARENA-Production.lnk` from Windows Startup, and permanently bound Telegram's Menu Button and Stars webhook to `https://arenadate-production.up.railway.app/`.
+   - Updated `scripts/watchdog.ps1` with guards to never overwrite production `railway.app` or `appdate.ge` URLs.
+5. **Git Synchronization**:
+   - Changes committed and pushed to both `origin/main` and `origin/master` (`94b5fff`).
+6. **NOT RUN**:
    - Production cloud deployment monitoring requires Railway builder completion. Physical device store verification requires Apple App Store / Google Play credentials.
 
 ---
