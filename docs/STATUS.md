@@ -12,7 +12,7 @@ Updated 2026-10-23. Resolved backend port collision, PostGIS extension incompati
 3. **Node Reverse Proxy Headers (`scripts/serve-web.mjs`)**:
    - Injected `x-forwarded-proto` and `x-forwarded-for` into reverse-proxied requests to ensure ASP.NET Core ForwardedHeadersMiddleware recognizes client HTTPS connections.
 4. **Git Synchronization**:
-   - Changes committed and pushed to `origin/main` (`1f47aae`).
+   - Changes committed and pushed to both `origin/main` and `origin/master` (`94f3359`), including Telegram bot token injection and strict PostGIS fallback database unsetting.
 5. **NOT RUN**:
    - Production cloud deployment monitoring requires Railway builder completion. Physical device store verification requires Apple App Store / Google Play credentials.
 
