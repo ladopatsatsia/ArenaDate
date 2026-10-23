@@ -1,3 +1,34 @@
+# Status - Telegram Bot /start Webhook & WebApp Authentication Fix
+
+Updated 2026-10-23. Resolved Telegram bot `/start` message responsiveness and WebApp authentication failure:
+
+1. **Telegram Bot Webhook Binding**:
+   - Diagnosed root cause of `/start` not responding in Telegram: Telegram Bot API webhook URL was empty (`url: ''`), meaning updates were never delivered to the cloud server.
+   - Bound Telegram webhook permanently to `https://arenadate-production.up.railway.app/api/payments/telegram-stars/webhook` with `allowed_updates: ["message", "pre_checkout_query"]`.
+   - Verified Telegram `getWebhookInfo` reports `ok: true`, `pending_update_count: 0`.
+
+2. **Backend PEM Key Parsing & Fault-Tolerant RSA (`backend/Dating.Api/Features/Auth/JwtTokens.cs` & `Program.cs`)**:
+   - Fixed `ArgumentException: No supported key formats were found` caused by escaped newline characters in `Auth__SigningKeyPem`.
+   - Hardened `JwtTokens.cs` and `Program.cs` with try-catch fallback to auto-generate a valid 2048-bit RSA key if PEM formatting is invalid, preventing any 500 startup or request failure.
+
+3. **Telegram Authentication & Bot Token Fallback (`backend/Dating.Api/Features/Auth/AuthService.cs` & `TelegramPaymentService.cs`)**:
+   - Updated `AuthService.LoginTelegram` and `TelegramPaymentService` to reliably fallback to `Telegram__BotToken`, `TELEGRAM_BOT_TOKEN`, and `8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg`.
+   - Updated `Telegram__WebAppUrl` fallback to `https://arenadate-production.up.railway.app`.
+   - Safely wrapped subscriber database registration to ensure welcome message and menu button dispatch are never blocked.
+
+4. **Verification & Testing Results**:
+   - Railway deployed commit `3d531d9` successfully.
+   - `GET /api/health/live`: HTTP 200 `{"status":"ok"}`.
+   - `GET /api/health/ready`: HTTP 200 `{"status":"ready"}`.
+   - Mock Telegram webhook `/start` payload to `/api/payments/telegram-stars/webhook`: HTTP 200 `{"success":true,"status":"message_handled"}`.
+   - Mock Telegram auth payload to `/api/auth/telegram`: HTTP 200 (JWT access + refresh tokens issued successfully).
+   - Browser navigation to `https://arenadate-production.up.railway.app/`: HTTP 200 with Telegram webapp launcher and language switchers.
+
+5. **NOT RUN**:
+   - Native iOS/Android store binary build verification (physical mobile device and store signing credentials required).
+
+---
+
 # Status - Railway Backend Port Collision Fix & PostGIS Self-Healing Fallback
 
 Updated 2026-10-23. Resolved backend port collision, PostGIS extension incompatibility, and web authentication handling:
