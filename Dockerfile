@@ -29,12 +29,17 @@ RUN dotnet restore backend/Dating.Api/Dating.Api.csproj --locked-mode
 RUN dotnet publish backend/Dating.Api/Dating.Api.csproj -c Release --no-restore -o /app/backend
 
 # ==========================================
-# Stage 3: Unified Production Runtime (.NET 10 + Node 22)
+# Stage 3: Unified Production Runtime (.NET 10 + Node 22 + PostgreSQL/PostGIS)
 # ==========================================
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Copy Node.js binary and libraries from web-build
+# Install PostgreSQL 16 with PostGIS 3 as built-in fallback database
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-16 postgresql-16-postgis-3 ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Node.js binary from web-build
 COPY --from=web-build /usr/local/bin/node /usr/local/bin/node
 
 # Copy backend binaries
