@@ -73,10 +73,11 @@ function Update-TelegramBot {
     }
 
     try {
+        $ts = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
         $menuObj = @{
             type = "web_app"
             text = "ARENA"
-            web_app = @{ url = "$PublicUrl/" }
+            web_app = @{ url = "$PublicUrl/?t=$ts" }
         } | ConvertTo-Json -Compress
         $res2 = Invoke-RestMethod -Uri "https://api.telegram.org/bot$token/setChatMenuButton" -Method Post -Body @{ menu_button = $menuObj }
         Write-WatchdogLog "[Telegram] setChatMenuButton result: $($res2.ok) -> $PublicUrl/"
@@ -204,7 +205,7 @@ function Check-Tunnel {
         if ($token) {
             $psi.Arguments = "tunnel run --token $token"
         } else {
-            $psi.Arguments = "tunnel --url http://localhost:8081 --logfile `"$TunnelLog`""
+            $psi.Arguments = "tunnel --protocol http2 --url http://localhost:8081 --logfile `"$TunnelLog`""
         }
         $psi.WorkingDirectory = $Root
         $psi.UseShellExecute = $false

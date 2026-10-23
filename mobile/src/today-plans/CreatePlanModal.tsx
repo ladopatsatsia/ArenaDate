@@ -146,7 +146,7 @@ export function CreatePlanModal({
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{errorMessage}</Text>
                 {errorMessage.includes(t('today_plans_limit_reached_plan_title')) ||
-                errorMessage.includes('Premium') ? (
+                errorMessage.includes('Premium') || errorMessage.includes('ARENA') ? (
                   <TouchableOpacity
                     style={styles.premiumBannerBtn}
                     onPress={() => {

@@ -1,5 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { DatePipe, JsonPipe } from '@angular/common';
+import { DatePipe, JsonPipe, DecimalPipe, SlicePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,11 +18,14 @@ import {
   TelegramStats,
   TelegramBroadcastRequest,
   TelegramBroadcastResult,
+  AdminTransactionDto,
+  AdminTransactionsStats,
+  AdminTransactionsResponse,
 } from './moderation-api';
 
 @Component({
   selector: 'app-moderation',
-  imports: [ReactiveFormsModule, DatePipe, JsonPipe, MatButtonModule, MatFormFieldModule, MatInputModule, MatCardModule],
+  imports: [ReactiveFormsModule, DatePipe, JsonPipe, DecimalPipe, SlicePipe, MatButtonModule, MatFormFieldModule, MatInputModule, MatCardModule],
   templateUrl: './moderation.html',
   styles: [`
     nav, .actions { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0; }
@@ -99,6 +102,10 @@ import {
     .stat-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
     .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; text-align: center; }
     .stat-box-active { background: #f0fdf4; border-color: #86efac; }
+    .stat-box-gold { background: #fefce8; border-color: #fef08a; }
+    .stat-box-emerald { background: #ecfdf5; border-color: #a7f3d0; }
+    .stat-box-violet { background: #f5f3ff; border-color: #ddd6fe; }
+    .stat-box-sky { background: #f0f9ff; border-color: #bae6fd; }
     .stat-num { font-size: 26px; font-weight: 700; color: #0f172a; }
     .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; font-weight: 500; }
     .template-section { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -107,6 +114,33 @@ import {
     .custom-textarea { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.5; box-sizing: border-box; resize: vertical; }
     .char-counter { font-size: 12px; color: #94a3b8; text-align: right; margin-top: 4px; }
     .form-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+
+    .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .filter-chip { padding: 6px 14px; border-radius: 20px; border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .filter-chip:hover { border-color: #94a3b8; background: #f8fafc; }
+    .filter-chip.active { border-color: #6366f1; background: #e0e7ff; color: #4338ca; font-weight: 600; }
+
+    .tx-table-container { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .tx-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+    .tx-table th { background: #f8fafc; padding: 12px 16px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    .tx-table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .tx-table tr:hover { background: #f8fafc; }
+    .tx-user-cell { display: flex; align-items: center; gap: 12px; }
+    .tx-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #e2e8f0; flex-shrink: 0; }
+    .tx-avatar-placeholder { width: 44px; height: 44px; border-radius: 50%; background: #e2d9d2; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #5d4037; flex-shrink: 0; }
+    .tx-user-name { font-weight: 600; color: #1e293b; margin: 0 0 2px; }
+    .tx-user-email { font-size: 12px; color: #64748b; margin: 0; }
+    .badge-sub { background: linear-gradient(135deg, #f5f3ff, #ede9fe); color: #6d28d9; border: 1px solid #c4b5fd; font-weight: 600; }
+    .badge-pack { background: linear-gradient(135deg, #f0fdf4, #dcfce7); color: #15803d; border: 1px solid #86efac; font-weight: 600; }
+    .badge-spend { background: linear-gradient(135deg, #fff7ed, #ffedd5); color: #c2410c; border: 1px solid #fed7aa; font-weight: 600; }
+    .badge-completed { background: #ecfdf5; color: #047857; font-weight: 600; }
+    .badge-refunded { background: #fef2f2; color: #b91c1c; font-weight: 600; }
+    .tx-price-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 13px; }
+    .tx-price-gel { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .tx-price-stars { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
+    .tx-price-crystals { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .tx-price-debit { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+    .pagination-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; flex-wrap: wrap; gap: 12px; }
   `]
 })
 export class ModerationPage implements OnInit {
@@ -114,7 +148,16 @@ export class ModerationPage implements OnInit {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
-  readonly tab = signal<'profiles' | 'photos' | 'reports' | 'users' | 'audit' | 'questions' | 'broadcast'>('profiles');
+  readonly tab = signal<'profiles' | 'transactions' | 'photos' | 'reports' | 'users' | 'audit' | 'questions' | 'broadcast'>('profiles');
+
+  readonly transactions = signal<AdminTransactionDto[]>([]);
+  readonly txStats = signal<AdminTransactionsStats | null>(null);
+  readonly txCategory = signal<string>('all');
+  readonly txSearch = new FormControl('', { nonNullable: true });
+  readonly txPage = signal(1);
+  readonly txPageSize = signal(25);
+  readonly txTotalCount = signal(0);
+  readonly txLoading = signal(false);
 
   readonly tgStats = signal<TelegramStats | null>(null);
   readonly broadcastBusy = signal(false);
@@ -123,6 +166,7 @@ export class ModerationPage implements OnInit {
   readonly broadcastForm = new FormGroup({
     message: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(4000)] }),
     buttonText: new FormControl('🚀 ARENA-ს გახსნა', { nonNullable: true }),
+
     webAppPath: new FormControl('', { nonNullable: true })
   });
 
@@ -211,6 +255,7 @@ export class ModerationPage implements OnInit {
     this.evidence.set(null);
     this.user.set(null);
     this.reason.reset();
+    this.transactions.set([]);
   }
 
   async login() {
@@ -230,12 +275,17 @@ export class ModerationPage implements OnInit {
     });
   }
 
-  async change(tab: 'profiles' | 'photos' | 'reports' | 'users' | 'audit' | 'questions' | 'broadcast') {
+  async change(tab: 'profiles' | 'transactions' | 'photos' | 'reports' | 'users' | 'audit' | 'questions' | 'broadcast') {
     await this.run(async () => {
       this.tab.set(tab);
       this.clear();
       this.profilePage.set(1);
-      await this.load();
+      if (tab === 'transactions') {
+        this.txPage.set(1);
+        await this.loadTransactions(1);
+      } else {
+        await this.load();
+      }
     });
   }
 
@@ -285,7 +335,69 @@ export class ModerationPage implements OnInit {
     if (this.tab() === 'broadcast') {
       await this.loadTelegramStats();
     }
+    if (this.tab() === 'transactions') {
+      await this.loadTransactions();
+    }
   }
+
+  async loadTransactions(page = this.txPage()) {
+    this.txLoading.set(true);
+    try {
+      const res = await this.api.listTransactions(
+        this.txCategory(),
+        this.txSearch.value.trim() || undefined,
+        page,
+        this.txPageSize()
+      );
+      this.transactions.set(res.items);
+      this.txStats.set(res.stats);
+      this.txTotalCount.set(res.totalCount);
+      this.txPage.set(res.page);
+    } finally {
+      this.txLoading.set(false);
+    }
+  }
+
+  async setTxCategory(cat: string) {
+    if (this.txCategory() === cat) return;
+    this.txCategory.set(cat);
+    this.txPage.set(1);
+    await this.run(async () => {
+      await this.loadTransactions(1);
+    });
+  }
+
+  async onTxSearch() {
+    this.txPage.set(1);
+    await this.run(async () => {
+      await this.loadTransactions(1);
+    });
+  }
+
+  async onTxClearSearch() {
+    this.txSearch.setValue('');
+    this.txPage.set(1);
+    await this.run(async () => {
+      await this.loadTransactions(1);
+    });
+  }
+
+  async txNextPage() {
+    if (this.txPage() * this.txPageSize() >= this.txTotalCount()) return;
+    const next = this.txPage() + 1;
+    await this.run(async () => {
+      await this.loadTransactions(next);
+    });
+  }
+
+  async txPrevPage() {
+    if (this.txPage() <= 1) return;
+    const prev = this.txPage() - 1;
+    await this.run(async () => {
+      await this.loadTransactions(prev);
+    });
+  }
+
 
   async searchProfiles() {
     await this.run(async () => {

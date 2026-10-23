@@ -355,11 +355,7 @@ export default function Matches() {
                           <Text accessibilityRole="header" style={styles.nameHeading}>
                             {viewUser.displayName}, {viewUser.age}
                           </Text>
-                          <View style={styles.blurTagBadge}>
-                            <Text style={styles.blurTagBadgeText}>
-                              {t('matches_photo_blurred', '🔒 ფოტო დაფარულია')}
-                            </Text>
-                          </View>
+                          
                         </View>
                         <View style={styles.timeBadge}>
                           <Text style={styles.timeBadgeText}>
@@ -374,15 +370,11 @@ export default function Matches() {
                       <View style={styles.blurredAvatarWrapper}>
                         {viewUser.photo ? (
                           <View style={styles.blurPhotoWrapper}>
-                            <PrivatePhoto photo={viewUser.photo} avatar blurRadius={20} style={styles.blurredPhotoImage} />
-                            <View style={styles.blurGlassOverlay}>
-                              <Text style={styles.blurLockIcon}>🔒</Text>
-                            </View>
+                            <PrivatePhoto photo={viewUser.photo} avatar blurRadius={25} style={styles.blurredPhotoImage} />
+                            
                           </View>
                         ) : (
-                          <View style={styles.avatarOvalLocked}>
-                            <Text style={{ fontSize: 22 }}>🔒</Text>
-                          </View>
+                          <View style={styles.avatarOvalLocked}><Text style={{ fontSize: 24, color: theme.colors.muted }}>👤</Text></View>
                         )}
                       </View>
                     </View>
@@ -553,11 +545,7 @@ export default function Matches() {
                           <Text accessibilityRole="header" style={styles.nameHeading}>
                             {viewUser.displayName}, {viewUser.age}
                           </Text>
-                          <View style={styles.blurTagBadge}>
-                            <Text style={styles.blurTagBadgeText}>
-                              {t('matches_photo_blurred', '🔒 ფოტო დაფარულია')}
-                            </Text>
-                          </View>
+                          
                         </View>
                         <View style={styles.timeBadge}>
                           <Text style={styles.timeBadgeText}>
@@ -572,15 +560,11 @@ export default function Matches() {
                       <View style={styles.blurredAvatarWrapper}>
                         {viewUser.photo ? (
                           <View style={styles.blurPhotoWrapper}>
-                            <PrivatePhoto photo={viewUser.photo} avatar blurRadius={20} style={styles.blurredPhotoImage} />
-                            <View style={styles.blurGlassOverlay}>
-                              <Text style={styles.blurLockIcon}>🔒</Text>
-                            </View>
+                            <PrivatePhoto photo={viewUser.photo} avatar blurRadius={25} style={styles.blurredPhotoImage} />
+                            
                           </View>
                         ) : (
-                          <View style={styles.avatarOvalLocked}>
-                            <Text style={{ fontSize: 22 }}>🔒</Text>
-                          </View>
+                          <View style={styles.avatarOvalLocked}><Text style={{ fontSize: 24, color: theme.colors.muted }}>👤</Text></View>
                         )}
                       </View>
                     </View>
@@ -904,11 +888,7 @@ export default function Matches() {
                           <Text accessibilityRole="header" style={styles.nameHeading}>
                             {req.displayName}, {req.age}
                           </Text>
-                          <View style={styles.blurTagBadge}>
-                            <Text style={styles.blurTagBadgeText}>
-                              {t('matches_photo_blurred', '🔒 ფოტო დაფარულია')}
-                            </Text>
-                          </View>
+                          
                         </View>
                         <Text style={styles.subText}>
                           {req.origin === 'SuperLike'
@@ -924,15 +904,11 @@ export default function Matches() {
                       <View style={styles.blurredAvatarWrapper}>
                         {req.photo ? (
                           <View style={styles.blurPhotoWrapper}>
-                            <PrivatePhoto photo={req.photo} avatar blurRadius={20} style={styles.blurredPhotoImage} />
-                            <View style={styles.blurGlassOverlay}>
-                              <Text style={styles.blurLockIcon}>🔒</Text>
-                            </View>
+                            <PrivatePhoto photo={req.photo} avatar blurRadius={25} style={styles.blurredPhotoImage} />
+                            
                           </View>
                         ) : (
-                          <View style={styles.avatarOvalLocked}>
-                            <Text style={{ fontSize: 22 }}>🔒</Text>
-                          </View>
+                          <View style={styles.avatarOvalLocked}><Text style={{ fontSize: 24, color: theme.colors.muted }}>👤</Text></View>
                         )}
                       </View>
                     </View>

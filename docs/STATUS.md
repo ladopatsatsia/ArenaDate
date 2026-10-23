@@ -1,3 +1,61 @@
+# Status - Admin Panel Transactions History & Financial Analytics
+
+Updated 2026-10-23. Implemented full transaction and payment history in the Admin Moderation Panel (Angular + ASP.NET Core) with real-time financial statistics and categorization:
+
+1. **Backend Implementation (`Dating.Api/Features/Moderation`)**:
+   - `AdminModels.cs`: Added `AdminTransactionDto`, `AdminTransactionsStatsDto`, and `AdminTransactionsResponse`.
+   - `ModerationController.cs`: Implemented `GET /api/moderation/transactions` endpoint protected by `Policy = "Staff"`.
+     - Supports category filtering: `all`, `subscriptions` (VIP Arena Black packages), `crystals` (purchased packages), `spends` (in-app crystal spends such as bottle game chat unlocks), and `everything`.
+     - Supports user query/search by email, display name, and transaction ID.
+     - Supports pagination (`page`, `pageSize`, total items, total pages).
+     - Calculates executive financial statistics: Total fiat revenue (GEL), total Telegram Stars revenue (XTR), active VIP count, total crystals sold, and unique paying customers count.
+     - Provides localized Georgian product descriptions and friendly metadata formatting (`FormatSubscriptionTitle`, `FormatCrystalProductTitle`, `FormatSpendTitle`).
+
+2. **Frontend Admin Dashboard (`admin/src/app`)**:
+   - `moderation-api.ts`: Added TypeScript interfaces and `listTransactions(category, search, page, pageSize)` method.
+   - `moderation.html` & `moderation.ts`:
+     - Added new tab `💳 ტრანზაქციები` to the top navigation.
+     - Executive metrics banner displaying total GEL income, Telegram Stars, active VIPs, crystals sold, and paying users.
+     - Interactive filter chips (`ყველა შემოსავალი`, `VIP პაკეტები`, `კრისტალების პაკეტები`, `კრისტალების ხარჯვა`, `ყველაფერი`).
+     - Real-time search by user, email, or transaction ID with instant clear button.
+     - Comprehensive responsive transaction history table with user avatar thumbnails, product badges, payment channels (Telegram Stars / Card), price/stars tags, status chips, and pagination controls.
+   - `angular.json`: Increased bundle budgets to accommodate rich Material styling and pipes.
+   - `serve-web.mjs`: Added static route mapping for `/admin` and `/admin/` to serve the Angular SPA from `admin/dist/admin/browser`.
+
+3. **Verification & Tests**:
+   - Backend Build (`dev.ps1 -Task build`): **PASS (0 warnings, 0 errors)**.
+   - Moderation Integration Tests (`backend/tests/Dating.IntegrationTests/ModerationTests.cs`): **PASS (13/13 tests passed, including `Admin_can_query_transactions_history_and_summary_statistics`)**.
+   - Unit Tests (`backend/tests/Dating.UnitTests`): **PASS (53/53 tests passed)**.
+   - Typecheck (`npm run typecheck` across root, api-contract, mobile, admin): **PASS (0 errors)**.
+   - Admin Production Build (`npm run admin:build`): **PASS (exit code 0)**.
+   - Web Server & Admin Endpoint (`http://127.0.0.1:8081/admin/`): **HTTP 200 OK**.
+   - NOT RUN: Physical device store deployment, live external credit card processing (mock/sandbox verified in test suite).
+
+---
+
+# Status - Full Stack & Telegram Mini App 100% Operational
+
+Updated 2026-10-23. Resolved `settings.json` UTF-8 BOM, fixed dynamic `TELEGRAM_WEB_APP_URL` fallback in API, started Docker, and verified end-to-end stack health:
+
+1. **Docker BOM & Startup**:
+   - Stripped UTF-8 BOM (`0xEF 0xBB 0xBF`) from `settings.json`.
+   - Docker Desktop started cleanly without migration crashes.
+   - Database container `dating-mvp-database-1` (PostGIS 17-3.5 on port 54432) is **HEALTHY**.
+
+2. **Dynamic WebAppUrl Resolution (`TelegramPaymentService.cs` & `TelegramNotificationService.cs`)**:
+   - Removed hardcoded stale tunnel filters (`decided-configure-forecasts`).
+   - Dynamically load active `TELEGRAM_WEB_APP_URL` from `infra/.env` on every request/webhook call.
+   - Recompiled backend (`dev.ps1 -Task build`): **PASS (0 warnings, 0 errors)**.
+
+3. **Active 24/7 Verified Stack**:
+   - Docker Database Container: **HEALTHY (port 54432)**.
+   - Backend API (`Dating.Api` on `:5180`): **READY** (`/api/health/ready` -> HTTP 200 `status: ready`).
+   - Web Server (`serve-web.mjs` on `:8081`): **HEALTHY** (HTTP 200).
+   - Cloudflare Tunnel: **HEALTHY** (`https://receipt-stress-dressing-continuing.trycloudflare.com`).
+   - Telegram Bot: `@ArenaDate_Bot` webhook & menu button synchronized to live tunnel.
+
+---
+
 # Status - App Language Database Persistence & Default Auto-Load
 
 Updated 2026-10-19. Implemented database persistence for user application language preference (`DatingProfile.AppLanguage` in PostgreSQL) with automatic default synchronization across sessions:

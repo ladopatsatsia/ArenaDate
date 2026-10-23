@@ -221,4 +221,119 @@ public class ModerationTests {
    Assert.Equal(3, audits.Count);
   });
  }
+
+ [Fact]
+ public async Task Admin_can_query_transactions_history_and_summary_statistics()
+ {
+  await using var h = await AuthHarness.Create();
+  var admin = await h.Account("tx_admin@example.test");
+  var user = await h.Account("paying_user@example.test");
+  var browser = await SignedIn(h, admin, "tx_admin@example.test");
+
+  var now = DateTimeOffset.UtcNow;
+  var subId = Guid.NewGuid();
+  var purchaseId = Guid.NewGuid();
+  var txId = Guid.NewGuid();
+
+  await h.Db(async db => {
+   db.Set<Dating.Api.Features.Premium.UserSubscription>().Add(new Dating.Api.Features.Premium.UserSubscription
+   {
+    Id = subId,
+    UserId = user.Account.Id,
+    PackageId = "one_month",
+    PriceAmount = 4.90m,
+    Currency = "GEL",
+    Platform = "Mobile",
+    TransactionId = "sub_tx_test_123",
+    StartedAtUtc = now,
+    ExpiresAtUtc = now.AddDays(30),
+    IsActive = true,
+    CreatedAtUtc = now
+   });
+
+   db.Set<Dating.Api.Features.Game.Wallet.StorePurchase>().Add(new Dating.Api.Features.Game.Wallet.StorePurchase
+   {
+    Id = purchaseId,
+    UserId = user.Account.Id,
+    Platform = "TelegramStars",
+    ProductId = "dating.crystals.500",
+    Amount = 500,
+    PriceAmount = 100m,
+    PriceCurrency = "XTR",
+    Status = "Credited",
+    TransactionId = "stars_charge_999",
+    PurchaseToken = "tok_test_abc",
+    CreatedAtUtc = now.AddMinutes(5)
+   });
+
+   db.Set<Dating.Api.Features.Game.Wallet.CrystalTransaction>().Add(new Dating.Api.Features.Game.Wallet.CrystalTransaction
+   {
+    Id = txId,
+    UserId = user.Account.Id,
+    Amount = -25,
+    BalanceAfter = 475,
+    Type = "gift",
+    Description = "Sent romantic rose",
+    IdempotencyKey = "idem_gift_1",
+    CreatedAtUtc = now.AddMinutes(10)
+   });
+
+   await db.SaveChangesAsync();
+  });
+
+  // 1. Query all real money transactions
+  var allRes = await browser.GetAsync("/api/moderation/transactions?category=all");
+  Assert.Equal(HttpStatusCode.OK, allRes.StatusCode);
+  var allData = await allRes.Content.ReadFromJsonAsync<AdminTransactionsResponse>();
+  Assert.NotNull(allData);
+  Assert.True(allData.TotalCount >= 2);
+  Assert.Equal(4.90m, allData.Stats.TotalRevenueGel);
+  Assert.Equal(100, allData.Stats.TotalRevenueStars);
+  Assert.True(allData.Stats.TotalSubscriptionsCount >= 1);
+  Assert.True(allData.Stats.TotalCrystalsSold >= 500);
+  Assert.True(allData.Stats.TotalPayingUsersCount >= 1);
+
+  var subItem = allData.Items.FirstOrDefault(x => x.Id == subId.ToString());
+  Assert.NotNull(subItem);
+  Assert.Equal("subscription", subItem.Category);
+  Assert.Equal(4.90m, subItem.PriceAmount);
+  Assert.Equal("GEL", subItem.Currency);
+  Assert.Equal("sub_tx_test_123", subItem.TransactionId);
+
+  var purchaseItem = allData.Items.FirstOrDefault(x => x.Id == purchaseId.ToString());
+  Assert.NotNull(purchaseItem);
+  Assert.Equal("crystal_purchase", purchaseItem.Category);
+  Assert.Equal(500, purchaseItem.Crystals);
+  Assert.Equal("stars_charge_999", purchaseItem.TransactionId);
+
+  // 2. Query subscriptions only
+  var subsRes = await browser.GetAsync("/api/moderation/transactions?category=subscriptions");
+  Assert.Equal(HttpStatusCode.OK, subsRes.StatusCode);
+  var subsData = await subsRes.Content.ReadFromJsonAsync<AdminTransactionsResponse>();
+  Assert.NotNull(subsData);
+  Assert.All(subsData.Items, item => Assert.Equal("subscription", item.Category));
+
+  // 3. Query crystals store only
+  var cryRes = await browser.GetAsync("/api/moderation/transactions?category=crystals");
+  Assert.Equal(HttpStatusCode.OK, cryRes.StatusCode);
+  var cryData = await cryRes.Content.ReadFromJsonAsync<AdminTransactionsResponse>();
+  Assert.NotNull(cryData);
+  Assert.All(cryData.Items, item => Assert.Equal("crystal_purchase", item.Category));
+
+  // 4. Query spends only
+  var spendRes = await browser.GetAsync("/api/moderation/transactions?category=spends");
+  Assert.Equal(HttpStatusCode.OK, spendRes.StatusCode);
+  var spendData = await spendRes.Content.ReadFromJsonAsync<AdminTransactionsResponse>();
+  Assert.NotNull(spendData);
+  Assert.All(spendData.Items, item => Assert.Equal("crystal_spend", item.Category));
+
+  // 5. Query with search
+  var searchRes = await browser.GetAsync("/api/moderation/transactions?search=stars_charge_999");
+  Assert.Equal(HttpStatusCode.OK, searchRes.StatusCode);
+  var searchData = await searchRes.Content.ReadFromJsonAsync<AdminTransactionsResponse>();
+  Assert.NotNull(searchData);
+  Assert.Single(searchData.Items);
+  Assert.Equal("stars_charge_999", searchData.Items[0].TransactionId);
+ }
 }
+

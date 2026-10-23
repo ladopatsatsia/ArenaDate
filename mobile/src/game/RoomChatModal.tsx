@@ -9,6 +9,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
+  LayoutAnimation,
+  TextInput as NativeTextInput,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -64,6 +66,8 @@ export function RoomChatModal({
 
   // Media, voice and emojis state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const isInputExpanded = isInputFocused || inputText.trim().length > 0 || showEmojiPicker;
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [uploadingMedia, setUploadingMedia] = useState(false);
@@ -419,74 +423,95 @@ export function RoomChatModal({
               </View>
             ) : (
               <View style={styles.inputBar}>
-                {/* Emoji button */}
-                <TouchableOpacity
-                  style={styles.actionIconBtn}
-                  onPress={() => setShowEmojiPicker((prev) => !prev)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('chat_emoji_btn', 'ემოჯები')}
-                  testID="room-emoji-btn"
-                >
-                  <Text style={styles.actionIconText}>{showEmojiPicker ? '⌨️' : '😊'}</Text>
-                </TouchableOpacity>
-
-                {/* Photo button */}
-                <TouchableOpacity
-                  style={styles.actionIconBtn}
-                  onPress={() => { void handlePickPhoto(); }}
-                  disabled={uploadingMedia || sendMutation.isPending}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('chat_photo_btn', 'ფოტოს გაგზავნა')}
-                  testID="room-photo-btn"
-                >
-                  {uploadingMedia ? (
-                    <ActivityIndicator size="small" color="#8b5cf6" />
-                  ) : (
-                    <Text style={styles.actionIconText}>📷</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TextInput
-                  style={styles.input}
-                  value={inputText}
-                  onChangeText={setInputText}
-                  placeholder={t('room_chat_placeholder', 'დაწერე შეტყობინება...')}
-                  placeholderTextColor="#94a3b8"
-                  maxLength={500}
-                  returnKeyType="send"
-                  onSubmitEditing={() => handleSend()}
-                  testID="room-chat-input"
-                />
-
-                {inputText.trim().length === 0 ? (
+                {/* Left side: Voice & Photo (FB Messenger style) */}
+                <View style={styles.leftActions}>
                   <TouchableOpacity
-                    style={styles.voiceRecordBtn}
+                    style={styles.messengerVoiceBtn}
                     onPress={() => { void handleStartRecording(); }}
                     disabled={sendMutation.isPending || uploadingMedia}
                     accessibilityRole="button"
                     accessibilityLabel={t('chat_record_voice', 'ხმოვანის ჩაწერა')}
                     testID="room-start-voice-btn"
                   >
-                    <Text style={styles.voiceRecordIcon}>🎤</Text>
+                    <Text style={styles.messengerVoiceIcon}>🎙️</Text>
                   </TouchableOpacity>
-                ) : (
+
+                  {!isInputExpanded && (
+                    <TouchableOpacity
+                      style={styles.messengerActionBtn}
+                      onPress={() => { void handlePickPhoto(); }}
+                      disabled={uploadingMedia || sendMutation.isPending}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('chat_photo_btn', 'ფოტოს გაგზავნა')}
+                      testID="room-photo-btn"
+                    >
+                      {uploadingMedia ? (
+                        <ActivityIndicator size="small" color="#8b5cf6" />
+                      ) : (
+                        <Text style={styles.messengerActionIcon}>📷</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Facebook Messenger Style Input Pill with inside Emoji Smile */}
+                <View style={[styles.messengerPill, isInputExpanded && styles.messengerPillExpanded]}>
+                  <NativeTextInput
+                    style={styles.messengerPillInput}
+                    value={inputText}
+                    onChangeText={setInputText}
+                    onFocus={() => {
+                      if (Platform.OS !== 'web') {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      }
+                      setIsInputFocused(true);
+                    }}
+                    onBlur={() => {
+                      if (Platform.OS !== 'web') {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      }
+                      setIsInputFocused(false);
+                    }}
+                    placeholder={t('room_chat_placeholder', 'დაწერე შეტყობინება...')}
+                    placeholderTextColor="rgba(255, 255, 255, 0.45)"
+                    maxLength={500}
+                    multiline
+                    testID="room-chat-input"
+                  />
+
+                  {/* Inside emoji smile button */}
                   <TouchableOpacity
-                    style={[
-                      styles.sendButton,
-                      (!inputText.trim() || sendMutation.isPending) && styles.sendButtonDisabled,
-                    ]}
-                    onPress={() => handleSend()}
-                    disabled={!inputText.trim() || sendMutation.isPending}
-                    testID="room-chat-send-btn"
-                    accessibilityLabel={t('room_chat_send', 'შეტყობინების გაგზავნა')}
+                    style={styles.pillEmojiBtn}
+                    onPress={() => setShowEmojiPicker((prev) => !prev)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chat_emoji_btn', 'ემოჯები')}
+                    testID="room-emoji-btn"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    {sendMutation.isPending ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : (
-                      <Text style={styles.sendButtonText}>➤</Text>
-                    )}
+                    <Text style={styles.pillEmojiText}>{showEmojiPicker ? '⌨️' : '😊'}</Text>
                   </TouchableOpacity>
-                )}
+                </View>
+
+                {/* Right side: small send logo */}
+                <TouchableOpacity
+                  style={[
+                    styles.messengerSendBtn,
+                    inputText.trim().length > 0 ? styles.messengerSendBtnActive : styles.messengerSendBtnDisabled,
+                  ]}
+                  onPress={() => handleSend()}
+                  disabled={!inputText.trim() || sendMutation.isPending}
+                  testID="room-chat-send-btn"
+                  accessibilityLabel={t('room_chat_send', 'შეტყობინების გაგზავნა')}
+                  activeOpacity={0.7}
+                >
+                  {sendMutation.isPending ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={[styles.messengerSendIcon, inputText.trim().length > 0 && styles.messengerSendIconActive]}>
+                      ➤
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -714,13 +739,115 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: '#1e293b',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0a0f1d',
     gap: 8,
   },
+  leftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  messengerVoiceBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(139, 92, 246, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+  },
+  messengerVoiceIcon: {
+    fontSize: 18,
+  },
+  messengerActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messengerActionIcon: {
+    fontSize: 18,
+  },
+  messengerPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingLeft: 14,
+    paddingRight: 6,
+    minHeight: 40,
+    maxHeight: 120,
+    ...(Platform.OS === 'web' ? ({ transition: 'all 0.22s ease-in-out' } as any) : {}),
+  },
+  messengerPillExpanded: {
+    borderColor: '#8b5cf6',
+    backgroundColor: 'rgba(255, 255, 255, 0.11)',
+    ...(Platform.OS === 'web' ? ({ boxShadow: '0 0 10px rgba(139, 92, 246, 0.25)' } as any) : {}),
+  },
+  messengerPillInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 15,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    paddingRight: 6,
+    maxHeight: 100,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
+  },
+  pillEmojiBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  pillEmojiText: {
+    fontSize: 20,
+  },
+  messengerSendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  messengerSendBtnActive: {
+    backgroundColor: '#8b5cf6',
+    borderColor: '#8b5cf6',
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  messengerSendBtnDisabled: {
+    opacity: 0.35,
+  },
+  messengerSendIcon: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginLeft: 2,
+    fontWeight: '700',
+  },
+  messengerSendIconActive: {
+    color: '#ffffff',
+  },
+  // Kept for backward compatibility
   actionIconBtn: {
     width: 36,
     height: 36,

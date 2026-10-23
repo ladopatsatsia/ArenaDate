@@ -213,7 +213,7 @@ app.MapHub<Dating.Api.Features.Game.GameHub>("/hubs/game", options => {
  options.LongPolling.PollTimeout=TimeSpan.FromSeconds(25);
 }).RequireRateLimiting("chat");
 
-if (!app.Environment.IsEnvironment("Testing"))
+if (!app.Environment.IsEnvironment("Testing") && builder.Configuration["DisableStartupMigration"] != "true")
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

@@ -18,9 +18,19 @@ public sealed class DiscoveryService(AppDbContext db, ProfileService profiles, D
     private static DiscoverySettings Dto(DatingProfile p) => new(p.Revision, p.MinAge, p.MaxAge, p.DesiredGenders, p.RadiusKm, p.LocationMode, p.City, p.Location is not null);
     public async Task<DiscoverySettings> Save(Guid id, SettingsRequest request, CancellationToken ct)
     {
-        if (request.City.Trim().Length < 2 || request.MinAge > request.MaxAge || !DiscoveryRules.Radii.Contains(request.RadiusKm) || request.Mode is not ("city" or "distance" or "all") ||
+        if (request.City.Trim().Length < 2 || request.MinAge > request.MaxAge || !DiscoveryRules.Radii.Contains(request.RadiusKm) || request.Mode is not ("city" or "distance" or "all" or "global" or "country") ||
             request.DesiredGenders.Any(g => !ProfileRules.Genders.Contains(g)) || request.DesiredGenders.Distinct().Count() != request.DesiredGenders.Length)
             throw new AuthFailure(400, "invalid_preferences");
+        if (request.Mode == "country")
+        {
+            var now = clock.GetUtcNow();
+            var hasPremium = await db.UserSubscriptions
+                .AsNoTracking()
+                .AnyAsync(s => s.UserId == id && s.IsActive && (s.ExpiresAtUtc == null || s.ExpiresAtUtc > now), ct);
+            if (!hasPremium)
+                throw new AuthFailure(403, "premium_required");
+        }
+
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var p = await profiles.Lock(id, ct);
         if (p.Revision != request.Revision) throw new AuthFailure(409, "profile_changed");

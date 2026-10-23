@@ -13,6 +13,8 @@
     "packages/api-contract"
   ],
   "scripts": {
+    "build": "npm run admin:build && cd mobile && npx expo export -p web --output-dir dist/web",
+    "start": "node scripts/serve-web.mjs",
     "contract:generate": "node scripts/contract.mjs",
     "contract:check": "node scripts/contract.mjs --check",
     "mobile:start": "npm start --workspace mobile",

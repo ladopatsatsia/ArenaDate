@@ -319,7 +319,7 @@ export default function ProfileScreen() {
           style={styles.premiumPromoCard}
           onPress={() => setPremiumModalOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel={t('profile_vip_promo_title', 'Arena Black — VIP სტატუსი')}
+          accessibilityLabel={t('profile_vip_promo_title', 'ARENA BLACK- VIP სტატუსი')}
           testID="profile-premium-promo-card"
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -327,9 +327,9 @@ export default function ProfileScreen() {
               <Text style={{ fontSize: 22 }}>🖤</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.premiumPromoTitle}>{t('profile_vip_promo_title', 'Arena Black — VIP სტატუსი')}</Text>
+              <Text style={styles.premiumPromoTitle}>{t('profile_vip_promo_title', 'ARENA BLACK- VIP სტატუსი')}</Text>
               <Text style={styles.premiumPromoDesc}>
-                {t('profile_vip_promo_sub', 'გაიგე ვინ დაგამეჩა, ნახე ვინ მოგცა ლაიქი და მიიღე სრული წვდომა')}
+                {t('profile_vip_promo_sub', 'ყოველთვის ყურადღების ცენტრში')}
               </Text>
             </View>
             <View style={styles.premiumPromoBtn}>

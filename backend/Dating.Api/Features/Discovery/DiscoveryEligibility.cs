@@ -28,11 +28,41 @@ public sealed class DiscoveryEligibility(AppDbContext db, TimeProvider clock)
             !db.Set<UserBlock>().Any(b => (b.BlockerId == viewer.UserId && b.BlockedId == p.UserId) || (b.BlockerId == p.UserId && b.BlockedId == viewer.UserId)) &&
             !db.Set<DiscoveryDecision>().Any(d => d.UserId == viewer.UserId && d.TargetId == p.UserId) &&
             !db.Set<UnmatchedPair>().Any(u => (u.FirstId == viewer.UserId && u.SecondId == p.UserId) || (u.SecondId == viewer.UserId && u.FirstId == p.UserId)));
-        if (viewer.LocationMode == "all") { /* All of Georgia - no city restriction */ }
-        else if (viewer.LocationMode == "city" && !string.IsNullOrEmpty(viewer.CityKey)) q = q.Where(p => p.CityKey == viewer.CityKey);
-        else if (viewer.Location is not null) q = q.Where(p => p.Location != null && p.Location.IsWithinDistance(viewer.Location, viewer.RadiusKm * 1000));
+        if (viewer.LocationMode == "global")
+        {
+            // Global mode: anywhere in the world!
+        }
+        else if (viewer.LocationMode == "country" && !string.IsNullOrEmpty(viewer.CityKey))
+        {
+            if (viewer.CityKey == "GE")
+            {
+                q = q.Where(p => DiscoveryRules.GeorgianCityKeys.Contains(p.CityKey));
+            }
+            else
+            {
+                q = q.Where(p => p.CityKey == viewer.CityKey || p.City.ToUpper().Contains(viewer.CityKey));
+            }
+        }
+        else if (viewer.LocationMode == "all")
+        {
+            // Local: all of Georgia
+            q = q.Where(p => DiscoveryRules.GeorgianCityKeys.Contains(p.CityKey));
+        }
+        else if (viewer.LocationMode == "city" && !string.IsNullOrEmpty(viewer.CityKey))
+        {
+            q = q.Where(p => p.CityKey == viewer.CityKey);
+        }
+        else if (viewer.Location is not null)
+        {
+            q = q.Where(p => p.Location != null && p.Location.IsWithinDistance(viewer.Location, viewer.RadiusKm * 1000));
+        }
         else return q.Where(_ => false);
-        q = q.Where(p => p.LocationMode == "all" ||
+
+        q = q.Where(p =>
+            viewer.LocationMode == "global" ||
+            p.LocationMode == "global" ||
+            p.LocationMode == "all" ||
+            (p.LocationMode == "country" && (p.CityKey == viewer.CityKey || (viewer.CityKey != null && DiscoveryRules.GeorgianCityKeys.Contains(viewer.CityKey) && p.CityKey == "GE"))) ||
             (p.LocationMode == "city" && (string.IsNullOrEmpty(p.CityKey) || string.IsNullOrEmpty(viewer.CityKey) || p.CityKey == viewer.CityKey)) ||
             (p.LocationMode == "distance" && p.Location != null && viewer.Location != null && p.Location.IsWithinDistance(viewer.Location, p.RadiusKm * 1000)));
         return q;

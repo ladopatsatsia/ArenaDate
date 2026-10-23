@@ -90,7 +90,48 @@ public static class DiscoveryRules
         ["BICHVINTA"] = "BICHVINTA",
         ["PITSUNDA"] = "BICHVINTA",
         ["JAVA"] = "JAVA",
+
+        // Countries for Global & Country (VIP Passport) Discovery
+        ["საქართველო"] = "GE", ["GEORGIA"] = "GE", ["GE"] = "GE", ["ГРУЗИЯ"] = "GE",
+        ["აშშ"] = "US", ["USA"] = "US", ["US"] = "US", ["AMERICA"] = "US", ["UNITED STATES"] = "US", ["США"] = "US",
+        ["გერმანია"] = "DE", ["GERMANY"] = "DE", ["DE"] = "DE", ["DEUTSCHLAND"] = "DE", ["ГЕРМАНИЯ"] = "DE",
+        ["დიდი ბრიტანეთი"] = "GB", ["UNITED KINGDOM"] = "GB", ["UK"] = "GB", ["GB"] = "GB", ["ENGLAND"] = "GB", ["ВЕЛИКОБРИТАНИЯ"] = "GB",
+        ["უკრაინა"] = "UA", ["UKRAINE"] = "UA", ["UA"] = "UA", ["УКРАИНА"] = "UA",
+        ["თურქეთი"] = "TR", ["TURKEY"] = "TR", ["TR"] = "TR", ["TURKIYE"] = "TR", ["ТУРЦИЯ"] = "TR",
+        ["საფრანგეთი"] = "FR", ["FRANCE"] = "FR", ["FR"] = "FR", ["ФРАНЦИЯ"] = "FR",
+        ["იტალია"] = "IT", ["ITALY"] = "IT", ["IT"] = "IT", ["ITALIA"] = "IT", ["ИТАЛИЯ"] = "IT",
+        ["ესპანეთი"] = "ES", ["SPAIN"] = "ES", ["ES"] = "ES", ["ESPANA"] = "ES", ["ИСПАНИЯ"] = "ES",
+        ["პოლონეთი"] = "PL", ["POLAND"] = "PL", ["PL"] = "PL", ["ПОЛЬША"] = "PL",
+        ["კანადა"] = "CA", ["CANADA"] = "CA", ["CA"] = "CA", ["КАНАДА"] = "CA",
+        ["ნიდერლანდები"] = "NL", ["NETHERLANDS"] = "NL", ["NL"] = "NL", ["HOLLAND"] = "NL", ["НИДЕРЛАНДЫ"] = "NL",
+        ["საბერძნეთი"] = "GR", ["GREECE"] = "GR", ["GR"] = "GR", ["ГРЕЦИЯ"] = "GR",
+        ["ისრაელი"] = "IL", ["ISRAEL"] = "IL", ["IL"] = "IL", ["ИЗРАИЛЬ"] = "IL",
+        ["აზერბაიჯანი"] = "AZ", ["AZERBAIJAN"] = "AZ", ["AZ"] = "AZ", ["АЗЕРБАЙДЖАН"] = "AZ",
+        ["სომხეთი"] = "AM", ["ARMENIA"] = "AM", ["AM"] = "AM", ["АРМЕНИЯ"] = "AM",
+        ["ყაზახეთი"] = "KZ", ["KAZAKHSTAN"] = "KZ", ["KZ"] = "KZ", ["КАЗАХСТАН"] = "KZ",
+        ["საამიროები"] = "AE", ["UAE"] = "AE", ["AE"] = "AE", ["DUBAI"] = "AE", ["არაბთა გაერთიანებული საამიროები"] = "AE", ["ОАЭ"] = "AE",
+        ["შვეიცარია"] = "CH", ["SWITZERLAND"] = "CH", ["CH"] = "CH", ["SCHWEIZ"] = "CH", ["ШВЕЙЦАРИЯ"] = "CH",
+        ["ავსტრია"] = "AT", ["AUSTRIA"] = "AT", ["AT"] = "AT", ["OSTERREICH"] = "AT", ["АВСТРИЯ"] = "AT",
+        ["შვედეთი"] = "SE", ["SWEDEN"] = "SE", ["SE"] = "SE", ["SVERIGE"] = "SE", ["ШВЕЦИЯ"] = "SE",
+        ["ნორვეგია"] = "NO", ["NORWAY"] = "NO", ["NO"] = "NO", ["NORGE"] = "NO", ["НОРВЕГИЯ"] = "NO",
+        ["ჩეხეთი"] = "CZ", ["CZECH REPUBLIC"] = "CZ", ["CZECHIA"] = "CZ", ["CZ"] = "CZ", ["ЧЕХИЯ"] = "CZ",
+        ["პორტუგალია"] = "PT", ["PORTUGAL"] = "PT", ["PT"] = "PT", ["ПОРТУГАЛИЯ"] = "PT",
+        ["კვიპროსი"] = "CY", ["CYPRUS"] = "CY", ["CY"] = "CY", ["КИПР"] = "CY",
+        ["ლიეტუვა"] = "LT", ["LITHUANIA"] = "LT", ["LT"] = "LT", ["ЛИТВА"] = "LT",
+        ["ლატვია"] = "LV", ["LATVIA"] = "LV", ["LV"] = "LV", ["ЛАТВИЯ"] = "LV",
+        ["ესტონეთი"] = "EE", ["ESTONIA"] = "EE", ["EE"] = "EE", ["ЭСТОНИЯ"] = "EE",
     };
+
+    public static readonly string[] GeorgianCityKeys = [
+        "TBILISI", "BATUMI", "KUTAISI", "RUSTAVI", "SOKHUMI", "TSKHINVALI", "ABKHAZIA",
+        "GAGRA", "GUDAUTA", "OCHAMCHIRE", "GALI", "TQVARCHELI", "BICHVINTA", "AKHALI_ATONI",
+        "JAVA", "ZUGDIDI", "GORI", "POTI", "TELAVI", "MTSKHETA", "KHASHURI", "SAMTREDIA",
+        "SENAKI", "ZESTAFONI", "MARNEULI", "AKHALTSIKHE", "KOBULETI", "OZURGETI", "KASPI",
+        "CHIATURA", "TSQALTUBO", "SAGAREJO", "GARDABANI", "BORJOMI", "STEPANTSMINDA",
+        "BAKURIANI", "GUDAURI", "SIGHNAGHI", "DUSHETI", "AKHALKALAKI", "AKHMETA", "QVARELI",
+        "BOLNISI", "DMANISI", "TSALKA", "LAGODEKHI", "DEDOPLISTSQARO", "KHOBI", "CHKHOROTSQOU",
+        "MARTVILI", "TSALENJIKHA", "ONI", "AMBROLAURI", "MESTIA", "GE", "GEORGIA"
+    ];
 
     public static string CityKey(string city)
     {

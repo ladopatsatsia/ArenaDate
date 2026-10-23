@@ -1,2 +1,5 @@
-import { AuthForm } from '../src/auth/AuthForm';
-export default function Verify() { return <AuthForm mode="verify" />; }
+import { OtpAuthScreen } from '../src/auth/OtpAuthScreen';
+
+export default function AuthPage() {
+  return <OtpAuthScreen />;
+}

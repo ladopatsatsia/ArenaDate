@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,19 +9,24 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { Text } from '../components/UI';
 import { CityPicker } from '../components/CityPicker';
+import { CountryPicker } from '../components/CountryPicker';
 import { theme } from '../components/theme';
 import { ApiError } from '../auth/api';
 import type { DiscoveryApi, Settings } from './api';
 import { triggerHaptic } from '../telegram/telegramSdk';
+import { useAuth } from '../auth/AuthProvider';
+import { PremiumModal } from '../premium/PremiumModal';
+import { PremiumApi } from '../premium/PremiumApi';
 
 const schema = z.object({
   minAge: z.number().int().min(18).max(120),
   maxAge: z.number().int().min(18).max(120),
   desiredGenders: z.array(z.string()).min(1).max(3),
   radiusKm: z.number().refine(n => [10, 25, 50, 100].includes(n)),
-  mode: z.enum(['city', 'all', 'distance']),
+  mode: z.enum(['city', 'all', 'distance', 'global', 'country']),
   city: z.string().trim().min(2).max(80),
 }).refine(v => v.minAge <= v.maxAge, {
   message: 'min_age_exceeds_max',
@@ -55,6 +60,42 @@ export function Filters({
 }) {
   const { t } = useTranslation();
   const [message, setMessage] = useState('');
+  const [premiumModalVisible, setPremiumModalVisible] = useState(false);
+
+  const { state: authState, api: authApi, manager } = useAuth();
+  const premiumApi = useMemo(() => new PremiumApi(authApi, manager), [authApi, manager]);
+  const premiumQuery = useQuery({
+    queryKey: ['account', authState.account?.id, 'premium-status'],
+    queryFn: async () => {
+      try {
+        if (!premiumApi) return { hasPremium: false };
+        const res = await premiumApi.status();
+        return res ?? { hasPremium: false };
+      } catch {
+        return { hasPremium: false };
+      }
+    },
+    enabled: !!authState.account?.id && !!premiumApi,
+    staleTime: 60_000,
+  });
+  const hasPremium = Boolean(premiumQuery.data?.hasPremium);
+
+  type SearchScope = 'local' | 'global' | 'country';
+  const [scope, setScope] = useState<SearchScope>(() => {
+    if (settings.mode === 'global') return 'global';
+    if (settings.mode === 'country') return 'country';
+    return 'local';
+  });
+
+  const initialMode = (
+    settings.mode === 'global'
+      ? 'global'
+      : settings.mode === 'country'
+      ? 'country'
+      : settings.mode === 'all'
+      ? 'all'
+      : 'city'
+  ) as 'city' | 'all' | 'distance' | 'global' | 'country';
 
   const {
     control,
@@ -69,7 +110,7 @@ export function Filters({
       maxAge: Number(settings.maxAge),
       desiredGenders: settings.desiredGenders,
       radiusKm: Number(settings.radiusKm) || 25,
-      mode: settings.mode === 'all' ? 'all' : 'city',
+      mode: initialMode,
       city: settings.city || 'თბილისი',
     },
   });
@@ -83,6 +124,10 @@ export function Filters({
     setMessage('');
     try {
       triggerHaptic('medium');
+      if (values.mode === 'country' && !hasPremium) {
+        setPremiumModalVisible(true);
+        return;
+      }
       const updated = await api.save({
         ...values,
         radiusKm: values.radiusKm || 25,
@@ -96,6 +141,8 @@ export function Filters({
       setMessage(
         error instanceof ApiError && error.status === 429
           ? 'discovery_rate_limited'
+          : error instanceof ApiError && error.status === 403
+          ? 'premium_required'
           : 'discovery_save_failed'
       );
     }
@@ -338,82 +385,258 @@ export function Filters({
       <View style={styles.sectionWrap}>
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionHeaderTitle}>
-            📍 {t('filters_location_and_mode', 'ლოკაცია და რეჟიმი')}
+            📍 {t('filters_location_and_mode', 'ლოკაცია და ძიების არეალი')}
           </Text>
         </View>
 
         <View style={styles.cardGroup}>
-          {/* Mode Switcher Tabs */}
-          <View style={styles.modeSection}>
-            <Text style={styles.modeSectionLabel}>
-              {t('filters_search_mode', 'ძებნის რეჟიმი:')}
-            </Text>
+          {/* Main 3 Scope Selector */}
+          <View style={styles.scopeTabsContainer}>
+            {/* Tab 1: 🇬🇪 ლოკალურად */}
+            <Pressable
+              testID="scope-tab-local"
+              onPress={() => {
+                triggerHaptic('light');
+                setScope('local');
+                if (mode === 'global' || mode === 'country') {
+                  setValue('mode', 'all');
+                  setValue('city', 'საქართველო');
+                }
+              }}
+              style={[styles.scopeTab, scope === 'local' && styles.scopeTabActive]}
+            >
+              <Text style={[styles.scopeTabText, scope === 'local' && styles.scopeTabTextActive]}>
+                🇬🇪 {t('filters_scope_local', 'ლოკალურად')}
+              </Text>
+              <Text style={[styles.scopeTabSub, scope === 'local' && styles.scopeTabSubActive]}>
+                {t('filters_scope_local_sub', 'საქართველო')}
+              </Text>
+            </Pressable>
 
-            <Controller
-              control={control}
-              name="mode"
-              render={({ field }) => (
-                <View style={styles.modeTabsRow}>
-                  <Pressable
-                    testID="mode-tab-city"
-                    onPress={() => {
-                      triggerHaptic('light');
-                      field.onChange('city');
-                    }}
-                    style={[styles.modeTab, field.value === 'city' && styles.modeTabActive]}
-                  >
-                    <Text style={[styles.modeTabText, field.value === 'city' && styles.modeTabTextActive]}>
-                      🏙️ {t('filters_mode_by_city', 'ქალაქის მიხედვით')}
-                    </Text>
-                  </Pressable>
+            {/* Tab 2: 🌐 გლობალურად */}
+            <Pressable
+              testID="scope-tab-global"
+              onPress={() => {
+                triggerHaptic('light');
+                setScope('global');
+                setValue('mode', 'global');
+              }}
+              style={[styles.scopeTab, scope === 'global' && styles.scopeTabActive]}
+            >
+              <Text style={[styles.scopeTabText, scope === 'global' && styles.scopeTabTextActive]}>
+                🌐 {t('filters_scope_global', 'გლობალურად')}
+              </Text>
+              <Text style={[styles.scopeTabSub, scope === 'global' && styles.scopeTabSubActive]}>
+                {t('filters_scope_global_sub', 'მსოფლიო')}
+              </Text>
+            </Pressable>
 
-                  <Pressable
-                    testID="mode-tab-all"
-                    onPress={() => {
-                      triggerHaptic('light');
-                      field.onChange('all');
-                    }}
-                    style={[styles.modeTab, field.value === 'all' && styles.modeTabActive]}
-                  >
-                    <Text style={[styles.modeTabText, field.value === 'all' && styles.modeTabTextActive]}>
-                      🌍 {t('filters_mode_all', 'ყველა (საქართველო)')}
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
-            />
+            {/* Tab 3: 👑 კონკრეტული ქვეყანა */}
+            <Pressable
+              testID="scope-tab-country"
+              onPress={() => {
+                if (!hasPremium) {
+                  triggerHaptic('heavy');
+                  setPremiumModalVisible(true);
+                } else {
+                  triggerHaptic('light');
+                  setScope('country');
+                  setValue('mode', 'country');
+                  const currentCity = watch('city');
+                  if (!currentCity || currentCity === 'თბილისი' || currentCity === 'საქართველო') {
+                    setValue('city', 'აშშ');
+                  }
+                }
+              }}
+              style={[
+                styles.scopeTab,
+                scope === 'country' && styles.scopeTabActive,
+                !hasPremium && styles.scopeTabVipBorder,
+              ]}
+            >
+              <View style={styles.scopeTabHeader}>
+                <Text style={[styles.scopeTabText, scope === 'country' && styles.scopeTabTextActive]}>
+                  👑 {t('filters_scope_country', 'ქვეყანა')}
+                </Text>
+                {!hasPremium && (
+                  <View style={styles.vipBadgeSmall}>
+                    <Text style={styles.vipBadgeSmallText}>VIP</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.scopeTabSub, scope === 'country' && styles.scopeTabSubActive]}>
+                {t('filters_scope_country_sub', 'Passport')}
+              </Text>
+            </Pressable>
           </View>
 
           <View style={styles.rowDivider} />
 
-          {/* If mode is city, show CityPicker without GPS */}
-          {mode === 'city' ? (
-            <Controller
-              control={control}
-              name="city"
-              render={({ field }) => (
-                <CityPicker
-                  testID="discovery-city"
-                  label={t('filters_city_label', 'ქალაქი')}
-                  value={field.value}
-                  onChange={field.onChange}
-                  showGpsButton={false}
-                  error={errors.city?.message}
-                />
+          {/* Sub-content based on scope */}
+          {scope === 'local' && (
+            <View style={styles.localSubContainer}>
+              <View style={styles.modeTabsRow}>
+                <Pressable
+                  testID="mode-tab-all"
+                  onPress={() => {
+                    triggerHaptic('light');
+                    setValue('mode', 'all');
+                    setValue('city', 'საქართველო');
+                  }}
+                  style={[styles.modeTab, mode === 'all' && styles.modeTabActive]}
+                >
+                  <Text style={[styles.modeTabText, mode === 'all' && styles.modeTabTextActive]}>
+                    🇬🇪 {t('filters_mode_all', 'მთელი საქართველო')}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  testID="mode-tab-city"
+                  onPress={() => {
+                    triggerHaptic('light');
+                    setValue('mode', 'city');
+                    if (watch('city') === 'საქართველო') {
+                      setValue('city', 'თბილისი');
+                    }
+                  }}
+                  style={[styles.modeTab, mode === 'city' && styles.modeTabActive]}
+                >
+                  <Text style={[styles.modeTabText, mode === 'city' && styles.modeTabTextActive]}>
+                    🏙️ {t('filters_mode_by_city', 'ქალაქის მიხედვით')}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {mode === 'city' ? (
+                <View style={{ marginTop: 12 }}>
+                  <Controller
+                    control={control}
+                    name="city"
+                    render={({ field }) => (
+                      <CityPicker
+                        testID="discovery-city"
+                        label={t('filters_city_label', 'ქალაქი')}
+                        value={field.value}
+                        onChange={field.onChange}
+                        showGpsButton={false}
+                        error={errors.city?.message}
+                      />
+                    )}
+                  />
+                </View>
+              ) : (
+                <View style={[styles.allCitiesBanner, { marginTop: 12 }]}>
+                  <Text style={styles.allCitiesEmoji}>🇬🇪</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.allCitiesTitle}>
+                      {t('filters_all_cities_title', 'მთელი საქართველო')}
+                    </Text>
+                    <Text style={styles.allCitiesSubtitle}>
+                      {t('filters_all_cities_subtitle', 'სვაიპში ნაჩვენები იქნება პროფილები საქართველოს ყველა ქალაქიდან')}
+                    </Text>
+                  </View>
+                </View>
               )}
-            />
-          ) : (
-            <View style={styles.allCitiesBanner}>
-              <Text style={styles.allCitiesEmoji}>🇬🇪</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.allCitiesTitle}>
-                  {t('filters_all_cities_title', 'მთელი საქართველო')}
-                </Text>
-                <Text style={styles.allCitiesSubtitle}>
-                  {t('filters_all_cities_subtitle', 'ნაჩვენები იქნება პროფილები ყველა ქალაქიდან')}
-                </Text>
+            </View>
+          )}
+
+          {scope === 'global' && (
+            <View style={styles.globalCard}>
+              <View style={styles.globalCardHeader}>
+                <Text style={styles.globalCardEmoji}>🌐</Text>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.globalCardTitle}>
+                      {t('filters_global_mode_title', 'გლობალური სვაიპი (მსოფლიო)')}
+                    </Text>
+                    <View style={styles.freeBadge}>
+                      <Text style={styles.freeBadgeText}>უფასო</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.globalCardSubtitle}>
+                    {t(
+                      'filters_global_mode_desc',
+                      'სვაიპის დროს შეგხვდებათ ადამიანები მსოფლიოს ნებისმიერი ქვეყნიდან — საქართველო, ევროპა, აშშ და სხვა.'
+                    )}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.globalFeaturesRow}>
+                <View style={styles.globalFeaturePill}>
+                  <Text style={styles.globalFeatureText}>✨ ულიმიტო არეალი</Text>
+                </View>
+                <View style={styles.globalFeaturePill}>
+                  <Text style={styles.globalFeatureText}>🌍 ყველა ქვეყანა</Text>
+                </View>
               </View>
             </View>
+          )}
+
+          {scope === 'country' && (
+            hasPremium ? (
+              <View style={styles.countryContainer}>
+                <View style={styles.passportActiveBanner}>
+                  <Text style={styles.passportActiveEmoji}>✈️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.passportActiveTitle}>
+                      👑 ARENA BLACK Passport
+                    </Text>
+                    <Text style={styles.passportActiveSub}>
+                      {t('filters_passport_active_sub', 'არჩეული ქვეყნის პროფილები გამოჩნდება სვაიპში')}
+                    </Text>
+                  </View>
+                </View>
+
+                <Controller
+                  control={control}
+                  name="city"
+                  render={({ field }) => (
+                    <CountryPicker
+                      testID="discovery-country"
+                      value={field.value}
+                      onChange={(countryLabel) => {
+                        field.onChange(countryLabel);
+                      }}
+                    />
+                  )}
+                />
+              </View>
+            ) : (
+              <View style={styles.vipLockedCard}>
+                <View style={styles.vipLockedHeader}>
+                  <Text style={styles.vipCrownIcon}>👑</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.vipLockedTitle}>ARENA BLACK Passport</Text>
+                      <View style={styles.vipBadge}>
+                        <Text style={styles.vipBadgeText}>VIP</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.vipLockedSub}>
+                      {t('filters_country_vip_title', 'კონკრეტული ქვეყნის არჩევა')}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.vipLockedDesc}>
+                  {t(
+                    'filters_country_vip_desc',
+                    'კონკრეტული ქვეყნის არჩევა და იქ სვაიპი ხელმისაწვდომია მხოლოდ ARENA BLACK პრემიუმ წევრებისთვის.'
+                  )}
+                </Text>
+
+                <Pressable
+                  testID="vip-upgrade-trigger"
+                  style={styles.vipUpgradeBtn}
+                  onPress={() => {
+                    triggerHaptic('medium');
+                    setPremiumModalVisible(true);
+                  }}
+                >
+                  <Text style={styles.vipUpgradeBtnText}>👑 ARENA BLACK ჩართვა</Text>
+                </Pressable>
+              </View>
+            )
           )}
         </View>
       </View>
@@ -453,6 +676,11 @@ export function Filters({
           </Text>
         )}
       </Pressable>
+
+      <PremiumModal
+        visible={premiumModalVisible}
+        onClose={() => setPremiumModalVisible(false)}
+      />
     </View>
   );
 }
@@ -822,5 +1050,218 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: -0.2,
+  },
+  // New Scope & Country / Global styles
+  scopeTabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.background,
+    borderRadius: 14,
+    padding: 4,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  scopeTab: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scopeTabActive: {
+    backgroundColor: theme.colors.primary,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  scopeTabVipBorder: {
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  scopeTabHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  scopeTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.muted,
+  },
+  scopeTabTextActive: {
+    color: theme.colors.onPrimary,
+    fontWeight: '800',
+  },
+  scopeTabSub: {
+    fontSize: 10,
+    color: theme.colors.muted,
+    marginTop: 2,
+  },
+  scopeTabSubActive: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontWeight: '600',
+  },
+  vipBadgeSmall: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  vipBadgeSmallText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  localSubContainer: {
+    gap: 4,
+  },
+  globalCard: {
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
+    gap: 12,
+  },
+  globalCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  globalCardEmoji: {
+    fontSize: 28,
+  },
+  globalCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  globalCardSubtitle: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    marginTop: 4,
+    lineHeight: 17,
+  },
+  freeBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  freeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+  globalFeaturesRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  globalFeaturePill: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  globalFeatureText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  countryContainer: {
+    gap: 12,
+  },
+  passportActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  passportActiveEmoji: {
+    fontSize: 24,
+  },
+  passportActiveTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  passportActiveSub: {
+    fontSize: 11,
+    color: theme.colors.muted,
+    marginTop: 2,
+  },
+  vipLockedCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.06)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    gap: 12,
+  },
+  vipLockedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  vipCrownIcon: {
+    fontSize: 28,
+  },
+  vipLockedTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#F59E0B',
+    letterSpacing: 0.3,
+  },
+  vipLockedSub: {
+    fontSize: 12,
+    color: theme.colors.text,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  vipBadge: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  vipBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  vipLockedDesc: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    lineHeight: 17,
+  },
+  vipUpgradeBtn: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  vipUpgradeBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#000000',
+    letterSpacing: 0.2,
   },
 });

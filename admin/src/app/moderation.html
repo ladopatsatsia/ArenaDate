@@ -14,6 +14,7 @@
   <p>Signed in as {{ api.identity()?.role }}. Session expires after 30 minutes.</p>
   <nav aria-label="Moderation sections">
    <button mat-button (click)="change('profiles')" [disabled]="busy()">👥 Profiles</button>
+   <button mat-button (click)="change('transactions')" [disabled]="busy()">💳 ტრანზაქციები</button>
    <button mat-button (click)="change('photos')" [disabled]="busy()">Pending photos</button>
    <button mat-button (click)="change('reports')" [disabled]="busy()">Reports</button>
    <button mat-button (click)="change('users')" [disabled]="busy()">Account status</button>
@@ -23,7 +24,7 @@
    <button mat-button (click)="logout()" [disabled]="busy()">Sign out</button>
   </nav>
 
-  @if (tab() !== 'users' && tab() !== 'questions' && tab() !== 'broadcast') {
+  @if (tab() !== 'users' && tab() !== 'questions' && tab() !== 'broadcast' && tab() !== 'transactions') {
    <mat-form-field>
     <mat-label>Decision reason (required for moderation actions)</mat-label>
     <textarea matInput [formControl]="reason" maxlength="500"></textarea>
@@ -270,6 +271,223 @@
      }
     </div>
    }
+  }
+
+  @if (tab() === 'transactions') {
+   <section aria-labelledby="transactions-heading">
+    <h2 id="transactions-heading">💳 ტრანზაქციების ისტორია და შემოსავლები</h2>
+    <p class="muted">მომხმარებლების მიერ შეძენილი VIP პაკეტების, კრისტალების და აპლიკაციაში განხორციელებული გადახდების ისტორია.</p>
+
+    <!-- Executive Stats Cards -->
+    @if (txStats(); as s) {
+     <div class="stat-boxes">
+      <div class="stat-box stat-box-emerald">
+       <div class="stat-num" style="color: #047857;">{{ s.totalRevenueGel | number:'1.2-2' }} ₾</div>
+       <div class="stat-label">ჯამური შემოსავალი (GEL)</div>
+      </div>
+      <div class="stat-box stat-box-gold">
+       <div class="stat-num" style="color: #a16207;">⭐️ {{ s.totalRevenueStars | number }}</div>
+       <div class="stat-label">Telegram Stars (XTR)</div>
+      </div>
+      <div class="stat-box stat-box-violet">
+       <div class="stat-num" style="color: #6d28d9;">👑 {{ s.totalSubscriptionsCount }}</div>
+       <div class="stat-label">VIP გამოწერები (აქტიური: {{ s.totalActiveSubscriptionsCount }})</div>
+      </div>
+      <div class="stat-box stat-box-sky">
+       <div class="stat-num" style="color: #0284c7;">💎 {{ s.totalCrystalsSold | number }}</div>
+       <div class="stat-label">გაყიდული კრისტალები</div>
+      </div>
+      <div class="stat-box">
+       <div class="stat-num">{{ s.totalPayingUsersCount }}</div>
+       <div class="stat-label">გადამხდელი მომხმარებლები</div>
+      </div>
+     </div>
+    }
+
+    <!-- Filter Chips -->
+    <div class="filter-chips">
+     <button type="button" class="filter-chip" [class.active]="txCategory() === 'all'" (click)="setTxCategory('all')" [disabled]="busy() || txLoading()">
+      🌟 ყველა შესყიდვა (Real Money)
+     </button>
+     <button type="button" class="filter-chip" [class.active]="txCategory() === 'subscriptions'" (click)="setTxCategory('subscriptions')" [disabled]="busy() || txLoading()">
+      👑 VIP პაკეტები
+     </button>
+     <button type="button" class="filter-chip" [class.active]="txCategory() === 'crystals'" (click)="setTxCategory('crystals')" [disabled]="busy() || txLoading()">
+      💎 კრისტალების პაკეტები
+     </button>
+     <button type="button" class="filter-chip" [class.active]="txCategory() === 'spends'" (click)="setTxCategory('spends')" [disabled]="busy() || txLoading()">
+      ⚡ კრისტალების ხარჯვა (In-App)
+     </button>
+     <button type="button" class="filter-chip" [class.active]="txCategory() === 'everything'" (click)="setTxCategory('everything')" [disabled]="busy() || txLoading()">
+      📜 ყველა აქტივობა
+     </button>
+    </div>
+
+    <!-- Search Toolbar -->
+    <div class="search-bar">
+     <mat-form-field appearance="outline">
+      <mat-label>ძებნა სახელით, Email-ით, Transaction ID-ით ან პაკეტით...</mat-label>
+      <input matInput [formControl]="txSearch" (keydown.enter)="onTxSearch()" placeholder="მაგ: ლადო, alex@mail.com, ch_3...">
+     </mat-form-field>
+     <div class="search-actions">
+      <button mat-flat-button color="primary" (click)="onTxSearch()" [disabled]="busy() || txLoading()">ძებნა</button>
+      @if (txSearch.value) {
+       <button mat-stroked-button (click)="onTxClearSearch()" [disabled]="busy() || txLoading()">გასუფთავება</button>
+      }
+      <button mat-stroked-button (click)="loadTransactions()" [disabled]="busy() || txLoading()">🔄 განახლება</button>
+     </div>
+    </div>
+
+    <!-- Results Banner -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 14px; color: #64748b;">
+     <div>
+      სულ ნაპოვნია: <strong>{{ txTotalCount() }}</strong> ტრანზაქცია
+     </div>
+     @if (txLoading()) {
+      <div style="color: #6366f1; font-weight: 500;">იტვირთება...</div>
+     }
+    </div>
+
+    <!-- Transactions Table -->
+    @if (transactions().length === 0 && !txLoading()) {
+     <mat-card style="text-align: center; padding: 40px 20px; color: #64748b;">
+      <p style="font-size: 32px; margin: 0 0 8px;">💳</p>
+      <p style="font-size: 16px; font-weight: 500; margin: 0 0 4px;">ტრანზაქციები ვერ მოიძებნა</p>
+      <p class="muted">არჩეული ფილტრით ან საძიებო პარამეტრით ჩანაწერები არ არის.</p>
+     </mat-card>
+    } @else {
+     <div class="tx-table-container">
+      <table class="tx-table">
+       <thead>
+        <tr>
+         <th>თარიღი</th>
+         <th>მომხმარებელი</th>
+         <th>პაკეტი / აღწერა</th>
+         <th>ფასი / რაოდენობა</th>
+         <th>პლატფორმა</th>
+         <th>სტატუსი</th>
+         <th>Transaction ID</th>
+        </tr>
+       </thead>
+       <tbody>
+        @for (tx of transactions(); track tx.id) {
+         <tr>
+          <!-- Date -->
+          <td style="white-space: nowrap; color: #475569; font-size: 13px;">
+           <div>{{ tx.createdAtUtc | date:'yyyy-MM-dd' }}</div>
+           <div style="color: #94a3b8; font-size: 12px;">{{ tx.createdAtUtc | date:'HH:mm:ss' }}</div>
+          </td>
+
+          <!-- User -->
+          <td>
+           <div class="tx-user-cell">
+            @if (tx.primaryPhotoId) {
+             <img class="tx-avatar" [src]="'/api/moderation/profiles/photos/' + tx.primaryPhotoId + '/content'" alt="Avatar">
+            } @else {
+             <div class="tx-avatar-placeholder">👤</div>
+            }
+            <div>
+             <div class="tx-user-name">
+              <a href="javascript:void(0)" (click)="inspectProfile(tx.userId)" style="color: #0284c7; text-decoration: none; font-weight: 600;">
+               {{ tx.userDisplayName || 'უცნობი' }}
+              </a>
+             </div>
+             <div class="tx-user-email">{{ tx.userEmail }}</div>
+            </div>
+           </div>
+          </td>
+
+          <!-- Package / Item -->
+          <td>
+           <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+             @if (tx.category === 'subscription') {
+              <span class="badge badge-sub">👑 VIP</span>
+             } @else if (tx.category === 'crystal_purchase') {
+              <span class="badge badge-pack">💎 Store</span>
+             } @else {
+              <span class="badge badge-spend">⚡ In-App</span>
+             }
+             <strong style="color: #1e293b;">{{ tx.itemTitle }}</strong>
+            </div>
+            <div class="muted">{{ tx.itemDescription }}</div>
+            @if (tx.expiresAtUtc) {
+             <div style="font-size: 11px; color: #6366f1;">
+              ვადა: {{ tx.expiresAtUtc | date:'yyyy-MM-dd HH:mm' }}
+             </div>
+            }
+           </div>
+          </td>
+
+          <!-- Price / Amount -->
+          <td style="white-space: nowrap;">
+           @if (tx.priceAmount !== null && tx.priceAmount !== undefined) {
+            @if (tx.currency === 'XTR') {
+             <span class="tx-price-badge tx-price-stars">⭐️ {{ tx.priceAmount | number }} Stars</span>
+            } @else {
+             <span class="tx-price-badge tx-price-gel">{{ tx.priceAmount | number:'1.2-2' }} {{ tx.currency || '₾' }}</span>
+            }
+           } @else if (tx.crystals !== null && tx.crystals !== undefined) {
+            @if (tx.crystals > 0) {
+             <span class="tx-price-badge tx-price-crystals">+{{ tx.crystals }} 💎</span>
+            } @else {
+             <span class="tx-price-badge tx-price-debit">{{ tx.crystals }} 💎</span>
+            }
+           } @else {
+            <span class="muted">—</span>
+           }
+          </td>
+
+          <!-- Platform -->
+          <td style="white-space: nowrap;">
+           <span class="chip" style="font-size: 12px;">{{ tx.platform }}</span>
+          </td>
+
+          <!-- Status -->
+          <td style="white-space: nowrap;">
+           @if (tx.status === 'active') {
+            <span class="badge badge-completed">✅ აქტიური</span>
+           } @else if (tx.status === 'completed') {
+            <span class="badge badge-completed">✅ წარმატებული</span>
+           } @else if (tx.status === 'expired') {
+            <span class="badge" style="background:#f1f5f9; color:#64748b;">⏳ ვადაგასული</span>
+           } @else if (tx.status === 'refunded') {
+            <span class="badge badge-refunded">↩️ დაბრუნებული</span>
+           } @else {
+            <span class="badge" style="background:#f1f5f9; color:#64748b;">{{ tx.status }}</span>
+           }
+          </td>
+
+          <!-- Transaction ID -->
+          <td style="white-space: nowrap; font-family: monospace; font-size: 12px; color: #64748b;">
+           @if (tx.transactionId) {
+            <span [title]="tx.transactionId">{{ tx.transactionId.length > 24 ? (tx.transactionId | slice:0:24) + '…' : tx.transactionId }}</span>
+           } @else {
+            <span class="muted">—</span>
+           }
+          </td>
+         </tr>
+        }
+       </tbody>
+      </table>
+     </div>
+
+     <!-- Pagination Controls -->
+     <div class="pagination-bar">
+      <div class="muted">
+       გვერდი {{ txPage() }} (ნაჩვენებია {{ transactions().length }} ჩანაწერი)
+      </div>
+      <div style="display: flex; gap: 8px;">
+       <button mat-stroked-button (click)="txPrevPage()" [disabled]="txPage() <= 1 || txLoading() || busy()">
+        ← წინა გვერდი
+       </button>
+       <button mat-stroked-button (click)="txNextPage()" [disabled]="txPage() * txPageSize() >= txTotalCount() || txLoading() || busy()">
+        შემდეგი გვერდი →
+       </button>
+      </div>
+     </div>
+    }
+   </section>
   }
 
   @if (tab() === 'photos') {

@@ -8,13 +8,15 @@ COPY packages/ packages/
 COPY mobile/package*.json ./mobile/
 COPY admin/package*.json ./admin/
 
-# Install dependencies for mobile and contract
-RUN npm ci --workspace @dating/mobile --workspace @dating/api-contract
+# Install dependencies for all workspaces
+RUN npm ci
 
-# Copy mobile source code
+# Copy source code
 COPY mobile/ mobile/
+COPY admin/ admin/
 
-# Build Expo web bundle
+# Build Admin and Expo web bundle
+RUN npm run build --workspace admin
 RUN cd mobile && npx expo export -p web --output-dir dist/web
 
 # Runtime stage
@@ -23,6 +25,7 @@ WORKDIR /app
 
 COPY scripts/serve-web.mjs ./scripts/serve-web.mjs
 COPY --from=build /app/mobile/dist/web ./mobile/dist/web
+COPY --from=build /app/admin/dist/admin/browser ./admin/dist/admin/browser
 
 ENV NODE_ENV=production
 ENV PORT=8080

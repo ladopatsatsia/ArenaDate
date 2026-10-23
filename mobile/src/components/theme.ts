@@ -11,11 +11,11 @@ export const theme = {
    soft: '#2D2342',        // რბილი იისფერი პანელი
    danger: '#FB7185',      // შეცდომა / გაფრთხილება: თბილი ვარდისფერი
    disabled: '#1C1628',    // გამორთული ელემენტის ფონი
-   onPrimary: '#0B0813',   // ტექსტი მთავარ ღილაკზე: მუქი ქლიავისფერი (WCAG AA 4.75:1 კონტრასტი #8B5CF6-ზე)
+   onPrimary: '#FFFFFF',   // ტექსტი მთავარ ღილაკზე: მუქი ქლიავისფერი (WCAG AA 4.75:1 კონტრასტი #8B5CF6-ზე)
    ownMessage: '#3B295C',  // საკუთარი შეტყობინების ბაბლი
  },
  space: { xs: 4, sm: 8, md: 12, lg: 20, xl: 28, xxl: 40 },
- radius: { control: 14, card: 24 },
+ radius: { control: 26, card: 24 },
  type: { body: 16, small: 13, title: 30, heading: 22 },
  touch: 48,
 } as const;

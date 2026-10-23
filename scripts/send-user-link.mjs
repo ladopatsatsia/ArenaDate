@@ -1,9 +1,11 @@
 const token = '8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg';
-const chatId = process.argv[2] || '5735625723';
-const publicUrl = process.argv[3] || 'https://kits-dns-optional-pulling.trycloudflare.com';
+const chatId = process.argv[2] || '8233503382';
+const publicUrl = process.argv[3] || 'https://equality-elect-hair-toner.trycloudflare.com';
 
 async function main() {
-  console.log(`Updating for ChatId=${chatId} with URL=${publicUrl}...`);
+  const ts = Date.now();
+  const freshUrl = `${publicUrl}/?v=${ts}`;
+  console.log(`Updating for ChatId=${chatId} with URL=${freshUrl}...`);
 
   // 1. Update personal chat menu button
   try {
@@ -15,7 +17,7 @@ async function main() {
         menu_button: {
           type: 'web_app',
           text: 'ARENA',
-          web_app: { url: `${publicUrl}/` }
+          web_app: { url: freshUrl }
         }
       })
     });
@@ -25,20 +27,26 @@ async function main() {
     console.error('Menu error:', err.message);
   }
 
-  // 2. Send message with inline WebApp button
+  // 2. Send message with inline WebApp button and Direct Browser link
   try {
     const msgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: Number(chatId),
-        text: '🔥 ARENA განახლდა! დააჭირეთ ქვედა ღილაკს აპლიკაციის გასახსნელად:',
+        text: '🚀 ARENA განახლდა!\n\nთუ ტელეფონით ძველი ვერსია ან შეცდომა გხვდებათ:\n1. დააჭირეთ „🚀 ARENA-ს გახსნა“ ღილაკს.\n2. თუ მაინც არ იხსნება, ზედა მარჯვენა კუთხეში სამ წერტილს (⋮) დააჭირეთ და აირჩიეთ „Reload Page“ / გვერდის განახლება.',
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: '🚀 ARENA-ს გახსნა',
-                web_app: { url: `${publicUrl}/` }
+                text: '🚀 ARENA-ს გახსნა (Mini App)',
+                web_app: { url: freshUrl }
+              }
+            ],
+            [
+              {
+                text: '🌐 ბრაუზერში შემოწმება',
+                url: freshUrl
               }
             ]
           ]

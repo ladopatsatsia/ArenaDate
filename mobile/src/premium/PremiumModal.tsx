@@ -223,6 +223,39 @@ export function PremiumModal({ visible, onClose, onSuccess }: PremiumModalProps)
                   </Text>
                 </View>
               </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitIcon}>🗓️</Text>
+                <View style={styles.benefitContent}>
+                  <Text style={styles.benefitTitle}>
+                    {t('premium_benefit_today_plans_title', '„დღეს მინდა“ — 3 აქტიური გეგმა')}
+                  </Text>
+                  <Text style={styles.benefitDesc}>
+                    {t('premium_benefit_today_plans_desc', 'შექმენი 3 აქტიური გეგმა ერთდროულად (1-ის ნაცვლად)')}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitIcon}>💬</Text>
+                <View style={styles.benefitContent}>
+                  <Text style={styles.benefitTitle}>
+                    {t('premium_benefit_today_responses_title', '„დღეს მინდა“ — 10 გამოხმაურება დღეში')}
+                  </Text>
+                  <Text style={styles.benefitDesc}>
+                    {t('premium_benefit_today_responses_desc', 'გამოეხმაურე სხვების გეგმებს 10-ჯერ დღეში (3-ის ნაცვლად)')}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitIcon}>✈️</Text>
+                <View style={styles.benefitContent}>
+                  <Text style={styles.benefitTitle}>
+                    {t('premium_benefit_passport_title', 'კონკრეტული ქვეყნის არჩევა (Passport)')}
+                  </Text>
+                  <Text style={styles.benefitDesc}>
+                    {t('premium_benefit_passport_desc', 'მოძებნე და ისვაიპე მსოფლიოს ნებისმიერ სასურველ ქვეყანაში')}
+                  </Text>
+                </View>
+              </View>
             </View>
 
             {/* Packages Selector */}

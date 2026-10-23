@@ -3766,6 +3766,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/moderation/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    category?: string;
+                    search?: string;
+                    page?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminTransactionsResponse"];
+                        "text/json": components["schemas"]["AdminTransactionsResponse"];
+                        "text/plain": components["schemas"]["AdminTransactionsResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/moderation/users": {
         parameters: {
             query?: never;
@@ -5740,6 +5782,54 @@ export interface components {
             /** Format: uuid */
             userId: string;
             visible: boolean;
+        };
+        AdminTransactionDto: {
+            category: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: int32 */
+            crystals: null | number | string;
+            currency: null | string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            id: string;
+            itemDescription: string;
+            itemTitle: string;
+            platform: string;
+            /** Format: double */
+            priceAmount: null | number | string;
+            /** Format: uuid */
+            primaryPhotoId: null | string;
+            status: string;
+            transactionId: null | string;
+            userDisplayName: string;
+            userEmail: string;
+            /** Format: uuid */
+            userId: string;
+        };
+        AdminTransactionsResponse: {
+            items: components["schemas"]["AdminTransactionDto"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            stats: components["schemas"]["AdminTransactionsStatsDto"];
+            /** Format: int32 */
+            totalCount: number | string;
+        };
+        AdminTransactionsStatsDto: {
+            /** Format: int32 */
+            totalActiveSubscriptionsCount: number | string;
+            /** Format: int32 */
+            totalCrystalsSold: number | string;
+            /** Format: int32 */
+            totalPayingUsersCount: number | string;
+            /** Format: double */
+            totalRevenueGel: number | string;
+            /** Format: int32 */
+            totalRevenueStars: number | string;
+            /** Format: int32 */
+            totalSubscriptionsCount: number | string;
         };
         AnswerQuestionRequest: {
             idempotencyKey: string;

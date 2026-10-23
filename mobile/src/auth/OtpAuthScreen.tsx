@@ -1,28 +1,53 @@
-import { Button, Text, TextInput, Card } from '../components/UI';
-import { useState, useEffect } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Button, Text, Card } from '../components/UI';
+import { useState, useEffect, useCallback } from 'react';
+import { Image, StyleSheet, View, Linking, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Screen } from '../components/Screen';
 import { theme } from '../components/theme';
-import { ApiError } from './api';
 import { useAuth } from './AuthProvider';
 import { getTelegramWebApp, isTelegramMiniApp, triggerHaptic } from '../telegram/telegramSdk';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const logoSource = require('../../assets/logo.png');
 
-export function OtpAuthScreen({ onSwitchToPassword }: { onSwitchToPassword?: () => void }) {
+const TELEGRAM_BOT_URL = 'https://t.me/ArenaDate_Bot/app';
+
+export function OtpAuthScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { manager, api } = useAuth();
 
-  const [step, setStep] = useState<'email' | 'code'>('email');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inTelegram, setInTelegram] = useState(() => isTelegramMiniApp());
+
+  const handleTelegramLogin = useCallback(async () => {
+    const tg = getTelegramWebApp();
+    if (!tg || !tg.initData) {
+      setError('auth_telegram_browser_note');
+      setInTelegram(false);
+      return;
+    }
+    setInTelegram(true);
+    setError(null);
+    setBusy(true);
+    triggerHaptic('medium');
+    try {
+      const res = await api.loginTelegram({ initData: tg.initData });
+      await manager.signInWithTokens(res.tokens);
+      if (res.isNewUser || !res.hasCompleteProfile) {
+        router.replace('/onboarding');
+      } else {
+        router.replace('/(tabs)/discover');
+      }
+    } catch (err: unknown) {
+      console.error('[LoginTelegram Error]:', err);
+      setError('auth_telegram_error');
+    } finally {
+      setBusy(false);
+    }
+  }, [api, manager, router]);
 
   useEffect(() => {
     const checkAndLogin = () => {
@@ -43,82 +68,13 @@ export function OtpAuthScreen({ onSwitchToPassword }: { onSwitchToPassword?: () 
       clearTimeout(t2);
       clearTimeout(t3);
     };
-  }, []);
+  }, [handleTelegramLogin]);
 
-  const handleTelegramLogin = async () => {
-    const tg = getTelegramWebApp();
-    if (!tg || !tg.initData) return;
-    setError(null);
-    setBusy(true);
-    triggerHaptic('medium');
-    try {
-      const res = await api.loginTelegram({ initData: tg.initData });
-      await manager.signInWithTokens(res.tokens);
-      if (res.isNewUser || !res.hasCompleteProfile) {
-        router.replace('/onboarding');
-      } else {
-        router.replace('/(tabs)/discover');
-      }
-    } catch (err: unknown) {
-      console.error('[LoginTelegram Error]:', err);
-      setError('request_failed');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSendCode = async () => {
-    const trimmed = email.trim();
-    if (!trimmed || !trimmed.includes('@') || !trimmed.includes('.')) {
-      setError('invalid_field');
-      return;
-    }
-    setError(null);
-    setBusy(true);
-    try {
-      console.log('[OtpAuthScreen] Sending OTP to:', trimmed);
-      await api.sendOtp({ email: trimmed });
-      setStep('code');
-      setCode('1111'); // Convenient dev pre-fill or user can enter it
-    } catch (err: unknown) {
-      console.error('[SendOtp Error]:', err);
-      if (err instanceof ApiError && err.status === 429) {
-        setError('rate_limited');
-      } else {
-        setError('request_failed');
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    const trimmedCode = code.trim();
-    if (trimmedCode.length !== 4) {
-      setError('invalid_code');
-      return;
-    }
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await api.verifyOtp({ email: email.trim(), code: trimmedCode });
-      await manager.signInWithTokens(res.tokens);
-
-      if (res.isNewUser || !res.hasCompleteProfile) {
-        router.replace('/onboarding');
-      } else {
-        router.replace('/(tabs)/discover');
-      }
-    } catch (err: unknown) {
-      if (err instanceof ApiError && (err.code === 'invalid_code' || err.status === 400)) {
-        setError('invalid_code');
-      } else if (err instanceof ApiError && err.status === 429) {
-        setError('rate_limited');
-      } else {
-        setError('request_failed');
-      }
-    } finally {
-      setBusy(false);
+  const handleOpenBot = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(TELEGRAM_BOT_URL, '_blank');
+    } else {
+      void Linking.openURL(TELEGRAM_BOT_URL);
     }
   };
 
@@ -136,137 +92,72 @@ export function OtpAuthScreen({ onSwitchToPassword }: { onSwitchToPassword?: () 
 
       <Card style={styles.authCard}>
         <Text accessibilityRole="header" style={styles.cardHeader}>
-          {t('auth_otp_title')}
+          {t('auth_telegram_title', 'ავტორიზაცია')}
         </Text>
 
-        {step === 'email' ? (
+        {inTelegram ? (
           <>
-            {inTelegram && (
-              <View style={styles.telegramBox}>
-                <Button
-                  testID="tg-login-btn"
-                  variant="primary"
-                  busy={busy}
-                  disabled={busy}
-                  title={busy ? t('working') : t('auth_telegram', '✈️ შესვლა Telegram-ით')}
-                  onPress={() => void handleTelegramLogin()}
-                />
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>{t('or', 'ან')}</Text>
-                  <View style={styles.dividerLine} />
-                </View>
+            <Text style={styles.cardSubtitle}>
+              {t('auth_telegram_sub', 'სწრაფი და უსაფრთხო შესვლა Telegram ანგარიშით')}
+            </Text>
+
+            {error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText} accessibilityRole="alert">
+                  {t(error, 'ავტორიზაცია ვერ მოხერხდა. გთხოვთ სცადოთ ხელახლა.')}
+                </Text>
               </View>
             )}
 
-            <Text style={styles.cardSubtitle}>{t('auth_otp_email_hint')}</Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{t('field_email')}</Text>
-              <TextInput
-                testID="otp-email-input"
-                accessibilityLabel={t('field_email')}
-                style={styles.input}
-                value={email}
-                onChangeText={(val) => {
-                  setEmail(val);
-                  setError(null);
-                }}
-                placeholder="name@example.com"
-                placeholderTextColor={theme.colors.muted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                autoComplete="email"
-                maxLength={254}
-              />
-            </View>
-
-            {error && (
-              <Text style={styles.errorText} accessibilityRole="alert">
-                {t(error)}
-              </Text>
-            )}
-
             <Button
-              testID="otp-send-btn"
+              testID="tg-login-btn"
               variant="primary"
               busy={busy}
-              disabled={busy || !email.trim()}
-              title={busy ? t('working') : t('auth_otp_send_btn')}
-              onPress={() => {
-                void handleSendCode();
-              }}
+              disabled={busy}
+              title={busy ? t('working', 'მიმდინარეობს შესვლა...') : t('auth_telegram', '✈️ შესვლა Telegram-ით')}
+              onPress={() => void handleTelegramLogin()}
             />
           </>
         ) : (
           <>
             <Text style={styles.cardSubtitle}>
-              {t('auth_otp_code_sent_to', { email: email.trim() })}
+              {t(
+                'auth_telegram_browser_note',
+                'აპლიკაციაში შესვლა შესაძლებელია მხოლოდ Telegram-ის მეშვეობით. გასაგრძელებლად გახსენით ჩვენი ოფიციალური ბოტი.'
+              )}
             </Text>
 
-            <View style={styles.devBadge}>
-              <Text style={styles.devBadgeText}>✨ {t('auth_otp_dev_hint')}</Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{t('auth_otp_enter_code')}</Text>
-              <TextInput
-                testID="otp-code-input"
-                accessibilityLabel={t('auth_otp_enter_code')}
-                style={[styles.input, styles.codeInput]}
-                value={code}
-                onChangeText={(val) => {
-                  setCode(val.replace(/\D/g, '').slice(0, 4));
-                  setError(null);
-                }}
-                placeholder="1111"
-                placeholderTextColor={theme.colors.muted}
-                keyboardType="number-pad"
-                maxLength={4}
-                autoFocus
-              />
-            </View>
-
             {error && (
-              <Text style={styles.errorText} accessibilityRole="alert">
-                {t(error)}
-              </Text>
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText} accessibilityRole="alert">
+                  {t(error, 'ავტორიზაცია ვერ მოხერხდა. გთხოვთ სცადოთ ხელახლა.')}
+                </Text>
+              </View>
             )}
 
             <Button
-              testID="otp-verify-btn"
+              testID="open-telegram-bot-btn"
               variant="primary"
-              busy={busy}
-              disabled={busy || code.trim().length !== 4}
-              title={busy ? t('working') : t('auth_otp_verify_btn')}
-              onPress={() => {
-                void handleVerifyCode();
-              }}
+              title={t('auth_telegram_open_bot', '🤖 Telegram-ში გახსნა')}
+              onPress={handleOpenBot}
             />
 
-            <Pressable
-              accessibilityRole="button"
+            <Button
+              testID="retry-telegram-check-btn"
+              variant="secondary"
+              busy={busy}
+              disabled={busy}
+              title={t('auth_telegram_retry', 'ხელახლა შემოწმება')}
               onPress={() => {
-                setStep('email');
-                setCode('');
-                setError(null);
+                if (isTelegramMiniApp()) {
+                  setInTelegram(true);
+                  void handleTelegramLogin();
+                } else {
+                  setError('auth_telegram_browser_note');
+                }
               }}
-              style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={styles.backBtnText}>← {t('auth_otp_change_email')}</Text>
-            </Pressable>
+            />
           </>
-        )}
-
-        {onSwitchToPassword && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onSwitchToPassword}
-            style={({ pressed }) => [styles.switchBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Text style={styles.switchBtnText}>{t('auth_password_link')}</Text>
-          </Pressable>
         )}
       </Card>
     </Screen>
@@ -308,86 +199,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  devBadge: {
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    borderColor: 'rgba(139, 92, 246, 0.4)',
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    alignSelf: 'center',
-  },
-  devBadgeText: {
-    color: '#C4B5FD',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     borderRadius: 10,
-    padding: 12,
-    minHeight: 48,
-    color: theme.colors.text,
-    fontSize: 16,
-  },
-  codeInput: {
-    letterSpacing: 8,
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: '700',
+    padding: 10,
   },
   errorText: {
-    color: '#EF4444',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  backBtn: {
-    alignSelf: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  backBtnText: {
-    color: theme.colors.muted,
-    fontSize: 14,
-  },
-  switchBtn: {
-    alignSelf: 'center',
-    paddingVertical: 6,
-    marginTop: 4,
-  },
-  switchBtnText: {
-    color: theme.colors.primary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  telegramBox: {
-    marginBottom: 8,
-    gap: 12,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-    gap: 10,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.colors.border,
-  },
-  dividerText: {
-    color: theme.colors.muted,
     fontSize: 13,
-    fontWeight: '500',
+    color: theme.colors.danger,
+    textAlign: 'center',
   },
 });

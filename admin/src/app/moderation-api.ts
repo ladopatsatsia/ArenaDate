@@ -94,6 +94,39 @@ export interface TelegramBroadcastResult {
   blockedCount: number;
   completedAtUtc: string;
 }
+export interface AdminTransactionDto {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userDisplayName: string;
+  primaryPhotoId: string | null;
+  category: 'subscription' | 'crystal_purchase' | 'crystal_spend' | string;
+  itemTitle: string;
+  itemDescription: string;
+  priceAmount: number | null;
+  currency: string | null;
+  crystals: number | null;
+  platform: string;
+  status: 'active' | 'completed' | 'expired' | 'refunded' | 'inactive' | string;
+  transactionId: string | null;
+  createdAtUtc: string;
+  expiresAtUtc: string | null;
+}
+export interface AdminTransactionsStats {
+  totalRevenueGel: number;
+  totalRevenueStars: number;
+  totalSubscriptionsCount: number;
+  totalActiveSubscriptionsCount: number;
+  totalCrystalsSold: number;
+  totalPayingUsersCount: number;
+}
+export interface AdminTransactionsResponse {
+  items: AdminTransactionDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  stats: AdminTransactionsStats;
+}
 @Injectable({ providedIn: 'root' })
 export class ModerationApi {
  private readonly http = inject(HttpClient);
@@ -131,6 +164,15 @@ export class ModerationApi {
  broadcastTelegram(input: TelegramBroadcastRequest): Promise<TelegramBroadcastResult> {
   return this.postReturn<TelegramBroadcastResult>('/broadcast-telegram', input);
  }
+ listTransactions(category = 'all', search?: string, page = 1, pageSize = 50): Promise<AdminTransactionsResponse> {
+  const query = new URLSearchParams();
+  if (category) query.set('category', category);
+  if (search) query.set('search', search);
+  query.set('page', page.toString());
+  query.set('pageSize', pageSize.toString());
+  return this.get<AdminTransactionsResponse>('/transactions?' + query.toString());
+ }
+
  async get<T>(path: string): Promise<T> { try { return await firstValueFrom(this.http.get<T>(this.base + path)); } catch (e) { this.expired(e); throw e; } }
  async post(path: string, body: unknown): Promise<void> { try { await firstValueFrom(this.http.post<void>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }
  async postReturn<T>(path: string, body: unknown): Promise<T> { try { return await firstValueFrom(this.http.post<T>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }

@@ -6,6 +6,7 @@ import {
   AppState,
   FlatList,
   KeyboardAvoidingView,
+  LayoutAnimation,
   Platform,
   StyleSheet,
   View,
@@ -14,6 +15,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  TextInput as NativeTextInput,
   type ViewToken,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -74,6 +76,7 @@ export function ChatScreen({ id, peerName, account }: { id: string; peerName?: s
   const [peerRead, setPeerRead] = useState('0');
   const [before, setBefore] = useState<string | null>(null);
   const [text, setText] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const [notice, setNotice] = useState('');
   const [sending, setSending] = useState(false);
   const [ready, setReady] = useState(false);
@@ -88,6 +91,7 @@ export function ChatScreen({ id, peerName, account }: { id: string; peerName?: s
   // Media, Voice and Emojis
   const [authToken, setAuthToken] = useState<string | undefined>(undefined);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const isInputExpanded = isInputFocused || text.trim().length > 0 || showEmojiPicker;
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [uploadingMedia, setUploadingMedia] = useState(false);
@@ -709,64 +713,98 @@ export function ChatScreen({ id, peerName, account }: { id: string; peerName?: s
         </View>
       ) : (
         <View style={styles.composerWrap}>
-          {/* Quick Action Icons: Emojis & Photos */}
-          <TouchableOpacity
-            style={styles.composerIconBtn}
-            onPress={() => setShowEmojiPicker((prev) => !prev)}
-            accessibilityRole="button"
-            accessibilityLabel={t('chat_emoji_btn', 'ემოჯები')}
-            testID="toggle-emoji-btn"
-          >
-            <Text style={styles.composerIconText}>{showEmojiPicker ? '⌨️' : '😊'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.composerIconBtn}
-            onPress={() => { void handlePickPhoto(); }}
-            disabled={uploadingMedia || sending}
-            accessibilityRole="button"
-            accessibilityLabel={t('chat_photo_btn', 'ფოტოს გაგზავნა')}
-            testID="pick-photo-btn"
-          >
-            {uploadingMedia ? (
-              <ActivityIndicator size="small" color="#8b5cf6" />
-            ) : (
-              <Text style={styles.composerIconText}>📷</Text>
-            )}
-          </TouchableOpacity>
-
-          <TextInput
-            testID="chat-message"
-            accessibilityLabel={t('chat_message')}
-            placeholder={t('chat_message')}
-            multiline
-            maxLength={2000}
-            value={text}
-            onChangeText={setText}
-            editable={!pending && !sending && ready}
-            style={styles.composerInput}
-          />
-
-          {text.trim().length === 0 ? (
+          {/* Left Actions: Voice Recording on left (FB Messenger style) & Photo */}
+          <View style={styles.leftActions}>
             <TouchableOpacity
-              style={styles.voiceRecordBtn}
+              style={styles.messengerVoiceBtn}
               onPress={() => { void handleStartRecording(); }}
               disabled={!ready || !!pending || sending || notice === 'chat_unavailable'}
               accessibilityRole="button"
               accessibilityLabel={t('chat_record_voice', 'ხმოვანის ჩაწერა')}
               testID="start-voice-btn"
             >
-              <Text style={styles.voiceRecordIcon}>🎤</Text>
+              <Text style={styles.messengerVoiceIcon}>🎙️</Text>
             </TouchableOpacity>
-          ) : (
-            <Button
-              testID="chat-send"
-              variant="primary"
-              title={t(sending ? 'working' : 'chat_send')}
-              disabled={!ready || !!pending || sending || !text.trim() || notice === 'chat_unavailable'}
-              onPress={() => { void send(); }}
+
+            {!isInputExpanded && (
+              <TouchableOpacity
+                style={styles.messengerActionBtn}
+                onPress={() => { void handlePickPhoto(); }}
+                disabled={uploadingMedia || sending}
+                accessibilityRole="button"
+                accessibilityLabel={t('chat_photo_btn', 'ფოტოს გაგზავნა')}
+                testID="pick-photo-btn"
+              >
+                {uploadingMedia ? (
+                  <ActivityIndicator size="small" color="#8b5cf6" />
+                ) : (
+                  <Text style={styles.messengerActionIcon}>📷</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Facebook Messenger Style Input Pill with inside Emoji Smile */}
+          <View style={[styles.messengerPill, isInputExpanded && styles.messengerPillExpanded]}>
+            <NativeTextInput
+              testID="chat-message"
+              accessibilityLabel={t('chat_message')}
+              placeholder={t('chat_message')}
+              placeholderTextColor="rgba(255, 255, 255, 0.45)"
+              multiline
+              maxLength={2000}
+              value={text}
+              onChangeText={setText}
+              onFocus={() => {
+                if (Platform.OS !== 'web') {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                }
+                setIsInputFocused(true);
+              }}
+              onBlur={() => {
+                if (Platform.OS !== 'web') {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                }
+                setIsInputFocused(false);
+              }}
+              editable={!pending && !sending && ready}
+              style={styles.messengerPillInput}
             />
-          )}
+
+            {/* Emoji smile button INSIDE the text input capsule on the right side */}
+            <TouchableOpacity
+              style={styles.pillEmojiBtn}
+              onPress={() => setShowEmojiPicker((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={t('chat_emoji_btn', 'ემოჯები')}
+              testID="toggle-emoji-btn"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.pillEmojiText}>{showEmojiPicker ? '⌨️' : '😊'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Right side: small send logo button */}
+          <TouchableOpacity
+            testID="chat-send"
+            style={[
+              styles.messengerSendBtn,
+              text.trim().length > 0 ? styles.messengerSendBtnActive : styles.messengerSendBtnDisabled,
+            ]}
+            disabled={!ready || !!pending || sending || !text.trim() || notice === 'chat_unavailable'}
+            onPress={() => { void send(); }}
+            accessibilityRole="button"
+            accessibilityLabel={t(sending ? 'working' : 'chat_send')}
+            activeOpacity={0.7}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={[styles.messengerSendIcon, text.trim().length > 0 && styles.messengerSendIconActive]}>
+                ➤
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
       )}
 
@@ -1046,10 +1084,112 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#130d21',
     gap: 8,
   },
+  leftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  messengerVoiceBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(139, 92, 246, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+  },
+  messengerVoiceIcon: {
+    fontSize: 18,
+  },
+  messengerActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messengerActionIcon: {
+    fontSize: 18,
+  },
+  messengerPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingLeft: 14,
+    paddingRight: 6,
+    minHeight: 40,
+    maxHeight: 120,
+    ...(Platform.OS === 'web' ? ({ transition: 'all 0.22s ease-in-out' } as any) : {}),
+  },
+  messengerPillExpanded: {
+    borderColor: '#8b5cf6',
+    backgroundColor: 'rgba(255, 255, 255, 0.11)',
+    ...(Platform.OS === 'web' ? ({ boxShadow: '0 0 10px rgba(139, 92, 246, 0.25)' } as any) : {}),
+  },
+  messengerPillInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 15,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    paddingRight: 6,
+    maxHeight: 100,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
+  },
+  pillEmojiBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  pillEmojiText: {
+    fontSize: 20,
+  },
+  messengerSendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  messengerSendBtnActive: {
+    backgroundColor: '#8b5cf6',
+    borderColor: '#8b5cf6',
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  messengerSendBtnDisabled: {
+    opacity: 0.35,
+  },
+  messengerSendIcon: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginLeft: 2,
+    fontWeight: '700',
+  },
+  messengerSendIconActive: {
+    color: '#ffffff',
+  },
+  // Kept for backward compatibility if referenced elsewhere
   composerIconBtn: {
     width: 36,
     height: 36,

@@ -126,7 +126,7 @@ public static class AuthSetup
 public sealed class ProductionAuthValidator(IHostEnvironment environment) : IValidateOptions<AuthOptions>
 {
     public ValidateOptionsResult Validate(string? name, AuthOptions options) =>
-        environment.IsDevelopment() || environment.IsEnvironment("Testing") || string.IsNullOrWhiteSpace(options.KeyCertificatePath) || File.Exists(options.KeyCertificatePath)
+        environment.IsDevelopment() || environment.IsEnvironment("Testing") || (!string.IsNullOrWhiteSpace(options.KeyCertificatePath) && File.Exists(options.KeyCertificatePath))
             ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail("Configured key certificate does not exist.");
 }
 public sealed class EmailValidator(IHostEnvironment environment) : IValidateOptions<EmailOptions>

@@ -1,6 +1,7 @@
 import { forwardRef, type ComponentProps, type PropsWithChildren } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text as NativeText,
@@ -51,14 +52,25 @@ export function Button({
   textStyle,
   ...props
 }: ButtonProps & {
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'vip' | 'romance';
   selected?: boolean;
   busy?: boolean;
   style?: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>);
   textStyle?: StyleProp<TextStyle>;
 }) {
   const chosen = selected ?? title.startsWith('✓ ');
-  const filled = variant === 'primary' || chosen;
+  const isVip = variant === 'vip';
+  const isDanger = variant === 'danger';
+  const filled = variant === 'primary' || variant === 'romance' || chosen;
+
+  const spinnerColor = isVip
+    ? '#FCD34D'
+    : filled
+    ? '#FFFFFF'
+    : isDanger
+    ? theme.colors.danger
+    : '#FB7185';
+
   return (
     <Pressable
       {...props}
@@ -71,19 +83,21 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         filled && styles.primary,
-        variant === 'danger' && styles.danger,
+        isVip && styles.vip,
+        isDanger && styles.danger,
         (disabled || busy) && styles.disabled,
         pressed && !disabled && styles.pressed,
         typeof style === 'function' ? style({ pressed }) : style,
       ]}
     >
-      {busy && <ActivityIndicator color={filled ? theme.colors.onPrimary : theme.colors.primary} />}
+      {busy && <ActivityIndicator size="small" color={spinnerColor} />}
       <Text
         style={[
           styles.buttonText,
           color ? { color } : undefined,
           filled && styles.primaryText,
-          variant === 'danger' && styles.dangerText,
+          isVip && styles.vipText,
+          isDanger && styles.dangerText,
           (disabled || busy) && styles.disabledText,
           textStyle,
         ]}
@@ -159,31 +173,108 @@ const styles = StyleSheet.create({
   heading: { fontSize: theme.type.heading, fontWeight: '700', lineHeight: 32 },
   error: { color: theme.colors.danger },
   button: {
-    minHeight: theme.touch,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.control,
-    backgroundColor: theme.colors.surface,
+    minHeight: 52,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(251, 113, 133, 0.35)',
+    borderRadius: 28,
+    backgroundColor: '#271C38',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
+    ...(Platform.OS === 'web'
+      ? ({
+          cursor: 'pointer',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+          userSelect: 'none',
+        } as any)
+      : {}),
   },
-  primary: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-  danger: { borderColor: theme.colors.danger },
-  disabled: { backgroundColor: theme.colors.disabled, borderColor: theme.colors.disabled },
-  pressed: { opacity: 0.8 },
+  primary: {
+    backgroundColor: '#FB7185',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#FB7185',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 8,
+    ...(Platform.OS === 'web'
+      ? ({
+          background: 'linear-gradient(135deg, #FB7185 0%, #8B5CF6 100%)',
+          boxShadow: '0 4px 22px rgba(251, 113, 133, 0.45)',
+        } as any)
+      : {}),
+  },
+  vip: {
+    backgroundColor: '#15101E',
+    borderColor: '#F59E0B',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+    ...(Platform.OS === 'web'
+      ? ({
+          background: 'linear-gradient(135deg, #1C1824 0%, #0D0A14 100%)',
+          boxShadow: '0 4px 20px rgba(245, 158, 11, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.15)',
+        } as any)
+      : {}),
+  },
+  danger: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  disabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowOpacity: 0,
+    elevation: 0,
+    opacity: 0.5,
+    ...(Platform.OS === 'web'
+      ? ({
+          boxShadow: 'none',
+          cursor: 'not-allowed',
+        } as any)
+      : {}),
+  },
+  pressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.97 }],
+  },
   buttonText: {
-    color: theme.colors.primary,
-    fontWeight: '600',
+    color: '#FB7185',
+    fontWeight: '700',
+    fontSize: 15,
     textAlign: 'center',
     flexShrink: 1,
+    letterSpacing: 0.3,
   },
-  primaryText: { color: theme.colors.onPrimary },
-  dangerText: { color: theme.colors.danger },
-  disabledText: { color: theme.colors.muted },
+  primaryText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  vipText: {
+    color: '#FCD34D',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  dangerText: {
+    color: '#EF4444',
+    fontWeight: '700',
+  },
+  disabledText: {
+    color: theme.colors.muted,
+  },
   input: {
     minHeight: 52,
     borderWidth: 1,

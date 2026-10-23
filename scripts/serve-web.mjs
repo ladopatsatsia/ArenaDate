@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = path.resolve(__dirname, '../mobile/dist/web');
+const ADMIN_DIST_DIR = path.resolve(__dirname, '../admin/dist/admin/browser');
 const PORT = process.env.PORT || 8081;
 
 // Flexible API destination (supports API_URL=http://... or API_PORT=5180)
@@ -61,6 +62,29 @@ const server = http.createServer((req, res) => {
     });
 
     req.pipe(proxyReq);
+    return;
+  }
+
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    let subPath = pathname === '/admin' ? '/' : pathname.slice('/admin'.length);
+    let filePath = path.join(ADMIN_DIST_DIR, subPath);
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      filePath = path.join(ADMIN_DIST_DIR, 'index.html');
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Admin Not Found');
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      });
+      res.end(data);
+    });
     return;
   }
 

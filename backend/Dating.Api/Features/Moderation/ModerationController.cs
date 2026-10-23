@@ -3,6 +3,7 @@ using System.Text.Json;
 using Dating.Api.Features.Auth;
 using Dating.Api.Features.Game;
 using Dating.Api.Features.Game.Wallet;
+using Dating.Api.Features.Premium;
 using Dating.Api.Features.Profiles;
 using Dating.Api.Features.Safety;
 using Dating.Api.Persistence;
@@ -258,4 +259,346 @@ public sealed class ModerationController(AppDbContext db,ModerationService servi
      await db.SaveChangesAsync(ct);
      return result;
  }
+
+ [HttpGet("transactions")]
+ public async Task<AdminTransactionsResponse> Transactions(
+     [FromQuery] string? category = "all",
+     [FromQuery] string? search = null,
+     [FromQuery] int page = 1,
+     [FromQuery] int pageSize = 50,
+     CancellationToken ct = default)
+ {
+     var now = DateTimeOffset.UtcNow;
+     var normCategory = (category ?? "all").Trim().ToLowerInvariant();
+     var term = (search ?? "").Trim().ToLowerInvariant();
+     var safePage = Math.Max(1, page);
+     var safePageSize = Math.Clamp(pageSize, 1, 100);
+     var skip = (safePage - 1) * safePageSize;
+
+     // 1. Overall stats
+     var totalSubscriptionsCount = await db.Set<UserSubscription>().CountAsync(ct);
+     var totalActiveSubscriptionsCount = await db.Set<UserSubscription>()
+         .CountAsync(s => s.IsActive && (s.ExpiresAtUtc == null || s.ExpiresAtUtc > now), ct);
+
+     var subGelRevenue = await db.Set<UserSubscription>()
+         .Where(s => s.Currency == "GEL")
+         .SumAsync(s => (decimal?)s.PriceAmount, ct) ?? 0m;
+
+     var subStarsRevenue = await db.Set<UserSubscription>()
+         .Where(s => s.Currency == "XTR")
+         .SumAsync(s => (int?)s.PriceAmount, ct) ?? 0;
+
+     var storeGelRevenue = await db.Set<StorePurchase>()
+         .Where(s => s.Status == "Credited" && s.PriceCurrency == "GEL" && s.PriceAmount != null)
+         .SumAsync(s => s.PriceAmount, ct) ?? 0m;
+
+     var storeStarsRevenue = await db.Set<StorePurchase>()
+         .Where(s => s.Status == "Credited" && s.PriceCurrency == "XTR" && s.PriceAmount != null)
+         .SumAsync(s => (int?)s.PriceAmount, ct) ?? 0;
+
+     var totalCrystalsSold = await db.Set<StorePurchase>()
+         .Where(s => s.Status == "Credited")
+         .SumAsync(s => (int?)s.Amount, ct) ?? 0;
+
+     var payingUsersCount = await db.Set<UserSubscription>()
+         .Select(s => s.UserId)
+         .Union(db.Set<StorePurchase>().Where(s => s.Status == "Credited").Select(p => p.UserId))
+         .Distinct()
+         .CountAsync(ct);
+
+     var stats = new AdminTransactionsStatsDto(
+         TotalRevenueGel: subGelRevenue + storeGelRevenue,
+         TotalRevenueStars: subStarsRevenue + storeStarsRevenue,
+         TotalSubscriptionsCount: totalSubscriptionsCount,
+         TotalActiveSubscriptionsCount: totalActiveSubscriptionsCount,
+         TotalCrystalsSold: totalCrystalsSold,
+         TotalPayingUsersCount: payingUsersCount
+     );
+
+     // 2. Search IDs
+     List<Guid>? matchingUserIds = null;
+     if (!string.IsNullOrEmpty(term))
+     {
+         matchingUserIds = await (
+             from u in db.Users.AsNoTracking()
+             join p in db.Set<DatingProfile>().AsNoTracking() on u.Id equals p.UserId into profs
+             from p in profs.DefaultIfEmpty()
+             where (u.Email != null && u.Email.ToLower().Contains(term)) ||
+                   (p != null && p.DisplayName != null && p.DisplayName.ToLower().Contains(term))
+             select u.Id
+         ).Distinct().ToListAsync(ct);
+     }
+
+     var includeSubs = normCategory is "all" or "purchases" or "subscriptions" or "subscription" or "everything";
+     var includePurchases = normCategory is "all" or "purchases" or "crystals" or "crystal_purchase" or "everything";
+     var includeSpends = normCategory is "spends" or "crystal_spend" or "everything";
+
+     var allItems = new List<RawTxRecord>();
+     var totalCount = 0;
+
+     if (includeSubs)
+     {
+         var sq = db.Set<UserSubscription>().AsNoTracking();
+         if (!string.IsNullOrEmpty(term))
+         {
+             sq = sq.Where(s => (matchingUserIds != null && matchingUserIds.Contains(s.UserId)) ||
+                                (s.TransactionId != null && s.TransactionId.ToLower().Contains(term)) ||
+                                s.PackageId.ToLower().Contains(term) ||
+                                s.Platform.ToLower().Contains(term));
+         }
+
+         var subCount = await sq.CountAsync(ct);
+         if (!includePurchases && !includeSpends)
+         {
+             totalCount = subCount;
+             var list = await sq.OrderByDescending(s => s.CreatedAtUtc).Skip(skip).Take(safePageSize).ToListAsync(ct);
+             allItems.AddRange(list.Select(s => new RawTxRecord(
+                 s.Id.ToString(),
+                 s.UserId,
+                 "subscription",
+                 FormatSubscriptionTitle(s.PackageId),
+                 "VIP პრემიუმ გამოწერა (Arena Black)",
+                 s.PriceAmount,
+                 s.Currency,
+                 null,
+                 s.Platform,
+                 !s.IsActive ? "inactive" : (s.ExpiresAtUtc == null || s.ExpiresAtUtc > now ? "active" : "expired"),
+                 s.TransactionId,
+                 s.CreatedAtUtc,
+                 s.ExpiresAtUtc
+             )));
+         }
+         else
+         {
+             totalCount += subCount;
+             var list = await sq.OrderByDescending(s => s.CreatedAtUtc).Take(skip + safePageSize).ToListAsync(ct);
+             allItems.AddRange(list.Select(s => new RawTxRecord(
+                 s.Id.ToString(),
+                 s.UserId,
+                 "subscription",
+                 FormatSubscriptionTitle(s.PackageId),
+                 "VIP პრემიუმ გამოწერა (Arena Black)",
+                 s.PriceAmount,
+                 s.Currency,
+                 null,
+                 s.Platform,
+                 !s.IsActive ? "inactive" : (s.ExpiresAtUtc == null || s.ExpiresAtUtc > now ? "active" : "expired"),
+                 s.TransactionId,
+                 s.CreatedAtUtc,
+                 s.ExpiresAtUtc
+             )));
+         }
+     }
+
+     if (includePurchases)
+     {
+         var pq = db.Set<StorePurchase>().AsNoTracking();
+         if (!string.IsNullOrEmpty(term))
+         {
+             pq = pq.Where(p => (matchingUserIds != null && matchingUserIds.Contains(p.UserId)) ||
+                                (p.TransactionId != null && p.TransactionId.ToLower().Contains(term)) ||
+                                p.ProductId.ToLower().Contains(term) ||
+                                p.Platform.ToLower().Contains(term));
+         }
+
+         var purchaseCount = await pq.CountAsync(ct);
+         if (!includeSubs && !includeSpends)
+         {
+             totalCount = purchaseCount;
+             var list = await pq.OrderByDescending(p => p.CreatedAtUtc).Skip(skip).Take(safePageSize).ToListAsync(ct);
+             allItems.AddRange(list.Select(p => new RawTxRecord(
+                 p.Id.ToString(),
+                 p.UserId,
+                 "crystal_purchase",
+                 FormatCrystalProductTitle(p.ProductId, p.Amount),
+                 $"მაღაზიიდან კრისტალების პაკეტი ({p.Amount} 💎)",
+                 p.PriceAmount,
+                 p.PriceCurrency ?? "GEL",
+                 p.Amount,
+                 p.Platform,
+                 p.Status == "Refunded" ? "refunded" : "completed",
+                 p.TransactionId,
+                 p.CreatedAtUtc,
+                 null
+             )));
+         }
+         else
+         {
+             totalCount += purchaseCount;
+             var list = await pq.OrderByDescending(p => p.CreatedAtUtc).Take(skip + safePageSize).ToListAsync(ct);
+             allItems.AddRange(list.Select(p => new RawTxRecord(
+                 p.Id.ToString(),
+                 p.UserId,
+                 "crystal_purchase",
+                 FormatCrystalProductTitle(p.ProductId, p.Amount),
+                 $"მაღაზიიდან კრისტალების პაკეტი ({p.Amount} 💎)",
+                 p.PriceAmount,
+                 p.PriceCurrency ?? "GEL",
+                 p.Amount,
+                 p.Platform,
+                 p.Status == "Refunded" ? "refunded" : "completed",
+                 p.TransactionId,
+                 p.CreatedAtUtc,
+                 null
+             )));
+         }
+     }
+
+     if (includeSpends)
+     {
+         var tq = db.Set<CrystalTransaction>().AsNoTracking();
+         if (!string.IsNullOrEmpty(term))
+         {
+             tq = tq.Where(t => (matchingUserIds != null && matchingUserIds.Contains(t.UserId)) ||
+                                (t.Description != null && t.Description.ToLower().Contains(term)) ||
+                                t.Type.ToLower().Contains(term));
+         }
+
+         var spendCount = await tq.CountAsync(ct);
+         if (!includeSubs && !includePurchases)
+         {
+             totalCount = spendCount;
+             var list = await tq.OrderByDescending(t => t.CreatedAtUtc).Skip(skip).Take(safePageSize).ToListAsync(ct);
+             allItems.AddRange(list.Select(t => new RawTxRecord(
+                 t.Id.ToString(),
+                 t.UserId,
+                 "crystal_spend",
+                 FormatSpendTitle(t.Type),
+                 t.Description ?? $"კრისტალების მოძრაობა ({t.Amount:+0;-#})",
+                 null,
+                 null,
+                 t.Amount,
+                 "In-App",
+                 "completed",
+                 t.ReferenceId ?? t.IdempotencyKey,
+                 t.CreatedAtUtc,
+                 null
+             )));
+         }
+         else
+         {
+             totalCount += spendCount;
+             var list = await tq.OrderByDescending(t => t.CreatedAtUtc).Take(skip + safePageSize).ToListAsync(ct);
+             allItems.AddRange(list.Select(t => new RawTxRecord(
+                 t.Id.ToString(),
+                 t.UserId,
+                 "crystal_spend",
+                 FormatSpendTitle(t.Type),
+                 t.Description ?? $"კრისტალების მოძრაობა ({t.Amount:+0;-#})",
+                 null,
+                 null,
+                 t.Amount,
+                 "In-App",
+                 "completed",
+                 t.ReferenceId ?? t.IdempotencyKey,
+                 t.CreatedAtUtc,
+                 null
+             )));
+         }
+     }
+
+     List<RawTxRecord> pageItems;
+     if (normCategory is "subscriptions" or "subscription" or "crystals" or "crystal_purchase" or "spends" or "crystal_spend")
+     {
+         pageItems = allItems;
+     }
+     else
+     {
+         pageItems = allItems.OrderByDescending(x => x.CreatedAtUtc).Skip(skip).Take(safePageSize).ToList();
+     }
+
+     var pageUserIds = pageItems.Select(x => x.UserId).Distinct().ToList();
+
+     var userEmails = await db.Users.AsNoTracking()
+         .Where(u => pageUserIds.Contains(u.Id))
+         .ToDictionaryAsync(u => u.Id, u => u.Email ?? "", ct);
+
+     var userProfiles = await db.Set<DatingProfile>().AsNoTracking()
+         .Where(p => pageUserIds.Contains(p.UserId))
+         .ToDictionaryAsync(p => p.UserId, p => p.DisplayName, ct);
+
+     var userPhotos = await db.Set<ProfilePhoto>().AsNoTracking()
+         .Where(ph => pageUserIds.Contains(ph.UserId) && !ph.Deleted)
+         .OrderBy(ph => ph.Position)
+         .ToListAsync(ct);
+
+     var primaryPhotos = userPhotos
+         .GroupBy(ph => ph.UserId)
+         .ToDictionary(g => g.Key, g => (Guid?)g.First().Id);
+
+     var finalItems = pageItems.Select(x => new AdminTransactionDto(
+         Id: x.Id,
+         UserId: x.UserId,
+         UserEmail: userEmails.GetValueOrDefault(x.UserId, ""),
+         UserDisplayName: userProfiles.GetValueOrDefault(x.UserId, "მომხმარებელი"),
+         PrimaryPhotoId: primaryPhotos.GetValueOrDefault(x.UserId),
+         Category: x.Category,
+         ItemTitle: x.ItemTitle,
+         ItemDescription: x.ItemDescription,
+         PriceAmount: x.PriceAmount,
+         Currency: x.Currency,
+         Crystals: x.Crystals,
+         Platform: x.Platform,
+         Status: x.Status,
+         TransactionId: x.TransactionId,
+         CreatedAtUtc: x.CreatedAtUtc,
+         ExpiresAtUtc: x.ExpiresAtUtc
+     )).ToArray();
+
+     return new AdminTransactionsResponse(
+         Items: finalItems,
+         TotalCount: totalCount,
+         Page: safePage,
+         PageSize: safePageSize,
+         Stats: stats
+     );
+ }
+
+ private static string FormatSubscriptionTitle(string packageId) => packageId.ToLowerInvariant() switch
+ {
+     "two_weeks" => "Arena Black (2 კვირა VIP)",
+     "one_month" => "Arena Black (1 თვე VIP)",
+     "three_months" => "Arena Black (3 თვე VIP)",
+     "lifetime" => "Arena Black (სამუდამო VIP)",
+     _ => $"Arena Black ({packageId})"
+ };
+
+ private static string FormatCrystalProductTitle(string productId, int amount) => productId.ToLowerInvariant() switch
+ {
+     "dating.crystals.100" => "100 💎 კრისტალი",
+     "dating.crystals.500" => "500 💎 კრისტალი",
+     "dating.crystals.1200" => "1,200 💎 კრისტალი",
+     "dating.crystals.2500" => "2,500 💎 კრისტალი",
+     _ => $"{amount:N0} 💎 კრისტალი"
+ };
+
+ private static string FormatSpendTitle(string type) => type.ToLowerInvariant() switch
+ {
+     "gift" => "საჩუქრის გაგზავნა 🎁",
+     "profile_unlock" => "პროფილის გახსნა 🔓",
+     "match_unlock" => "ჩატის გახსნა 💬",
+     "super_like" => "სუპერ ლაიქი ⭐",
+     "admin_adjust" or "admin_grant" => "ადმინის კორექტირება 🛠️",
+     "signup_bonus" => "რეგისტრაციის ბონუსი 🎉",
+     "store_purchase" => "კრისტალების ყიდვა 💎",
+     "store_refund" => "კრისტალების დაბრუნება ↩️",
+     _ => type
+ };
+
+ private sealed record RawTxRecord(
+     string Id,
+     Guid UserId,
+     string Category,
+     string ItemTitle,
+     string ItemDescription,
+     decimal? PriceAmount,
+     string? Currency,
+     int? Crystals,
+     string Platform,
+     string Status,
+     string? TransactionId,
+     DateTimeOffset CreatedAtUtc,
+     DateTimeOffset? ExpiresAtUtc
+ );
 }
+

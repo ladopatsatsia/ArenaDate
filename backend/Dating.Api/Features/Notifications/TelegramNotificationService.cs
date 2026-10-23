@@ -63,8 +63,24 @@ public sealed class TelegramNotificationService(
 ) : ITelegramNotificationService
 {
     private string? BotToken => config["Telegram:BotToken"];
-    private string? WebAppUrl => config["Telegram:WebAppUrl"];
     private bool IsMockMode => string.IsNullOrWhiteSpace(BotToken) || BotToken == "dev_bot_token";
+    private string? WebAppUrl
+    {
+        get
+        {
+            try
+            {
+                var envPath = Path.Combine(Directory.GetCurrentDirectory(), "infra", ".env");
+                if (File.Exists(envPath))
+                {
+                    var match = File.ReadAllLines(envPath).FirstOrDefault(l => l.StartsWith("TELEGRAM_WEB_APP_URL="));
+                    if (match != null) return match["TELEGRAM_WEB_APP_URL=".Length..].Trim();
+                }
+            }
+            catch { }
+            return Environment.GetEnvironmentVariable("Telegram__WebAppUrl") ?? config["Telegram:WebAppUrl"];
+        }
+    }
 
     public async Task RegisterOrUpdateSubscriberAsync(
         long chatId,

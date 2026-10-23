@@ -18,6 +18,7 @@ internal static class TestAuthSettings
     }
     public static Dictionary<string, string?> Configuration(string connection, bool production = false) => new()
     {
+        ["DisableStartupMigration"] = "true",
         ["ConnectionStrings:Database"] = connection,
         ["Media:Mode"] = production ? "S3" : "Local",
         ["Media:LocalPath"] = Path.Combine(DirectoryPath, "media"),

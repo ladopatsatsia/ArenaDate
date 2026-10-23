@@ -27,3 +27,39 @@ public sealed record AdminProfileDetail(Guid UserId,string Email,bool EmailConfi
 public sealed record AdminCreateUserRequest([Required,EmailAddress,MaxLength(254)] string Email,[Required,MinLength(8),MaxLength(128)] string Password,[Required,MinLength(2),MaxLength(64)] string DisplayName,[Required] DateOnly DateOfBirth,[Required] string Gender,string? City = "Tbilisi",int InitialCrystals = 0);
 public sealed record AdminAdjustCrystalsRequest(int Amount,string? Mode = "delta",string? Reason = null);
 public sealed record AdminCrystalAdjustmentResult(Guid UserId,int OldBalance,int NewBalance,int Delta);
+
+public sealed record AdminTransactionDto(
+    string Id,
+    Guid UserId,
+    string UserEmail,
+    string UserDisplayName,
+    Guid? PrimaryPhotoId,
+    string Category,
+    string ItemTitle,
+    string ItemDescription,
+    decimal? PriceAmount,
+    string? Currency,
+    int? Crystals,
+    string Platform,
+    string Status,
+    string? TransactionId,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? ExpiresAtUtc
+);
+
+public sealed record AdminTransactionsStatsDto(
+    decimal TotalRevenueGel,
+    int TotalRevenueStars,
+    int TotalSubscriptionsCount,
+    int TotalActiveSubscriptionsCount,
+    int TotalCrystalsSold,
+    int TotalPayingUsersCount
+);
+
+public sealed record AdminTransactionsResponse(
+    AdminTransactionDto[] Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    AdminTransactionsStatsDto Stats
+);
