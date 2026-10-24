@@ -2268,7 +2268,9 @@ public sealed class GameService(
         var roundId = lastRound?.Id ?? Guid.Empty;
 
         var existingKiss = await db.Set<GameKiss>()
-            .SingleOrDefaultAsync(k => k.RoomId == roomId && k.SenderUserId == userId && k.RecipientUserId == req.RecipientUserId, ct);
+            .Where(k => k.RoomId == roomId && k.SenderUserId == userId && k.RecipientUserId == req.RecipientUserId)
+            .OrderByDescending(k => k.CreatedAtUtc)
+            .FirstOrDefaultAsync(ct);
 
         if (existingKiss != null)
         {
@@ -2278,7 +2280,9 @@ public sealed class GameService(
         var now = clock.GetUtcNow();
 
         var reciprocalKiss = await db.Set<GameKiss>()
-            .SingleOrDefaultAsync(k => k.RoomId == roomId && k.SenderUserId == req.RecipientUserId && k.RecipientUserId == userId && k.Status == "Pending", ct);
+            .Where(k => k.RoomId == roomId && k.SenderUserId == req.RecipientUserId && k.RecipientUserId == userId && k.Status == "Pending")
+            .OrderByDescending(k => k.CreatedAtUtc)
+            .FirstOrDefaultAsync(ct);
 
         var isMutualMatch = reciprocalKiss != null;
         Guid? createdMatchId = null;
@@ -2302,8 +2306,17 @@ public sealed class GameService(
 
         if (isMutualMatch && matchService != null)
         {
-            reciprocalKiss!.Status = "Matched";
-            reciprocalKiss.MatchedAtUtc = now;
+            var pendingKisses = await db.Set<GameKiss>()
+                .Where(k => k.RoomId == roomId &&
+                            ((k.SenderUserId == req.RecipientUserId && k.RecipientUserId == userId) ||
+                             (k.SenderUserId == userId && k.RecipientUserId == req.RecipientUserId)) &&
+                            k.Status == "Pending")
+                .ToListAsync(ct);
+            foreach (var pk in pendingKisses)
+            {
+                pk.Status = "Matched";
+                pk.MatchedAtUtc = now;
+            }
 
             var (match, conversation, _) = await matchService.CreateOrUnlockGameMatchAsync(userId, req.RecipientUserId, ct);
             createdMatchId = match.Id;
@@ -2779,10 +2792,9 @@ public sealed class GameService(
             .Where(k => k.RoomId == roomId &&
                         k.SenderUserId == req.RecipientUserId &&
                         k.RecipientUserId == userId &&
-                        k.SenderGeneration == recipientMembership.Generation &&
-                        k.RecipientGeneration == senderMembership.Generation &&
                         k.Status == "Pending")
-            .SingleOrDefaultAsync(ct);
+            .OrderByDescending(k => k.CreatedAtUtc)
+            .FirstOrDefaultAsync(ct);
 
         var isMutualMatch = reciprocalKiss != null;
         Guid? createdMatchId = null;
@@ -2813,8 +2825,17 @@ public sealed class GameService(
 
         if (isMutualMatch && matchService != null)
         {
-            reciprocalKiss!.Status = "Matched";
-            reciprocalKiss.MatchedAtUtc = now;
+            var pendingKisses = await db.Set<GameKiss>()
+                .Where(k => k.RoomId == roomId &&
+                            ((k.SenderUserId == req.RecipientUserId && k.RecipientUserId == userId) ||
+                             (k.SenderUserId == userId && k.RecipientUserId == req.RecipientUserId)) &&
+                            k.Status == "Pending")
+                .ToListAsync(ct);
+            foreach (var pk in pendingKisses)
+            {
+                pk.Status = "Matched";
+                pk.MatchedAtUtc = now;
+            }
 
             var (match, conversation, _) = await matchService.CreateOrUnlockGameMatchAsync(userId, req.RecipientUserId, ct);
             createdMatchId = match.Id;

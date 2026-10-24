@@ -209,8 +209,14 @@ export default function Matches() {
     }
   };
 
-  const matchItems = [...new Map((matches.data?.pages.flatMap(page => page.items) ?? []).map(m => [m.id, m])).values()];
+  const matchItems = [...new Map((matches.data?.pages.flatMap(page => page.items) ?? []).map(m => [m.id, m])).values()]
+    .sort((a, b) => {
+      if (a.hasChatEntitlement === false && b.hasChatEntitlement !== false) return -1;
+      if (a.hasChatEntitlement !== false && b.hasChatEntitlement === false) return 1;
+      return 0;
+    });
   const requestItems = requests.data ?? [];
+  const lockedGameMatches = matchItems.filter(m => m.origin === 'GameArena' && m.hasChatEntitlement === false);
   const viewedYouItems = viewedYou.data ?? [];
   const youViewedItems = youViewed.data ?? [];
 
@@ -834,6 +840,41 @@ export default function Matches() {
           ListEmptyComponent={
             requests.isPending ? (
               <MatchListSkeleton count={4} />
+            ) : lockedGameMatches.length > 0 ? (
+              <View style={{ gap: 12 }}>
+                <View style={{ padding: 14, backgroundColor: '#fdf2f8', borderRadius: 14, borderWidth: 1, borderColor: '#fbcfe8' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontWeight: 'bold', color: '#db2777', fontSize: 14 }}>
+                      💋 ბოთლის თამაში: {lockedGameMatches.length} ახალი მეჩი
+                    </Text>
+                    <Pressable hitSlop={6} onPress={() => setSection('matches')}>
+                      <Text style={{ color: '#db2777', fontWeight: 'bold', fontSize: 12 }}>
+                        წყვილებში გადასვლა ›
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <Text style={{ fontSize: 12, color: '#9d174d', marginBottom: 10 }}>
+                    ერთმანეთს კოცნა გაუგზავნეთ! ჩატის გასახსნელად საჭიროა 25 კრისტალი.
+                  </Text>
+                  {lockedGameMatches.map(lm => (
+                    <View key={lm.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderColor: '#fce7f3' }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: '#831843', fontWeight: 'bold', fontSize: 14 }}>
+                          {lm.displayName}, {lm.age}
+                        </Text>
+                        {!!lm.city && <Text style={{ color: '#9d174d', fontSize: 12 }}>📍 {formatCityName(lm.city, i18n.language)}</Text>}
+                      </View>
+                      <Button
+                        variant="primary"
+                        title="💎 25 ჩატი"
+                        onPress={() => setUnlockMatchCandidate(lm)}
+                        style={{ paddingVertical: 6, paddingHorizontal: 12, minHeight: 32 }}
+                        textStyle={{ fontSize: 13, fontWeight: 'bold' }}
+                      />
+                    </View>
+                  ))}
+                </View>
+              </View>
             ) : (
               <StateMessage
                 title={t(requests.isError ? 'connection_error' : 'requests_empty')}
@@ -841,34 +882,64 @@ export default function Matches() {
             )
           }
           ListHeaderComponent={
-            requests.isPending || requests.isError || requestItems.length === 0 ? null : !hasPremium ? (
-              <Pressable
-                style={styles.premiumPromoBanner}
-                onPress={() => setPremiumModalVisible(true)}
-                testID="premium-promo-banner"
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={styles.crownBannerIcon}>
-                    <Text style={{ fontSize: 22 }}>🖤</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.promoBannerTitle}>
-                      {t('matches_promo_banner_title', 'გაიგე ვინ დაგამეჩა — Arena Black')}
+            <View>
+              {lockedGameMatches.length > 0 && requestItems.length > 0 && (
+                <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#fdf2f8', borderRadius: 12, borderWidth: 1, borderColor: '#fbcfe8' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontWeight: 'bold', color: '#db2777', fontSize: 13 }}>
+                      💋 ბოთლის თამაში: {lockedGameMatches.length} ახალი მეჩი
                     </Text>
-                    <Text style={styles.promoBannerDesc}>
-                      {t('matches_promo_banner_sub', 'ჩართე Arena Black და ნახე ყველა შემომავალი მოწონება')}
-                    </Text>
+                    <Pressable hitSlop={6} onPress={() => setSection('matches')}>
+                      <Text style={{ color: '#db2777', fontWeight: 'bold', fontSize: 12 }}>
+                        წყვილებში გადასვლა ›
+                      </Text>
+                    </Pressable>
                   </View>
-                  <Text style={styles.promoBannerArrow}>›</Text>
+                  {lockedGameMatches.map(lm => (
+                    <View key={lm.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderColor: '#fce7f3' }}>
+                      <Text style={{ color: '#831843', fontWeight: '600', fontSize: 13 }}>
+                        {lm.displayName}, {lm.age}
+                      </Text>
+                      <Button
+                        variant="primary"
+                        title="💎 25 ჩატი"
+                        onPress={() => setUnlockMatchCandidate(lm)}
+                        style={{ paddingVertical: 4, paddingHorizontal: 10, minHeight: 28 }}
+                        textStyle={{ fontSize: 12, fontWeight: 'bold' }}
+                      />
+                    </View>
+                  ))}
                 </View>
-              </Pressable>
-            ) : (
-              <View style={styles.premiumActiveBadge}>
-                <Text style={styles.premiumActiveBadgeText}>
-                  {t('matches_vip_badge_banner', '🖤 Arena Black წევრი — ყველა რექუესტი ხილვადია')}
-                </Text>
-              </View>
-            )
+              )}
+              {requests.isPending || requests.isError || requestItems.length === 0 ? null : !hasPremium ? (
+                <Pressable
+                  style={styles.premiumPromoBanner}
+                  onPress={() => setPremiumModalVisible(true)}
+                  testID="premium-promo-banner"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={styles.crownBannerIcon}>
+                      <Text style={{ fontSize: 22 }}>🖤</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.promoBannerTitle}>
+                        {t('matches_promo_banner_title', 'გაიგე ვინ დაგამეჩა — Arena Black')}
+                      </Text>
+                      <Text style={styles.promoBannerDesc}>
+                        {t('matches_promo_banner_sub', 'ჩართე Arena Black და ნახე ყველა შემომავალი მოწონება')}
+                      </Text>
+                    </View>
+                    <Text style={styles.promoBannerArrow}>›</Text>
+                  </View>
+                </Pressable>
+              ) : (
+                <View style={styles.premiumActiveBadge}>
+                  <Text style={styles.premiumActiveBadgeText}>
+                    {t('matches_vip_badge_banner', '🖤 Arena Black წევრი — ყველა რექუესტი ხილვადია')}
+                  </Text>
+                </View>
+              )}
+            </View>
           }
           renderItem={({ item: req }) => {
             const isLocked = (req.isBlurred || !hasPremium) && req.origin !== 'GameArena';

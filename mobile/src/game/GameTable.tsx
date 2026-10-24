@@ -1920,7 +1920,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
               {t('game_match_success_desc', { name: matchedPeerName, defaultValue: `შენ და ${matchedPeerName}-მა ერთმანეთს კოცნა გაუგზავნეთ!` })}
             </Text>
             <Text style={styles.matchModalInfo}>
-              {t('game_match_saved_note', 'თქვენი კავშირი შეინახა Matches განყოფილებაში.')}
+              {t('game_match_saved_note', 'თქვენი კავშირი შეინახა „წყვილები“-ს განყოფილებაში (ჩატის გასახსნელად საჭიროა 25 💎).')}
             </Text>
             <Button
               variant="primary"

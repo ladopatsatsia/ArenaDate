@@ -418,6 +418,10 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
 
    var existingMatch = await db.Set<DatingMatch>().SingleOrDefaultAsync(m => m.FirstId == first && m.SecondId == second, ct);
    if (existingMatch != null) {
+    if (!existingMatch.Active) {
+     existingMatch.Active = true;
+     await db.SaveChangesAsync(ct);
+    }
     var existingConv = await db.Set<Conversation>().SingleAsync(c => c.MatchId == existingMatch.Id, ct);
     if (ownsTx) await tx!.CommitAsync(ct);
     return (existingMatch, existingConv, false);
