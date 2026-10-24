@@ -81,14 +81,16 @@ export default function NotificationSettingsScreen() {
         });
         await queryClient.invalidateQueries({ queryKey: ['account', accountId, 'telegram-status'] });
       } catch {
-        const bot = tgStatus?.botUsername || 'ARENA_ge_bot';
-        void Linking.openURL(`https://t.me/${bot}`);
+        const bot = tgStatus?.botUsername || 'ArenaDatingBot';
+        const linkUrl = accountId ? `https://t.me/${bot}?start=link_${accountId}` : `https://t.me/${bot}`;
+        void Linking.openURL(linkUrl);
       } finally {
         setLinkLoading(false);
       }
     } else {
-      const bot = tgStatus?.botUsername || 'ARENA_ge_bot';
-      void Linking.openURL(`https://t.me/${bot}`);
+      const bot = tgStatus?.botUsername || 'ArenaDatingBot';
+      const linkUrl = accountId ? `https://t.me/${bot}?start=link_${accountId}` : `https://t.me/${bot}`;
+      void Linking.openURL(linkUrl);
     }
   };
 
@@ -131,7 +133,7 @@ export default function NotificationSettingsScreen() {
           </View>
 
           <Text style={styles.telegramDesc}>
-            {t('telegram_notifications_desc', 'მიიღეთ შეტყობინებები ახალ წყვილებზე, ჩატის წერილებსა და გეგმებზე პირდაპირ Telegram-ის ჩატში')}
+            {t('telegram_notifications_desc', 'მიიღეთ შეტყობინებები პირდაპირ Telegram-ში: ახალი ჩატის წერილები, ახალი მოწონებები (Match Requests) და ახალი მეჩები')}
           </Text>
 
           {/* Test notification feedback message */}
@@ -162,7 +164,7 @@ export default function NotificationSettingsScreen() {
                   <Text style={styles.settingTitle}>შეტყობინებების მიღება</Text>
                   <Text style={styles.settingDesc}>
                     {tgStatus.isActive
-                      ? 'ბოტი გამოგიგზავნით შეტყობინებას ყოველი ახალი მეჩისა და მესიჯის დროს'
+                      ? 'ბოტი შეგატყობინებთ ყოველი ახალი მესიჯის, მოწონების (Match Request) და მეჩის დროს'
                       : 'შეტყობინებები დროებით შეჩერებულია'}
                   </Text>
                 </View>

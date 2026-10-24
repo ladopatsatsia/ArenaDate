@@ -540,12 +540,11 @@ public class GameTests
         Assert.Equal(HttpStatusCode.OK, resA.StatusCode);
         var resultA = (await resA.Content.ReadFromJsonAsync<GameRoomDetail>())!;
 
-        // User B joins 6-person queue -> cannot join Room 1 due to active match with User A!
-        // Instead, a new room Room 2 is created for User B.
+        // User B joins 6-person queue -> matched users CAN share room! User B joins Room 1 with User A.
         var resB = await Send(h, userB, HttpMethod.Post, "/api/game/queue", new JoinQueueRequest(6));
         Assert.Equal(HttpStatusCode.OK, resB.StatusCode);
         var resultB = (await resB.Content.ReadFromJsonAsync<GameRoomDetail>())!;
-        Assert.NotEqual(resultA.Id, resultB.Id);
+        Assert.Equal(resultA.Id, resultB.Id);
 
         // 2. Incompatibility via UnmatchedPair: userA and userC previously unmatched
         await h.Db(async db =>
@@ -558,12 +557,11 @@ public class GameTests
         });
 
         // User C joins 6-person queue -> cannot join Room 1 (with User A)
-        // User C can join Room 2 (with User B, with whom C is compatible)
+        // A new room Room 2 is created for User C
         var resC = await Send(h, userC, HttpMethod.Post, "/api/game/queue", new JoinQueueRequest(6));
         Assert.Equal(HttpStatusCode.OK, resC.StatusCode);
         var resultC = (await resC.Content.ReadFromJsonAsync<GameRoomDetail>())!;
         Assert.NotEqual(resultA.Id, resultC.Id);
-        Assert.Equal(resultB.Id, resultC.Id);
 
         // 3. Incompatibility via UserBlock: userD blocked userB
         await h.Db(async db =>
@@ -572,13 +570,13 @@ public class GameTests
             await db.SaveChangesAsync();
         });
 
-        // User D joins 6-person queue -> cannot join Room 2 (contains userB who is blocked by D)
-        // User D can join Room 1 (contains userA, with whom D is compatible)
+        // User D joins 6-person queue -> cannot join Room 1 (contains userB who is blocked by D)
+        // User D can join Room 2 (contains userC, with whom D is compatible)
         var resD = await Send(h, userD, HttpMethod.Post, "/api/game/queue", new JoinQueueRequest(6));
         Assert.Equal(HttpStatusCode.OK, resD.StatusCode);
         var resultD = (await resD.Content.ReadFromJsonAsync<GameRoomDetail>())!;
-        Assert.Equal(resultA.Id, resultD.Id);
-        Assert.NotEqual(resultB.Id, resultD.Id);
+        Assert.NotEqual(resultA.Id, resultD.Id);
+        Assert.Equal(resultC.Id, resultD.Id);
 
         // 4. Direct JoinRoom incompatibility check: userE blocked by userA receives 404 room_unavailable
         var userE = await DirectUser(h, "incomp_e@game.test", gender: "man");

@@ -44,14 +44,7 @@ public sealed class GameService(
             .AsNoTracking()
             .AnyAsync(u => (u.FirstId == userId && otherUserIds.Contains(u.SecondId)) ||
                            (u.SecondId == userId && otherUserIds.Contains(u.FirstId)), ct);
-        if (unmatched) return true;
-
-        var alreadyMatched = await db.Set<DatingMatch>()
-            .AsNoTracking()
-            .AnyAsync(m => m.Active &&
-                           ((m.FirstId == userId && otherUserIds.Contains(m.SecondId)) ||
-                            (m.SecondId == userId && otherUserIds.Contains(m.FirstId))), ct);
-        return alreadyMatched;
+        return unmatched;
     }
 
     private async Task<HashSet<Guid>> GetIncompatibleUserIds(Guid userId, CancellationToken ct)
@@ -68,13 +61,7 @@ public sealed class GameService(
             .Select(u => u.FirstId == userId ? u.SecondId : u.FirstId)
             .ToListAsync(ct);
 
-        var matched = await db.Set<DatingMatch>()
-            .AsNoTracking()
-            .Where(m => m.Active && (m.FirstId == userId || m.SecondId == userId))
-            .Select(m => m.FirstId == userId ? m.SecondId : m.FirstId)
-            .ToListAsync(ct);
-
-        return blocked.Concat(unmatched).Concat(matched).ToHashSet();
+        return blocked.Concat(unmatched).ToHashSet();
     }
 
     public const string AiDisclosureGeorgian = "ხელოვნური ინტელექტის კომენტარები: ნებას რთავთ მესამე მხარის AI პროვაიდერს (OpenAI) დაამუშაოს თქვენ მიერ არჩეული კითხვა-პასუხები რაუნდის მოკლე კომენტარებისთვის. თქვენი სახელი, ფოტო, ასაკი, ლოკაცია და პირადი ჩატი არასოდეს გადაეცემა AI-ს.";
@@ -463,7 +450,7 @@ public sealed class GameService(
         {
             var members = await db.Set<GameMembership>()
                 .Where(m => m.RoomId == r.Id && 
-                           (m.Status == GameMembershipStatus.Active || 
+                           ((m.Status == GameMembershipStatus.Active && (r.State != GameRoomState.Lobby || m.LastHeartbeatUtc >= lobbyStaleCutoff)) || 
                             (r.State == GameRoomState.Playing && m.Status == GameMembershipStatus.Disconnected && m.ReservationExpiresAtUtc > now)))
                 .ToListAsync(ct);
 
@@ -475,7 +462,7 @@ public sealed class GameService(
             if (profile.Gender == "woman" && fCount >= r.FemaleQuota) continue;
             if (profile.Gender == "man" && mCount >= r.MaleQuota) continue;
 
-            // Incompatibility check: no blocked, unmatched, or matched member allowed
+            // Incompatibility check: no blocked or unmatched member allowed
             if (members.Any(m => incompatibleSet.Contains(m.UserId))) continue;
 
             selectedRoom = r;
@@ -492,7 +479,7 @@ public sealed class GameService(
 
             var activeMembers = await db.Set<GameMembership>()
                 .Where(m => m.RoomId == lockedRoom.Id && 
-                           (m.Status == GameMembershipStatus.Active || 
+                           ((m.Status == GameMembershipStatus.Active && (lockedRoom.State != GameRoomState.Lobby || m.LastHeartbeatUtc >= lobbyStaleCutoff)) || 
                             (lockedRoom.State == GameRoomState.Playing && m.Status == GameMembershipStatus.Disconnected && m.ReservationExpiresAtUtc > now)))
                 .ToListAsync(ct);
 

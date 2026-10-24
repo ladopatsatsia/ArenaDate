@@ -19,7 +19,7 @@
    <button mat-button (click)="change('reports')" [disabled]="busy()">Reports</button>
    <button mat-button (click)="change('users')" [disabled]="busy()">Account status</button>
    <button mat-button (click)="change('questions')" [disabled]="busy()">Game questions</button>
-   <button mat-button (click)="change('broadcast')" [disabled]="busy()">📢 Telegram Broadcast</button>
+   <button mat-button (click)="change('broadcast')" [disabled]="busy()">💬 Telegram შეტყობინებები</button>
    <button mat-button (click)="change('audit')" [disabled]="busy()">Audit</button>
    <button mat-button (click)="logout()" [disabled]="busy()">Sign out</button>
   </nav>
@@ -566,109 +566,473 @@
 
   @if (tab() === 'broadcast') {
    <div class="broadcast-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-     <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
-      📢 ტელეგრამ ბროდკასტი (შეტყობინება ყველას)
-     </h2>
-     <button mat-stroked-button (click)="loadTelegramStats()" [disabled]="broadcastBusy()">
-      🔄 სტატისტიკის განახლება
+    <!-- Subtabs Header -->
+    <div class="subnav-tabs">
+     <button
+      type="button"
+      class="subnav-tab"
+      [class.active]="telegramSubTab() === 'config'"
+      (click)="setTelegramSubTab('config')"
+     >
+      ⚙️ შეტყობინებების კონფიგურაცია & შაბლონები
+     </button>
+     <button
+      type="button"
+      class="subnav-tab"
+      [class.active]="telegramSubTab() === 'broadcast'"
+      (click)="setTelegramSubTab('broadcast')"
+     >
+      📢 ბროდკასტი (შეტყობინება ყველას)
      </button>
     </div>
 
-    <!-- Live Stats Cards -->
-    <div class="stat-boxes">
-     <div class="stat-box">
-      <div class="stat-num">{{ tgStats()?.totalSubscribers ?? '...' }}</div>
-      <div class="stat-label">👥 სულ ბოტის გამომწერი</div>
+    <!-- TAB 1: NOTIFICATION CONFIGURATION -->
+    @if (telegramSubTab() === 'config') {
+     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+      <div>
+       <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+        ⚙️ Telegram ავტომატური შეტყობინებების მართვა
+       </h2>
+       <p style="margin: 4px 0 0; color: #64748b; font-size: 14px;">
+        აქედან შეგიძლიათ ჩართოთ/გამორთოთ და სრულად შეცვალოთ შეტყობინებების ტექსტები და ღილაკები
+       </p>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+       <button mat-stroked-button (click)="loadTelegramConfig()" [disabled]="tgConfigBusy()">
+        🔄 განახლება
+       </button>
+       <button mat-stroked-button color="warn" (click)="resetTelegramConfigToDefaults()" [disabled]="tgConfigBusy()">
+        🔄 ნაგულისხმევზე დაბრუნება
+       </button>
+       <button
+        mat-flat-button
+        style="background: #16a34a; color: #fff;"
+        (click)="saveTelegramConfig()"
+        [disabled]="tgConfigBusy() || tgConfigForm.invalid"
+       >
+        @if (tgConfigBusy()) {
+         <span>⏳ ინახება...</span>
+        } @else {
+         <span>💾 ცვლილებების შენახვა</span>
+        }
+       </button>
+      </div>
      </div>
-     <div class="stat-box stat-box-active">
-      <div class="stat-num" style="color: #16a34a;">{{ tgStats()?.activeSubscribers ?? '...' }}</div>
-      <div class="stat-label">🟢 აქტიური გამომწერი (Start Bot)</div>
-     </div>
-     <div class="stat-box">
-      <div class="stat-num" style="color: #0284c7;">{{ tgStats()?.linkedUsersCount ?? '...' }}</div>
-      <div class="stat-label">📱 აპლიკაციასთან დაკავშირებული</div>
-     </div>
-     <div class="stat-box">
-      <div class="stat-num" style="font-size: 15px; padding-top: 6px;">{{ (tgStats()?.latestActivityUtc | date:'short') ?? '—' }}</div>
-      <div class="stat-label">⏱️ ბოლო აქტივობა</div>
-     </div>
-    </div>
 
-    <!-- Quick Message Templates -->
-    <div class="template-section">
-     <span class="template-label">⚡ სწრაფი შაბლონები:</span>
-     <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('welcome')">🎉 მისალმება</button>
-     <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('tournament')">🏆 საღამოს ტურნირი</button>
-     <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('bonus')">💎 ბონუს კრისტალები</button>
-     <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('dating')">💫 გაცნობის შეხსენება</button>
-    </div>
-
-    <!-- Broadcast Form Card -->
-    <mat-card class="broadcast-card">
-     <form [formGroup]="broadcastForm" (ngSubmit)="sendBroadcast()">
-      <div class="field-group">
-       <label class="field-label" for="bc-msg">
-        ✉️ შეტყობინების ტექსტი (მიუვა ყველა აქტიურ მომხმარებელს, ვისაც Start Bot აქვს დაჭერილი):
-       </label>
-       <textarea
-        id="bc-msg"
-        formControlName="message"
-        class="custom-textarea"
-        rows="6"
-        placeholder="დაწერეთ შეტყობინება... (შეგიძლიათ გამოიყენოთ ემოჯები და HTML: <b>მუქი</b>, <i>დახრილი</i>)"
-        maxlength="4000"
-       ></textarea>
-       <div class="char-counter">
-        სიმბოლოები: {{ broadcastForm.controls.message.value.length }} / 4000
+     <form [formGroup]="tgConfigForm" (ngSubmit)="saveTelegramConfig()">
+      <!-- Master Switch Banner -->
+      <div class="config-master-banner" [class.disabled]="!tgConfigForm.controls.masterEnabled.value">
+       <div>
+        <div style="font-size: 16px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+         <span>{{ tgConfigForm.controls.masterEnabled.value ? '🟢 ყველა Telegram შეტყობინება ჩართულია' : '🔴 Telegram შეტყობინებები გამორთულია' }}</span>
+        </div>
+        <div style="font-size: 13px; color: #475569; margin-top: 4px;">
+         თუ ეს პარამეტრი გამორთულია, მომხმარებლებს არცერთი ავტომატური შეტყობინება (ჩატი, მეჩი, მოწონება) აღარ მიუვათ.
+        </div>
        </div>
+       <button
+        type="button"
+        class="toggle-switch-btn"
+        [class.toggle-on]="tgConfigForm.controls.masterEnabled.value"
+        [class.toggle-off]="!tgConfigForm.controls.masterEnabled.value"
+        (click)="toggleConfigMaster()"
+       >
+        {{ tgConfigForm.controls.masterEnabled.value ? '✓ აქტიურია (ჩართულია)' : '✕ გამორთულია' }}
+       </button>
       </div>
 
-      <div class="form-row">
-       <div class="field-group" style="flex: 1; min-width: 200px;">
-        <label class="field-label" for="bc-btn">🔘 ღილაკის ტექსტი (Mini App-ის გასახსნელად):</label>
-        <input id="bc-btn" formControlName="buttonText" class="custom-input" placeholder="🚀 ARENA-ს გახსნა" />
+      <!-- CARD 1: Chat Message -->
+      <mat-card class="config-card">
+       <div class="config-card-header">
+        <h3 class="config-card-title">
+         <span>💬 1. ახალი ჩატის შეტყობინება (Chat Message)</span>
+        </h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+         <button
+          type="button"
+          class="toggle-switch-btn"
+          [class.toggle-on]="tgConfigForm.controls.chatMessageEnabled.value"
+          [class.toggle-off]="!tgConfigForm.controls.chatMessageEnabled.value"
+          (click)="toggleConfigChannel('chatMessage')"
+         >
+          {{ tgConfigForm.controls.chatMessageEnabled.value ? '🟢 ჩართულია' : '⚪ გამორთულია' }}
+         </button>
+         <button
+          mat-stroked-button
+          type="button"
+          style="font-size: 13px; height: 32px; line-height: 30px;"
+          (click)="testTelegramNotification('chat')"
+          [disabled]="tgTestBusy() !== null || tgConfigBusy()"
+         >
+          {{ tgTestBusy() === 'chat' ? '⏳ იგზავნება...' : '🧪 ტესტის გაგზავნა' }}
+         </button>
+        </div>
        </div>
-       <div class="field-group" style="flex: 1; min-width: 200px;">
-        <label class="field-label" for="bc-path">🔗 გვერდის მისამართი (არასავალდებულო):</label>
-        <input id="bc-path" formControlName="webAppPath" class="custom-input" placeholder="მაგ. /arena ან /discover" />
-       </div>
-      </div>
 
-      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-       <div style="font-size: 13px; color: #6b7280;">
-        ⚠️ შეტყობინება გაეგზავნება <strong>{{ tgStats()?.activeSubscribers ?? 0 }}</strong> აქტიურ ტელეგრამ მომხმარებელს.
+       <p style="margin: 0 0 10px; font-size: 13px; color: #64748b;">
+        იგზავნება მყისიერად, როდესაც მომხმარებელს მეწყვილე პირად მიმოწერაში ახალ შეტყობინებას მისწერს.
+       </p>
+
+       <div class="tag-chips">
+        <span style="font-size: 12px; color: #475569; font-weight: 600;">ტეგები:</span>
+        <button type="button" class="tag-chip" (click)="insertTag('chatMessageTemplate', '{sender}')" title="დააჭირეთ ჩასასმელად">&#123;sender&#125; (გამომგზავნის სახელი)</button>
+        <button type="button" class="tag-chip" (click)="insertTag('chatMessageTemplate', '{message}')" title="დააჭირეთ ჩასასმელად">&#123;message&#125; (წერილის შინაარსი)</button>
+        <button type="button" class="tag-chip" (click)="insertTag('chatMessageTemplate', '{app}')" title="დააჭირეთ ჩასასმელად">&#123;app&#125; (ARENA)</button>
        </div>
+
+       <div class="field-group">
+        <label class="field-label" for="cfg-chat-tpl">✉️ შეტყობინების შაბლონი (მხარდაჭერილია HTML: &lt;b&gt;, &lt;i&gt; და ემოჯები):</label>
+        <textarea
+         id="cfg-chat-tpl"
+         formControlName="chatMessageTemplate"
+         class="custom-textarea"
+         rows="3"
+         maxlength="2000"
+        ></textarea>
+       </div>
+
+       <div class="field-group" style="margin-bottom: 0;">
+        <label class="field-label" for="cfg-chat-btn">🔘 ღილაკის წარწერა (Mini App-ის გახსნა):</label>
+        <input id="cfg-chat-btn" formControlName="chatMessageButtonText" class="custom-input" placeholder="💬 ჩატში გადასვლა" maxlength="100" />
+       </div>
+      </mat-card>
+
+      <!-- CARD 2: Match Request / Like -->
+      <mat-card class="config-card">
+       <div class="config-card-header">
+        <h3 class="config-card-title">
+         <span>💖 2. ახალი მოწონება / Match Request</span>
+        </h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+         <button
+          type="button"
+          class="toggle-switch-btn"
+          [class.toggle-on]="tgConfigForm.controls.matchRequestEnabled.value"
+          [class.toggle-off]="!tgConfigForm.controls.matchRequestEnabled.value"
+          (click)="toggleConfigChannel('matchRequest')"
+         >
+          {{ tgConfigForm.controls.matchRequestEnabled.value ? '🟢 ჩართულია' : '⚪ გამორთულია' }}
+         </button>
+         <button
+          mat-stroked-button
+          type="button"
+          style="font-size: 13px; height: 32px; line-height: 30px;"
+          (click)="testTelegramNotification('like')"
+          [disabled]="tgTestBusy() !== null || tgConfigBusy()"
+         >
+          {{ tgTestBusy() === 'like' ? '⏳ იგზავნება...' : '🧪 ტესტის გაგზავნა' }}
+         </button>
+        </div>
+       </div>
+
+       <p style="margin: 0 0 10px; font-size: 13px; color: #64748b;">
+        იგზავნება მაშინ, როცა ვინმე მომხმარებელს Discovery-ში მოიწონებს (მარჯვნივ გადასვაიპებს).
+       </p>
+
+       <div class="tag-chips">
+        <span style="font-size: 12px; color: #475569; font-weight: 600;">ტეგები:</span>
+        <button type="button" class="tag-chip" (click)="insertTag('matchRequestTemplate', '{sender}')" title="დააჭირეთ ჩასასმელად">&#123;sender&#125; (მომწონებლის სახელი)</button>
+        <button type="button" class="tag-chip" (click)="insertTag('matchRequestTemplate', '{app}')" title="დააჭირეთ ჩასასმელად">&#123;app&#125; (ARENA)</button>
+       </div>
+
+       <div class="field-group">
+        <label class="field-label" for="cfg-like-tpl">✉️ შეტყობინების შაბლონი:</label>
+        <textarea
+         id="cfg-like-tpl"
+         formControlName="matchRequestTemplate"
+         class="custom-textarea"
+         rows="3"
+         maxlength="2000"
+        ></textarea>
+       </div>
+
+       <div class="field-group" style="margin-bottom: 0;">
+        <label class="field-label" for="cfg-like-btn">🔘 ღილაკის წარწერა:</label>
+        <input id="cfg-like-btn" formControlName="matchRequestButtonText" class="custom-input" placeholder="👀 მოწონების ნახვა" maxlength="100" />
+       </div>
+      </mat-card>
+
+      <!-- CARD 3: Match -->
+      <mat-card class="config-card">
+       <div class="config-card-header">
+        <h3 class="config-card-title">
+         <span>🎉 3. ახალი მეჩი (Mutual Match)</span>
+        </h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+         <button
+          type="button"
+          class="toggle-switch-btn"
+          [class.toggle-on]="tgConfigForm.controls.matchEnabled.value"
+          [class.toggle-off]="!tgConfigForm.controls.matchEnabled.value"
+          (click)="toggleConfigChannel('match')"
+         >
+          {{ tgConfigForm.controls.matchEnabled.value ? '🟢 ჩართულია' : '⚪ გამორთულია' }}
+         </button>
+         <button
+          mat-stroked-button
+          type="button"
+          style="font-size: 13px; height: 32px; line-height: 30px;"
+          (click)="testTelegramNotification('match')"
+          [disabled]="tgTestBusy() !== null || tgConfigBusy()"
+         >
+          {{ tgTestBusy() === 'match' ? '⏳ იგზავნება...' : '🧪 ტესტის გაგზავნა' }}
+         </button>
+        </div>
+       </div>
+
+       <p style="margin: 0 0 10px; font-size: 13px; color: #64748b;">
+        იგზავნება ორივე მომხმარებელთან, როცა სიმპათია ორმხრივი აღმოჩნდება და შეიქმნება წყვილი.
+       </p>
+
+       <div class="tag-chips">
+        <span style="font-size: 12px; color: #475569; font-weight: 600;">ტეგები:</span>
+        <button type="button" class="tag-chip" (click)="insertTag('matchTemplate', '{partner}')" title="დააჭირეთ ჩასასმელად">&#123;partner&#125; (მეწყვილის სახელი)</button>
+        <button type="button" class="tag-chip" (click)="insertTag('matchTemplate', '{app}')" title="დააჭირეთ ჩასასმელად">&#123;app&#125; (ARENA)</button>
+       </div>
+
+       <div class="field-group">
+        <label class="field-label" for="cfg-match-tpl">✉️ შეტყობინების შაბლონი:</label>
+        <textarea
+         id="cfg-match-tpl"
+         formControlName="matchTemplate"
+         class="custom-textarea"
+         rows="3"
+         maxlength="2000"
+        ></textarea>
+       </div>
+
+       <div class="field-group" style="margin-bottom: 0;">
+        <label class="field-label" for="cfg-match-btn">🔘 ღილაკის წარწერა:</label>
+        <input id="cfg-match-btn" formControlName="matchButtonText" class="custom-input" placeholder="💬 ჩატის გახსნა" maxlength="100" />
+       </div>
+      </mat-card>
+
+      <!-- CARD 4: Super Like -->
+      <mat-card class="config-card">
+       <div class="config-card-header">
+        <h3 class="config-card-title">
+         <span>⭐ 4. ახალი Super Like</span>
+        </h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+         <button
+          type="button"
+          class="toggle-switch-btn"
+          [class.toggle-on]="tgConfigForm.controls.superLikeEnabled.value"
+          [class.toggle-off]="!tgConfigForm.controls.superLikeEnabled.value"
+          (click)="toggleConfigChannel('superLike')"
+         >
+          {{ tgConfigForm.controls.superLikeEnabled.value ? '🟢 ჩართულია' : '⚪ გამორთულია' }}
+         </button>
+         <button
+          mat-stroked-button
+          type="button"
+          style="font-size: 13px; height: 32px; line-height: 30px;"
+          (click)="testTelegramNotification('superlike')"
+          [disabled]="tgTestBusy() !== null || tgConfigBusy()"
+         >
+          {{ tgTestBusy() === 'superlike' ? '⏳ იგზავნება...' : '🧪 ტესტის გაგზავნა' }}
+         </button>
+        </div>
+       </div>
+
+       <p style="margin: 0 0 10px; font-size: 13px; color: #64748b;">
+        იგზავნება როცა მომხმარებელს გამოუგზავნიან პრიორიტეტულ Super Like-ს წერილით ან მის გარეშე.
+       </p>
+
+       <div class="tag-chips">
+        <span style="font-size: 12px; color: #475569; font-weight: 600;">ტეგები:</span>
+        <button type="button" class="tag-chip" (click)="insertTag('superLikeTemplate', '{sender}')" title="დააჭირეთ ჩასასმელად">&#123;sender&#125; (გამომგზავნის სახელი)</button>
+        <button type="button" class="tag-chip" (click)="insertTag('superLikeTemplate', '{note}')" title="დააჭირეთ ჩასასმელად">&#123;note&#125; (თანდართული წერილი)</button>
+        <button type="button" class="tag-chip" (click)="insertTag('superLikeTemplate', '{app}')" title="დააჭირეთ ჩასასმელად">&#123;app&#125; (ARENA)</button>
+       </div>
+
+       <div class="field-group">
+        <label class="field-label" for="cfg-sl-tpl">✉️ შეტყობინების შაბლონი:</label>
+        <textarea
+         id="cfg-sl-tpl"
+         formControlName="superLikeTemplate"
+         class="custom-textarea"
+         rows="3"
+         maxlength="2000"
+        ></textarea>
+       </div>
+
+       <div class="field-group" style="margin-bottom: 0;">
+        <label class="field-label" for="cfg-sl-btn">🔘 ღილაკის წარწერა:</label>
+        <input id="cfg-sl-btn" formControlName="superLikeButtonText" class="custom-input" placeholder="👀 ნახვა" maxlength="100" />
+       </div>
+      </mat-card>
+
+      <!-- CARD 5: Welcome / Account Link -->
+      <mat-card class="config-card">
+       <div class="config-card-header">
+        <h3 class="config-card-title">
+         <span>🚀 5. მისალმება და პროფილის დაკავშირება (Welcome & Link)</span>
+        </h3>
+        <button
+         mat-stroked-button
+         type="button"
+         style="font-size: 13px; height: 32px; line-height: 30px;"
+         (click)="testTelegramNotification('welcome')"
+         [disabled]="tgTestBusy() !== null || tgConfigBusy()"
+        >
+         {{ tgTestBusy() === 'welcome' ? '⏳ იგზავნება...' : '🧪 ტესტის გაგზავნა' }}
+        </button>
+       </div>
+
+       <p style="margin: 0 0 10px; font-size: 13px; color: #64748b;">
+        პასუხი Telegram ბოტიდან, როცა მომხმარებელი აპლიკაციიდან აჭერს ბოტის დაკავშირების ღილაკს (/start link_...).
+       </p>
+
+       <div class="tag-chips">
+        <span style="font-size: 12px; color: #475569; font-weight: 600;">ტეგები:</span>
+        <button type="button" class="tag-chip" (click)="insertTag('welcomeTemplate', '{app}')" title="დააჭირეთ ჩასასმელად">&#123;app&#125; (ARENA)</button>
+       </div>
+
+       <div class="field-group">
+        <label class="field-label" for="cfg-wel-tpl">✉️ შეტყობინების შაბლონი:</label>
+        <textarea
+         id="cfg-wel-tpl"
+         formControlName="welcomeTemplate"
+         class="custom-textarea"
+         rows="3"
+         maxlength="2000"
+        ></textarea>
+       </div>
+
+       <div class="field-group" style="margin-bottom: 0;">
+        <label class="field-label" for="cfg-wel-btn">🔘 ღილაკის წარწერა:</label>
+        <input id="cfg-wel-btn" formControlName="welcomeButtonText" class="custom-input" placeholder="🚀 ARENA-ს გახსნა" maxlength="100" />
+       </div>
+      </mat-card>
+
+      <!-- Bottom Save Action Bar -->
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; margin-bottom: 24px;">
+       <button mat-button type="button" (click)="resetTelegramConfigToDefaults()" [disabled]="tgConfigBusy()">
+        ნაგულისხმევზე დაბრუნება
+       </button>
        <button
         mat-flat-button
         type="submit"
-        style="background: #0284c7; color: #fff; font-size: 15px; padding: 0 24px; height: 46px;"
-        [disabled]="broadcastBusy() || broadcastForm.invalid || !broadcastForm.controls.message.value.trim()"
+        style="background: #16a34a; color: #fff; padding: 0 28px; height: 46px; font-size: 15px;"
+        [disabled]="tgConfigBusy() || tgConfigForm.invalid"
        >
-        @if (broadcastBusy()) {
-         <span>⏳ იგზავნება...</span>
+        @if (tgConfigBusy()) {
+         <span>⏳ ინახება...</span>
         } @else {
-         <span>🚀 შეტყობინების გაგზავნა ყველასთვის</span>
+         <span>💾 ცვლილებების შენახვა</span>
         }
        </button>
       </div>
      </form>
-    </mat-card>
+    }
 
-    <!-- Last Broadcast Result Card -->
-    @if (broadcastResult(); as res) {
-     <mat-card style="background: #f0fdf4; border: 1px solid #86efac; margin-top: 16px;">
-      <h3 style="margin-top: 0; color: #166534; display: flex; align-items: center; gap: 6px;">
-       ✅ ბოლო ბროდკასტის შედეგი ({{ res.completedAtUtc | date:'medium' }})
-      </h3>
-      <div style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px; color: #1e293b;">
-       <div>სულ გამომწერი: <strong>{{ res.totalSubscribers }}</strong></div>
-       <div>სამიზნე: <strong>{{ res.targeted }}</strong></div>
-       <div style="color: #15803d;">წარმატებით გაიგზავნა: <strong>{{ res.successCount }}</strong></div>
-       <div style="color: #b91c1c;">დაბლოკილი/არააქტიური: <strong>{{ res.blockedCount }}</strong></div>
-       <div style="color: #d97706;">შეცდომა: <strong>{{ res.failedCount }}</strong></div>
+    <!-- TAB 2: BROADCAST (MESSAGE TO ALL) -->
+    @if (telegramSubTab() === 'broadcast') {
+     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+      <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+       📢 ტელეგრამ ბროდკასტი (შეტყობინება ყველას)
+      </h2>
+      <button mat-stroked-button (click)="loadTelegramStats()" [disabled]="broadcastBusy()">
+       🔄 სტატისტიკის განახლება
+      </button>
+     </div>
+
+     <!-- Live Stats Cards -->
+     <div class="stat-boxes">
+      <div class="stat-box">
+       <div class="stat-num">{{ tgStats()?.totalSubscribers ?? '...' }}</div>
+       <div class="stat-label">👥 სულ ბოტის გამომწერი</div>
       </div>
+      <div class="stat-box stat-box-active">
+       <div class="stat-num" style="color: #16a34a;">{{ tgStats()?.activeSubscribers ?? '...' }}</div>
+       <div class="stat-label">🟢 აქტიური გამომწერი (Start Bot)</div>
+      </div>
+      <div class="stat-box">
+       <div class="stat-num" style="color: #0284c7;">{{ tgStats()?.linkedUsersCount ?? '...' }}</div>
+       <div class="stat-label">📱 აპლიკაციასთან დაკავშირებული</div>
+      </div>
+      <div class="stat-box">
+       <div class="stat-num" style="font-size: 15px; padding-top: 6px;">{{ (tgStats()?.latestActivityUtc | date:'short') ?? '—' }}</div>
+       <div class="stat-label">⏱️ ბოლო აქტივობა</div>
+      </div>
+     </div>
+
+     <!-- Quick Message Templates -->
+     <div class="template-section">
+      <span class="template-label">⚡ სწრაფი შაბლონები:</span>
+      <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('welcome')">🎉 მისალმება</button>
+      <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('tournament')">🏆 საღამოს ტურნირი</button>
+      <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('bonus')">💎 ბონუს კრისტალები</button>
+      <button type="button" class="quick-btn" (click)="applyBroadcastTemplate('dating')">💫 გაცნობის შეხსენება</button>
+     </div>
+
+     <!-- Broadcast Form Card -->
+     <mat-card class="broadcast-card">
+      <form [formGroup]="broadcastForm" (ngSubmit)="sendBroadcast()">
+       <div class="field-group">
+        <label class="field-label" for="bc-msg">
+         ✉️ შეტყობინების ტექსტი (მიუვა ყველა აქტიურ მომხმარებელს, ვისაც Start Bot აქვს დაჭერილი):
+        </label>
+        <textarea
+         id="bc-msg"
+         formControlName="message"
+         class="custom-textarea"
+         rows="6"
+         placeholder="დაწერეთ შეტყობინება... (შეგიძლიათ გამოიყენოთ ემოჯები და HTML: <b>მუქი</b>, <i>დახრილი</i>)"
+         maxlength="4000"
+        ></textarea>
+        <div class="char-counter">
+         სიმბოლოები: {{ broadcastForm.controls.message.value.length }} / 4000
+        </div>
+       </div>
+
+       <div class="form-row">
+        <div class="field-group" style="flex: 1; min-width: 200px;">
+         <label class="field-label" for="bc-btn">🔘 ღილაკის ტექსტი (Mini App-ის გასახსნელად):</label>
+         <input id="bc-btn" formControlName="buttonText" class="custom-input" placeholder="🚀 ARENA-ს გახსნა" />
+        </div>
+        <div class="field-group" style="flex: 1; min-width: 200px;">
+         <label class="field-label" for="bc-path">🔗 გვერდის მისამართი (არასავალდებულო):</label>
+         <input id="bc-path" formControlName="webAppPath" class="custom-input" placeholder="მაგ. /arena ან /discover" />
+        </div>
+       </div>
+
+       <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="font-size: 13px; color: #6b7280;">
+         ⚠️ შეტყობინება გაეგზავნება <strong>{{ tgStats()?.activeSubscribers ?? 0 }}</strong> აქტიურ ტელეგრამ მომხმარებელს.
+        </div>
+        <button
+         mat-flat-button
+         type="submit"
+         style="background: #0284c7; color: #fff; font-size: 15px; padding: 0 24px; height: 46px;"
+         [disabled]="broadcastBusy() || broadcastForm.invalid || !broadcastForm.controls.message.value.trim()"
+        >
+         @if (broadcastBusy()) {
+          <span>⏳ იგზავნება...</span>
+         } @else {
+          <span>🚀 შეტყობინების გაგზავნა ყველასთვის</span>
+         }
+        </button>
+       </div>
+      </form>
      </mat-card>
+
+     <!-- Last Broadcast Result Card -->
+     @if (broadcastResult(); as res) {
+      <mat-card style="background: #f0fdf4; border: 1px solid #86efac; margin-top: 16px;">
+       <h3 style="margin-top: 0; color: #166534; display: flex; align-items: center; gap: 6px;">
+        ✅ ბოლო ბროდკასტის შედეგი ({{ res.completedAtUtc | date:'medium' }})
+       </h3>
+       <div style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px; color: #1e293b;">
+        <div>სულ გამომწერი: <strong>{{ res.totalSubscribers }}</strong></div>
+        <div>სამიზნე: <strong>{{ res.targeted }}</strong></div>
+        <div style="color: #15803d;">წარმატებით გაიგზავნა: <strong>{{ res.successCount }}</strong></div>
+        <div style="color: #b91c1c;">დაბლოკილი/არააქტიური: <strong>{{ res.blockedCount }}</strong></div>
+        <div style="color: #d97706;">შეცდომა: <strong>{{ res.failedCount }}</strong></div>
+       </div>
+      </mat-card>
+     }
     }
    </div>
   }

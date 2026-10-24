@@ -1,4 +1,110 @@
+# Status - Game Room Matchmaking: Matched Users Allowed at Table
+
+Updated 2026-10-24. Removed the `alreadyMatched` (`DatingMatch`) restriction that was isolating matched players into separate game rooms:
+
+1. **Root Cause Analysis & Removal (`backend/Dating.Api/Features/Game/GameService.cs`)**:
+   - `CheckIncompatible` and `GetIncompatibleUserIds` previously treated active `DatingMatch` pairs as incompatible room participants.
+   - When a 5th player entered a room where they were already matched with any of the existing 4 players, `JoinQueue` skipped the room and spawned a new isolated 1-person room.
+   - Removed `DatingMatch` checks from `CheckIncompatible` and `GetIncompatibleUserIds`.
+   - Preserved all essential safety blocks: `UserBlock` (blocked users) and `UnmatchedPair` (unmatched pairs) still strictly isolate players into separate rooms.
+   - Enhanced `JoinQueue` vacancy calculation to filter out stale lobby memberships (`r.State == Lobby && LastHeartbeatUtc < lobbyStaleCutoff`), consistent with `GetRoom` and `ListRooms`.
+
+2. **Database Migration**:
+   - Added EF Core migration `20261024122921_AddTelegramNotificationConfig` for `TelegramNotificationConfig` entity to prevent pending model warnings.
+
+3. **Verification**:
+   - Backend Build: `powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task build` -> **0 warnings, 0 errors**.
+   - Unit Tests: `scripts/dev.ps1 -Task test -TestFilter FullyQualifiedName~Dating.UnitTests` -> **57/57 passed (100%)**.
+   - Integration Tests: `scripts/dev.ps1 -Task test -TestFilter FullyQualifiedName~Game_incompatible_users` -> **1/1 passed (100%)**.
+
+---
+
+# Status - Configurable Telegram Notifications & Message Templates via Admin Panel
+
+Updated 2026-10-24. Implemented full end-to-end admin panel configurability for all Telegram notification types (chat messages, match requests / likes, mutual matches, superlikes, and welcome/link alerts):
+
+1. **Database Entity & Persistence (`TelegramNotificationConfigs`)**:
+   - Created `TelegramNotificationConfig` entity and EF Core mapping in `AppDbContext` (`DbSet<TelegramNotificationConfig>`).
+   - Fields: `MasterEnabled`, `ChatMessageEnabled`, `ChatMessageTemplate`, `ChatMessageButtonText`, `MatchRequestEnabled`, `MatchRequestTemplate`, `MatchRequestButtonText`, `MatchEnabled`, `MatchTemplate`, `MatchButtonText`, `SuperLikeEnabled`, `SuperLikeTemplate`, `SuperLikeButtonText`, `WelcomeTemplate`, `WelcomeButtonText`, `UpdatedAtUtc`.
+   - Safe self-healing database initialization via `EnsureConfigTableAsync` with `CREATE TABLE IF NOT EXISTS "TelegramNotificationConfigs"` to guarantee instant deployment without pending migrations blocking startup.
+
+2. **Backend API Endpoints (`backend/Dating.Api/Features/Moderation/ModerationController.cs`)**:
+   - `GET /api/moderation/telegram-config`: returns current config DTO.
+   - `PUT /api/moderation/telegram-config`: updates master switch, individual toggles, templates, and button texts with audit logging.
+   - `POST /api/moderation/telegram-config/reset`: resets all notification settings and templates to system defaults.
+   - `POST /api/moderation/telegram-config/test`: allows admins to send live test messages directly to their own linked Telegram chat for any channel with sample placeholders.
+
+3. **Dynamic Template Engine & Dispatch (`TelegramNotificationService.cs` & `TelegramPaymentService.cs`)**:
+   - Dynamic template placeholder replacement supporting `{sender}`, `{message}`, `{partner}`, `{note}`, and `{app}`.
+   - Respects `MasterEnabled` master killswitch and granular channel toggles.
+   - Updated `/start link_<userId>` in `TelegramPaymentService` to apply custom `WelcomeTemplate` and `WelcomeButtonText`.
+
+4. **Angular Admin Workspace (`admin/src/app/`)**:
+   - Modern tabbed Telegram workspace: `⚙️ შეტყობინებების კონფიგურაცია & შაბლონები` and `📢 ბროდკასტი (შეტყობინება ყველას)`.
+   - Master switch banner with live active/inactive status indicator.
+   - 5 dedicated notification cards with:
+     - Toggle switches for enabling/disabling each notification type.
+     - Clickable placeholder chips (e.g. `{sender}`, `{message}`) that insert directly at cursor position in textareas.
+     - Custom inline button text inputs.
+     - `🧪 ტესტის გაგზავნა` buttons to immediately test live formatting in Telegram.
+   - `💾 პარამეტრების შენახვა` with loading spinner and feedback banner.
+   - `↺ ნაგულისხმევზე დაბრუნება` with confirmation dialog.
+
+5. **Verification & Tests Run**:
+   - Backend Build (`powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task build`): **0 warnings, 0 errors**.
+   - Backend Unit Tests (`powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task test -TestFilter "FullyQualifiedName~Dating.UnitTests"`): **Passed: 57/57 passed (100%)**.
+   - Admin TypeScript Check (`npm --prefix admin run typecheck`): **Passed: 0 errors**.
+   - Admin Unit Tests (`npm --prefix admin run test`): **Passed: 13/13 passed (100%)**.
+   - Admin Production Build (`npm --prefix admin run build`): **Passed: 0 errors**.
+
+6. **NOT RUN**:
+   - Production cloud deployment (Railway CLI / deployment pipeline, awaiting user request).
+
+---
+
+# Status - Telegram Bot Instant Notifications for Chat Messages, Match Requests, and Matches
+
+Updated 2026-10-24. Implemented full end-to-end instant Telegram notifications for incoming chat messages, match requests (likes), and mutual matches:
+
+1. **Root Cause Analysis & Architecture Fixes (`backend/Dating.Api/Features/Notifications/TelegramNotificationService.cs`)**:
+   - Diagnosed DbContext lifetime issue: un-awaited fire-and-forget tasks previously accessed request-scoped `AppDbContext`, throwing `ObjectDisposedException` and silently swallowing notifications.
+   - Refactored `TelegramNotificationService` to utilize `IServiceScopeFactory` via `CreateDbContextScope()`, providing dedicated scopes for background notification dispatches.
+   - Resilient `BotToken`, `WebAppUrl`, and `BotUsername` resolution: loads from `IConfiguration`, environment variables (`Telegram__BotToken`, `TELEGRAM_BOT_TOKEN`), and falls back to `infra/.env` parsing.
+   - Fixed subscriber linking: updates `sub.UserId = userId.Value` and clears conflicting older subscriber rows for that user to maintain a clean 1:1 relationship.
+   - Validates `userId` against active users in `db.Users` before assigning to subscriber.
+
+2. **Dedicated Notification Methods (`ITelegramNotificationService`)**:
+   - `NotifyChatMessageAsync`: sends instant notification with sender display name, message snippet (`📷 ფოტო`, `🎤 ხმოვანი შეტყობინება`, or truncated text), and inline WebApp button (`💬 ჩატში გადასვლა` -> `/chat/{conversationId}`).
+   - `NotifyLikeReceivedAsync`: sends match request notification when a user swipes right (`💖 ახალი მოწონება (Match Request)!` with sender display name and inline WebApp button `👀 მოწონების ნახვა` -> `/requests`).
+   - `NotifyMatchAsync`: sends simultaneous congratulations notifications to both users (`🎉 გილოცავთ! ახალი მეჩი ARENA-ში!` with the other user's display name and inline WebApp button `💬 ჩატის გახსნა` -> `/messages`).
+   - `NotifySuperLikeAsync`: sends super like alert with sender display name, optional note snippet, and inline WebApp button (`👀 ნახვა` -> `/requests`).
+
+3. **Event Trigger Integration (`backend/Dating.Api/Features/Matching/` & `Features/Chat/`)**:
+   - `ChatService.Send`: triggers `telegramNotifications.NotifyChatMessageAsync` via `Task.Run`.
+   - `MatchService.Decide`:
+     - If `receipt.MatchId.HasValue`: triggers `telegramNotifications.NotifyMatchAsync`.
+     - Else if `input.Kind == "like"`: triggers `telegramNotifications.NotifyLikeReceivedAsync` to alert the target user of the incoming match request.
+   - `MatchService.SuperLike`: triggers `telegramNotifications.NotifyMatchAsync` (if matched) or `telegramNotifications.NotifySuperLikeAsync` (if pending).
+   - `MatchService.CreateOrUnlockGameMatchAsync`: triggers `telegramNotifications.NotifyMatchAsync` for both bottle game match participants.
+
+4. **Telegram Bot Deep-Link Integration (`backend/Dating.Api/Features/Premium/TelegramPaymentService.cs` & `mobile/src/notifications/`)**:
+   - In `TelegramPaymentService.HandleWebhookAsync`: handles `/start link_<userId>` command parameter, automatically binding the user's ARENA account to their Telegram `ChatId` and sending Georgian confirmation: `✅ თქვენი ARENA პროფილი წარმატებით დაუკავშირდა Telegram-ს!`.
+   - `NotificationSettingsScreen.tsx`: updated "Telegram ბოტთან დაკავშირება" button to open `https://t.me/${bot}?start=link_${accountId}` for instant 1-tap linking.
+   - Updated settings description and active status text in `NotificationSettingsScreen.tsx` to highlight all 3 channels: chat messages, match requests, and matches.
+
+5. **Verification & Tests Run**:
+   - .NET Backend Compilation: `dotnet build backend/Dating.Api/Dating.Api.csproj` -> **0 warnings, 0 errors**.
+   - Backend Unit Tests: `dotnet test backend/tests/Dating.UnitTests` -> **Passed: 55/55 passed (100%)**.
+   - Mobile TypeScript Check: `npm --prefix mobile run typecheck` -> **PASS (0 errors)**.
+   - Mobile Notification Unit Tests: `npm --prefix mobile test -- safety-notifications-tabs.test.tsx` -> **PASS (6/6 passed)**.
+
+6. **NOT RUN**:
+   - Physical device / mobile stores verification (requires physical mobile device / signing keys).
+
+---
+
 # Status - Game Lobby Names Readability & Photo Deletion Fix
+
 
 Updated 2026-10-24. Fixed photo deletion failure on Web/Telegram and resolved cramped/truncated member names in game matchmaking lobby:
 

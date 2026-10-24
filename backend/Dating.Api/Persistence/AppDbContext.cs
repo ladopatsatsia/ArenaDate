@@ -39,6 +39,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     public DbSet<Dating.Api.Features.Premium.UserSubscription> UserSubscriptions => Set<Dating.Api.Features.Premium.UserSubscription>();
     public DbSet<DiscoverySuperLike> DiscoverySuperLikes => Set<DiscoverySuperLike>();
     public DbSet<TelegramSubscriber> TelegramSubscribers => Set<TelegramSubscriber>();
+    public DbSet<TelegramNotificationConfig> TelegramNotificationConfigs => Set<TelegramNotificationConfig>();
     public DbSet<TodayPlan> TodayPlans => Set<TodayPlan>();
     public DbSet<TodayPlanResponse> TodayPlanResponses => Set<TodayPlanResponse>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -334,6 +335,22 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
             entity.Property(s => s.Username).HasMaxLength(64);
             entity.Property(s => s.FirstName).HasMaxLength(128);
             entity.Property(s => s.LastName).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<TelegramNotificationConfig>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Id).HasMaxLength(32);
+            entity.Property(c => c.ChatMessageTemplate).HasMaxLength(2000);
+            entity.Property(c => c.ChatMessageButtonText).HasMaxLength(100);
+            entity.Property(c => c.MatchRequestTemplate).HasMaxLength(2000);
+            entity.Property(c => c.MatchRequestButtonText).HasMaxLength(100);
+            entity.Property(c => c.MatchTemplate).HasMaxLength(2000);
+            entity.Property(c => c.MatchButtonText).HasMaxLength(100);
+            entity.Property(c => c.SuperLikeTemplate).HasMaxLength(2000);
+            entity.Property(c => c.SuperLikeButtonText).HasMaxLength(100);
+            entity.Property(c => c.WelcomeTemplate).HasMaxLength(2000);
+            entity.Property(c => c.WelcomeButtonText).HasMaxLength(100);
         });
 
         modelBuilder.Entity<TodayPlan>(entity =>

@@ -170,6 +170,26 @@ public sealed class TelegramPaymentService(
         {
             var chatId = update.Message.Chat.Id;
             var from = update.Message.From;
+            var text = update.Message.Text?.Trim();
+
+            Guid? linkedUserId = null;
+            if (!string.IsNullOrWhiteSpace(text) && text.StartsWith("/start", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (parts.Length > 1)
+                {
+                    var param = parts[1].Trim();
+                    if (param.StartsWith("link_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        param = param["link_".Length..].Trim();
+                    }
+                    if (Guid.TryParse(param, out var parsedGuid))
+                    {
+                        linkedUserId = parsedGuid;
+                    }
+                }
+            }
+
             try
             {
                 await telegramNotifications.RegisterOrUpdateSubscriberAsync(
@@ -178,7 +198,7 @@ public sealed class TelegramPaymentService(
                     username: from?.Username,
                     firstName: from?.FirstName,
                     lastName: null,
-                    userId: null,
+                    userId: linkedUserId,
                     ct: ct
                 );
             }
@@ -213,11 +233,20 @@ public sealed class TelegramPaymentService(
 
             if (!string.IsNullOrWhiteSpace(botToken) && botToken != "dev_bot_token" && !string.IsNullOrWhiteSpace(webAppUrl))
             {
+                var cfg = await telegramNotifications.GetConfigDtoAsync(ct);
                 var sendMsgUrl = $"https://api.telegram.org/bot{botToken}/sendMessage";
+                var welcomeText = linkedUserId.HasValue
+                    ? cfg.WelcomeTemplate.Replace("{app}", "ARENA")
+                    : "🔥 კეთილი იყოს თქვენი მობრძანება ARENA-ში!\n\nგახსენით აპლიკაცია ქვედა ღილაკით:";
+                var welcomeBtn = linkedUserId.HasValue
+                    ? cfg.WelcomeButtonText
+                    : "🚀 ARENA-ს გახსნა";
+
                 var sendMsgBody = new
                 {
                     chat_id = chatId,
-                    text = "🔥 კეთილი იყოს თქვენი მობრძანება ARENA-ში!\n\nგახსენით აპლიკაცია ქვედა ღილაკით:",
+                    text = welcomeText,
+                    parse_mode = "HTML",
                     reply_markup = new
                     {
                         inline_keyboard = new[]
@@ -226,7 +255,7 @@ public sealed class TelegramPaymentService(
                             {
                                 new
                                 {
-                                    text = "🚀 ARENA-ს გახსნა",
+                                    text = welcomeBtn,
                                     web_app = new { url = webAppUrl }
                                 }
                             }

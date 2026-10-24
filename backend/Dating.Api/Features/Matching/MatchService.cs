@@ -237,7 +237,19 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
   await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
   if (receipt.MatchId.HasValue)
   {
-      _ = NotifyMatchTelegramAsync(receipt.UserId, receipt.TargetId, CancellationToken.None);
+      _ = Task.Run(async () =>
+      {
+          try { await telegramNotifications.NotifyMatchAsync(receipt.UserId, receipt.TargetId, CancellationToken.None); }
+          catch { }
+      });
+  }
+  else if (input.Kind == "like")
+  {
+      _ = Task.Run(async () =>
+      {
+          try { await telegramNotifications.NotifyLikeReceivedAsync(user, input.TargetId, CancellationToken.None); }
+          catch { }
+      });
   }
   return new(receipt.RequestId,receipt.TargetId,receipt.Kind,receipt.MatchId);
  }
@@ -370,11 +382,19 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
 
   if (receipt.MatchId.HasValue)
   {
-      _ = NotifyMatchTelegramAsync(user, input.TargetId, CancellationToken.None);
+      _ = Task.Run(async () =>
+      {
+          try { await telegramNotifications.NotifyMatchAsync(user, input.TargetId, CancellationToken.None); }
+          catch { }
+      });
   }
   else
   {
-      _ = NotifySuperLikeTelegramAsync(user, input.TargetId, trimmedNote, CancellationToken.None);
+      _ = Task.Run(async () =>
+      {
+          try { await telegramNotifications.NotifySuperLikeAsync(user, input.TargetId, trimmedNote, CancellationToken.None); }
+          catch { }
+      });
   }
 
   return new SuperLikeResult(receipt.RequestId, receipt.TargetId, receipt.MatchId, wallet.Balance, trimmedNote);
@@ -420,7 +440,11 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
    await push.Enqueue(matchEvent.Id, conversation.Id, second, "match", ct);
    await db.SaveChangesAsync(ct);
    if (ownsTx) await tx!.CommitAsync(ct);
-   _ = NotifyMatchTelegramAsync(first, second, CancellationToken.None);
+   _ = Task.Run(async () =>
+   {
+       try { await telegramNotifications.NotifyMatchAsync(first, second, CancellationToken.None); }
+       catch { }
+   });
    return (match, conversation, true);
   } finally {
    if (tx != null) await tx.DisposeAsync();
@@ -596,57 +620,5 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
     IsBlurred: false
    );
   }).ToArray();
- }
-
- private async Task NotifyMatchTelegramAsync(Guid firstId, Guid secondId, CancellationToken ct)
- {
-     try
-     {
-         var firstProfile = await db.Set<DatingProfile>().AsNoTracking().FirstOrDefaultAsync(p => p.UserId == firstId, ct);
-         var secondProfile = await db.Set<DatingProfile>().AsNoTracking().FirstOrDefaultAsync(p => p.UserId == secondId, ct);
-
-         var firstName = firstProfile?.DisplayName ?? "მომხმარებელი";
-         var secondName = secondProfile?.DisplayName ?? "მომხმარებელი";
-
-         await telegramNotifications.SendToUserAsync(
-             secondId,
-             $"🎉 <b>ახალი მეჩი!</b>\n\n<b>{firstName}</b>-მ თქვენ მოგწონთ და თქვენ შორის შედგა მეჩი!\nშედით აპლიკაციაში და დაიწყეთ საუბარი ✨",
-             buttonText: "💬 ჩატის გახსნა",
-             webAppPath: "/messages",
-             ct: ct
-         );
-
-         await telegramNotifications.SendToUserAsync(
-             firstId,
-             $"🎉 <b>ახალი მეჩი!</b>\n\nთქვენ და <b>{secondName}</b> ერთმანეთს მოეწონეთ!\nშედით აპლიკაციაში და დაიწყეთ საუბარი ✨",
-             buttonText: "💬 ჩატის გახსნა",
-             webAppPath: "/messages",
-             ct: ct
-         );
-     }
-     catch
-     {
-     }
- }
-
- private async Task NotifySuperLikeTelegramAsync(Guid senderId, Guid targetId, string? note, CancellationToken ct)
- {
-     try
-     {
-         var senderProfile = await db.Set<DatingProfile>().AsNoTracking().FirstOrDefaultAsync(p => p.UserId == senderId, ct);
-         var senderName = senderProfile?.DisplayName ?? "მომხმარებელი";
-         var noteSnippet = !string.IsNullOrWhiteSpace(note) ? $"\nშეტყობინება: \"{note}\"" : "";
-
-         await telegramNotifications.SendToUserAsync(
-             targetId,
-             $"💫 <b>ახალი Super Like!</b>\n\n<b>{senderName}</b>-მ გამოგიგზავნათ Super Like!{noteSnippet}\nშედით ARENA-ში და ნახეთ მისი პროფილი 🔥",
-             buttonText: "👀 პროფილის ნახვა",
-             webAppPath: "/discover",
-             ct: ct
-         );
-     }
-     catch
-     {
-     }
  }
 }

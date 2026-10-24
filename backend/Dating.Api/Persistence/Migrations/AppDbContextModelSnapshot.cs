@@ -1532,6 +1532,85 @@ namespace Dating.Api.Persistence.Migrations
                     b.ToTable("PushPreference");
                 });
 
+            modelBuilder.Entity("Dating.Api.Features.Notifications.TelegramNotificationConfig", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("ChatMessageButtonText")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("ChatMessageEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ChatMessageTemplate")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("MasterEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MatchButtonText")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("MatchEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MatchRequestButtonText")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("MatchRequestEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MatchRequestTemplate")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("MatchTemplate")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("SuperLikeButtonText")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("SuperLikeEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SuperLikeTemplate")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WelcomeButtonText")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("WelcomeTemplate")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TelegramNotificationConfigs");
+                });
+
             modelBuilder.Entity("Dating.Api.Features.Notifications.TelegramSubscriber", b =>
                 {
                     b.Property<long>("ChatId")

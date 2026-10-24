@@ -94,6 +94,45 @@ export interface TelegramBroadcastResult {
   blockedCount: number;
   completedAtUtc: string;
 }
+export interface TelegramNotificationConfigDto {
+  masterEnabled: boolean;
+  chatMessageEnabled: boolean;
+  chatMessageTemplate: string;
+  chatMessageButtonText: string;
+  matchRequestEnabled: boolean;
+  matchRequestTemplate: string;
+  matchRequestButtonText: string;
+  matchEnabled: boolean;
+  matchTemplate: string;
+  matchButtonText: string;
+  superLikeEnabled: boolean;
+  superLikeTemplate: string;
+  superLikeButtonText: string;
+  welcomeTemplate: string;
+  welcomeButtonText: string;
+  updatedAtUtc: string;
+}
+export interface UpdateTelegramNotificationConfigRequest {
+  masterEnabled: boolean;
+  chatMessageEnabled: boolean;
+  chatMessageTemplate: string;
+  chatMessageButtonText: string;
+  matchRequestEnabled: boolean;
+  matchRequestTemplate: string;
+  matchRequestButtonText: string;
+  matchEnabled: boolean;
+  matchTemplate: string;
+  matchButtonText: string;
+  superLikeEnabled: boolean;
+  superLikeTemplate: string;
+  superLikeButtonText: string;
+  welcomeTemplate: string;
+  welcomeButtonText: string;
+}
+export interface AdminTelegramTestNotificationRequest {
+  notificationType: string;
+  targetChatId?: number | null;
+}
 export interface AdminTransactionDto {
   id: string;
   userId: string;
@@ -164,6 +203,18 @@ export class ModerationApi {
  broadcastTelegram(input: TelegramBroadcastRequest): Promise<TelegramBroadcastResult> {
   return this.postReturn<TelegramBroadcastResult>('/broadcast-telegram', input);
  }
+ getTelegramConfig(): Promise<TelegramNotificationConfigDto> {
+  return this.get<TelegramNotificationConfigDto>('/telegram-config');
+ }
+ updateTelegramConfig(input: UpdateTelegramNotificationConfigRequest): Promise<TelegramNotificationConfigDto> {
+  return this.putReturn<TelegramNotificationConfigDto>('/telegram-config', input);
+ }
+ resetTelegramConfig(): Promise<TelegramNotificationConfigDto> {
+  return this.postReturn<TelegramNotificationConfigDto>('/telegram-config/reset', {});
+ }
+ testTelegramConfig(input: AdminTelegramTestNotificationRequest): Promise<{ success: boolean; type: string }> {
+  return this.postReturn<{ success: boolean; type: string }>('/telegram-config/test', input);
+ }
  listTransactions(category = 'all', search?: string, page = 1, pageSize = 50): Promise<AdminTransactionsResponse> {
   const query = new URLSearchParams();
   if (category) query.set('category', category);
@@ -177,6 +228,7 @@ export class ModerationApi {
  async post(path: string, body: unknown): Promise<void> { try { await firstValueFrom(this.http.post<void>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }
  async postReturn<T>(path: string, body: unknown): Promise<T> { try { return await firstValueFrom(this.http.post<T>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }
  async put(path: string, body: unknown): Promise<void> { try { await firstValueFrom(this.http.put<void>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }
+ async putReturn<T>(path: string, body: unknown): Promise<T> { try { return await firstValueFrom(this.http.put<T>(this.base + path, body)); } catch (e) { this.expired(e); throw e; } }
  async delete(path: string): Promise<void> { try { await firstValueFrom(this.http.delete<void>(this.base + path)); } catch (e) { this.expired(e); throw e; } }
  private expired(e: unknown) { if (e instanceof HttpErrorResponse && e.status === 401) this.identity.set(null); }
 }

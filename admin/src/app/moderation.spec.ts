@@ -314,12 +314,97 @@ describe('moderation workspace', () => {
       linkedUsersCount: 5,
       latestActivityUtc: '2026-10-16T12:00:00Z'
     });
+    await Promise.resolve();
+    await Promise.resolve();
+    const cfgReq = http.expectOne('/api/moderation/telegram-config');
+    expect(cfgReq.request.method).toBe('GET');
+    cfgReq.flush({
+      masterEnabled: true,
+      chatMessageEnabled: true,
+      chatMessageTemplate: 'Chat {sender}: {message}',
+      chatMessageButtonText: 'Open Chat',
+      matchRequestEnabled: true,
+      matchRequestTemplate: 'Like from {sender}',
+      matchRequestButtonText: 'View Like',
+      matchEnabled: true,
+      matchTemplate: 'Match with {partner}',
+      matchButtonText: 'Start Chat',
+      superLikeEnabled: true,
+      superLikeTemplate: 'SuperLike from {sender}',
+      superLikeButtonText: 'View',
+      welcomeTemplate: 'Welcome {app}',
+      welcomeButtonText: 'Open',
+      updatedAtUtc: '2026-10-16T12:00:00Z'
+    });
     await task;
 
     expect(page.tab()).toBe('broadcast');
     expect(page.tgStats()?.totalSubscribers).toBe(10);
     expect(page.tgStats()?.activeSubscribers).toBe(8);
     expect(page.tgStats()?.linkedUsersCount).toBe(5);
+    expect(page.tgConfig()?.masterEnabled).toBe(true);
+    expect(page.tgConfigForm.controls.chatMessageTemplate.value).toBe('Chat {sender}: {message}');
+    http.verify();
+  });
+
+  it('updates telegram notification configuration and dispatches test notification', async () => {
+    const page = setup();
+    const api = TestBed.inject(ModerationApi);
+    const http = TestBed.inject(HttpTestingController);
+    api.identity.set({ id: 'staff', role: 'Admin' });
+
+    page.tgConfigForm.setValue({
+      masterEnabled: true,
+      chatMessageEnabled: true,
+      chatMessageTemplate: 'ახალი წერილი: {message}',
+      chatMessageButtonText: 'გახსნა',
+      matchRequestEnabled: true,
+      matchRequestTemplate: 'Like: {sender}',
+      matchRequestButtonText: 'ნახვა',
+      matchEnabled: true,
+      matchTemplate: 'Match: {partner}',
+      matchButtonText: 'ჩატი',
+      superLikeEnabled: true,
+      superLikeTemplate: 'SuperLike: {sender}',
+      superLikeButtonText: 'ნახვა',
+      welcomeTemplate: 'Welcome {app}',
+      welcomeButtonText: 'გახსნა'
+    });
+
+    const saveTask = page.saveTelegramConfig();
+    const putReq = http.expectOne('/api/moderation/telegram-config');
+    expect(putReq.request.method).toBe('PUT');
+    expect(putReq.request.body.chatMessageTemplate).toBe('ახალი წერილი: {message}');
+    putReq.flush({
+      masterEnabled: true,
+      chatMessageEnabled: true,
+      chatMessageTemplate: 'ახალი წერილი: {message}',
+      chatMessageButtonText: 'გახსნა',
+      matchRequestEnabled: true,
+      matchRequestTemplate: 'Like: {sender}',
+      matchRequestButtonText: 'ნახვა',
+      matchEnabled: true,
+      matchTemplate: 'Match: {partner}',
+      matchButtonText: 'ჩატი',
+      superLikeEnabled: true,
+      superLikeTemplate: 'SuperLike: {sender}',
+      superLikeButtonText: 'ნახვა',
+      welcomeTemplate: 'Welcome {app}',
+      welcomeButtonText: 'გახსნა',
+      updatedAtUtc: '2026-10-16T12:00:00Z'
+    });
+    await saveTask;
+
+    expect(page.notice()).toContain('წარმატებით შეინახა');
+
+    const testTask = page.testTelegramNotification('chat');
+    const testReq = http.expectOne('/api/moderation/telegram-config/test');
+    expect(testReq.request.method).toBe('POST');
+    expect(testReq.request.body.notificationType).toBe('chat');
+    testReq.flush({ success: true, type: 'chat' });
+    await testTask;
+
+    expect(page.notice()).toContain('სატესტო შეტყობინება');
     http.verify();
   });
 

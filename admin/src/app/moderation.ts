@@ -21,6 +21,9 @@ import {
   AdminTransactionDto,
   AdminTransactionsStats,
   AdminTransactionsResponse,
+  TelegramNotificationConfigDto,
+  UpdateTelegramNotificationConfigRequest,
+  AdminTelegramTestNotificationRequest,
 } from './moderation-api';
 
 @Component({
@@ -141,6 +144,21 @@ import {
     .tx-price-crystals { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
     .tx-price-debit { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
     .pagination-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; flex-wrap: wrap; gap: 12px; }
+    .config-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .config-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+    .config-card-title { font-size: 16px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px; margin: 0; }
+    .config-master-banner { background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .config-master-banner.disabled { background: #fef2f2; border-color: #fca5a5; }
+    .tag-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+    .tag-chip { background: #f1f5f9; color: #475569; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-family: monospace; border: 1px solid #cbd5e1; cursor: pointer; }
+    .tag-chip:hover { background: #e2e8f0; color: #0f172a; }
+    .toggle-switch-btn { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .toggle-on { background: #16a34a; color: #fff; }
+    .toggle-off { background: #94a3b8; color: #fff; }
+    .subnav-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
+    .subnav-tab { padding: 8px 18px; border-radius: 8px; border: 1px solid transparent; background: transparent; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.15s; }
+    .subnav-tab:hover { background: #f1f5f9; color: #1e293b; }
+    .subnav-tab.active { background: #0284c7; color: #fff; }
   `]
 })
 export class ModerationPage implements OnInit {
@@ -162,11 +180,32 @@ export class ModerationPage implements OnInit {
   readonly tgStats = signal<TelegramStats | null>(null);
   readonly broadcastBusy = signal(false);
   readonly broadcastResult = signal<TelegramBroadcastResult | null>(null);
+  readonly telegramSubTab = signal<'config' | 'broadcast'>('config');
+  readonly tgConfig = signal<TelegramNotificationConfigDto | null>(null);
+  readonly tgConfigBusy = signal(false);
+  readonly tgTestBusy = signal<string | null>(null);
+
+  readonly tgConfigForm = new FormGroup({
+    masterEnabled: new FormControl(true, { nonNullable: true }),
+    chatMessageEnabled: new FormControl(true, { nonNullable: true }),
+    chatMessageTemplate: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(2000)] }),
+    chatMessageButtonText: new FormControl('💬 ჩატში გადასვლა', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
+    matchRequestEnabled: new FormControl(true, { nonNullable: true }),
+    matchRequestTemplate: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(2000)] }),
+    matchRequestButtonText: new FormControl('👀 მოწონების ნახვა', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
+    matchEnabled: new FormControl(true, { nonNullable: true }),
+    matchTemplate: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(2000)] }),
+    matchButtonText: new FormControl('💬 ჩატის გახსნა', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
+    superLikeEnabled: new FormControl(true, { nonNullable: true }),
+    superLikeTemplate: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(2000)] }),
+    superLikeButtonText: new FormControl('👀 ნახვა', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
+    welcomeTemplate: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(2000)] }),
+    welcomeButtonText: new FormControl('🚀 ARENA-ს გახსნა', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] })
+  });
 
   readonly broadcastForm = new FormGroup({
     message: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(4000)] }),
     buttonText: new FormControl('🚀 ARENA-ს გახსნა', { nonNullable: true }),
-
     webAppPath: new FormControl('', { nonNullable: true })
   });
 
@@ -333,7 +372,7 @@ export class ModerationPage implements OnInit {
       this.questions.set(rows);
     }
     if (this.tab() === 'broadcast') {
-      await this.loadTelegramStats();
+      await Promise.all([this.loadTelegramStats(), this.loadTelegramConfig()]);
     }
     if (this.tab() === 'transactions') {
       await this.loadTransactions();
@@ -687,5 +726,136 @@ export class ModerationPage implements OnInit {
     } finally {
       this.broadcastBusy.set(false);
     }
+  }
+
+  setTelegramSubTab(tab: 'config' | 'broadcast') {
+    this.telegramSubTab.set(tab);
+  }
+
+  async loadTelegramConfig() {
+    this.tgConfigBusy.set(true);
+    try {
+      const cfg = await this.api.getTelegramConfig();
+      this.tgConfig.set(cfg);
+      this.tgConfigForm.patchValue({
+        masterEnabled: cfg.masterEnabled,
+        chatMessageEnabled: cfg.chatMessageEnabled,
+        chatMessageTemplate: cfg.chatMessageTemplate,
+        chatMessageButtonText: cfg.chatMessageButtonText,
+        matchRequestEnabled: cfg.matchRequestEnabled,
+        matchRequestTemplate: cfg.matchRequestTemplate,
+        matchRequestButtonText: cfg.matchRequestButtonText,
+        matchEnabled: cfg.matchEnabled,
+        matchTemplate: cfg.matchTemplate,
+        matchButtonText: cfg.matchButtonText,
+        superLikeEnabled: cfg.superLikeEnabled,
+        superLikeTemplate: cfg.superLikeTemplate,
+        superLikeButtonText: cfg.superLikeButtonText,
+        welcomeTemplate: cfg.welcomeTemplate,
+        welcomeButtonText: cfg.welcomeButtonText
+      });
+    } catch (e) {
+      this.error.set(adminError(e));
+    } finally {
+      this.tgConfigBusy.set(false);
+    }
+  }
+
+  async saveTelegramConfig() {
+    if (this.tgConfigForm.invalid) return;
+    this.tgConfigBusy.set(true);
+    this.error.set('');
+    this.notice.set('');
+    try {
+      const formVal = this.tgConfigForm.getRawValue();
+      const updated = await this.api.updateTelegramConfig(formVal);
+      this.tgConfig.set(updated);
+      this.notice.set('✅ Telegram შეტყობინებების პარამეტრები წარმატებით შეინახა.');
+    } catch (e) {
+      this.error.set(adminError(e));
+    } finally {
+      this.tgConfigBusy.set(false);
+    }
+  }
+
+  async resetTelegramConfigToDefaults() {
+    if (!confirm('ნამდვილად გსურთ შეტყობინებების შაბლონების ნაგულისხმევ მნიშვნელობებზე დაბრუნება?')) {
+      return;
+    }
+    this.tgConfigBusy.set(true);
+    this.error.set('');
+    this.notice.set('');
+    try {
+      const reset = await this.api.resetTelegramConfig();
+      this.tgConfig.set(reset);
+      this.tgConfigForm.patchValue({
+        masterEnabled: reset.masterEnabled,
+        chatMessageEnabled: reset.chatMessageEnabled,
+        chatMessageTemplate: reset.chatMessageTemplate,
+        chatMessageButtonText: reset.chatMessageButtonText,
+        matchRequestEnabled: reset.matchRequestEnabled,
+        matchRequestTemplate: reset.matchRequestTemplate,
+        matchRequestButtonText: reset.matchRequestButtonText,
+        matchEnabled: reset.matchEnabled,
+        matchTemplate: reset.matchTemplate,
+        matchButtonText: reset.matchButtonText,
+        superLikeEnabled: reset.superLikeEnabled,
+        superLikeTemplate: reset.superLikeTemplate,
+        superLikeButtonText: reset.superLikeButtonText,
+        welcomeTemplate: reset.welcomeTemplate,
+        welcomeButtonText: reset.welcomeButtonText
+      });
+      this.notice.set('🔄 შეტყობინებების შაბლონები დაბრუნდა ნაგულისხმევ მნიშვნელობებზე.');
+    } catch (e) {
+      this.error.set(adminError(e));
+    } finally {
+      this.tgConfigBusy.set(false);
+    }
+  }
+
+  async testTelegramNotification(type: string) {
+    this.tgTestBusy.set(type);
+    this.error.set('');
+    this.notice.set('');
+    try {
+      const res = await this.api.testTelegramConfig({ notificationType: type });
+      if (res.success) {
+        this.notice.set(`🧪 სატესტო შეტყობინება (${type}) წარმატებით გაიგზავნა Telegram-ში!`);
+      } else {
+        this.error.set('ტესტი ვერ გაიგზავნა: დარწმუნდით, რომ ბოტს ჰყავს აქტიური გამომწერი ან დაუკავშირეთ თქვენი პროფილი ბოტს.');
+      }
+    } catch (e) {
+      this.error.set(adminError(e));
+    } finally {
+      this.tgTestBusy.set(null);
+    }
+  }
+
+  toggleConfigMaster() {
+    const cur = this.tgConfigForm.controls.masterEnabled.value;
+    this.tgConfigForm.controls.masterEnabled.setValue(!cur);
+  }
+
+  toggleConfigChannel(channel: 'chatMessage' | 'matchRequest' | 'match' | 'superLike') {
+    if (channel === 'chatMessage') {
+      const cur = this.tgConfigForm.controls.chatMessageEnabled.value;
+      this.tgConfigForm.controls.chatMessageEnabled.setValue(!cur);
+    } else if (channel === 'matchRequest') {
+      const cur = this.tgConfigForm.controls.matchRequestEnabled.value;
+      this.tgConfigForm.controls.matchRequestEnabled.setValue(!cur);
+    } else if (channel === 'match') {
+      const cur = this.tgConfigForm.controls.matchEnabled.value;
+      this.tgConfigForm.controls.matchEnabled.setValue(!cur);
+    } else if (channel === 'superLike') {
+      const cur = this.tgConfigForm.controls.superLikeEnabled.value;
+      this.tgConfigForm.controls.superLikeEnabled.setValue(!cur);
+    }
+  }
+
+  insertTag(controlName: 'chatMessageTemplate' | 'matchRequestTemplate' | 'matchTemplate' | 'superLikeTemplate' | 'welcomeTemplate', tag: string) {
+    const control = this.tgConfigForm.get(controlName);
+    if (!control) return;
+    const curVal = control.value || '';
+    control.setValue(curVal + ' ' + tag);
   }
 }

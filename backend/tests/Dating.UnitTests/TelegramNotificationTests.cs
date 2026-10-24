@@ -1,6 +1,7 @@
 using Dating.Api.Features.Auth;
 using Dating.Api.Features.Notifications;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -34,7 +35,7 @@ public class TelegramNotificationTests
         }).Build();
 
         var service = new TelegramNotificationService(
-            null!,
+            (IServiceScopeFactory)null!,
             config,
             new HttpClient(),
             NullLogger<TelegramNotificationService>.Instance
@@ -52,7 +53,7 @@ public class TelegramNotificationTests
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection().Build();
         var service = new TelegramNotificationService(
-            null!,
+            (IServiceScopeFactory)null!,
             config,
             new HttpClient(),
             NullLogger<TelegramNotificationService>.Instance
@@ -100,4 +101,97 @@ public class TelegramNotificationTests
         Assert.Equal(2, result.BlockedCount);
         Assert.Equal(now, result.CompletedAtUtc);
     }
+
+    [Fact]
+    public async Task SendToChatAsync_InDevMockMode_ReturnsTrue()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Telegram:BotToken"] = "dev_bot_token"
+        }).Build();
+
+        var service = new TelegramNotificationService(
+            (IServiceScopeFactory)null!,
+            config,
+            new HttpClient(),
+            NullLogger<TelegramNotificationService>.Instance
+        );
+
+        var result = await service.SendToChatAsync(12345678, "Hello World", "Open", "/messages", CancellationToken.None);
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task SendToUserAsync_ReturnsFalse_WhenSubscriberNotFound()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Telegram:BotToken"] = "dev_bot_token"
+        }).Build();
+
+        // Testing that when DI scope factory is null or DB has no subscriber, it gracefully catches and returns false
+        var service = new TelegramNotificationService(
+            (IServiceScopeFactory)null!,
+            config,
+            new HttpClient(),
+            NullLogger<TelegramNotificationService>.Instance
+        );
+
+        var result = await service.SendToUserAsync(Guid.NewGuid(), "Hello", null, null, CancellationToken.None);
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void TelegramNotificationConfig_Defaults_AreValid()
+    {
+        var config = new TelegramNotificationConfig();
+
+        Assert.Equal("default", config.Id);
+        Assert.True(config.MasterEnabled);
+        Assert.True(config.ChatMessageEnabled);
+        Assert.Contains("{sender}", config.ChatMessageTemplate);
+        Assert.Contains("{message}", config.ChatMessageTemplate);
+        Assert.True(config.MatchRequestEnabled);
+        Assert.Contains("{sender}", config.MatchRequestTemplate);
+        Assert.True(config.MatchEnabled);
+        Assert.Contains("{partner}", config.MatchTemplate);
+        Assert.True(config.SuperLikeEnabled);
+        Assert.Contains("{sender}", config.SuperLikeTemplate);
+        Assert.Contains("{note}", config.SuperLikeTemplate);
+        Assert.False(string.IsNullOrWhiteSpace(config.WelcomeTemplate));
+    }
+
+    [Fact]
+    public async Task UpdateConfigAsync_ThrowsOnTooLongTemplate()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection().Build();
+        var service = new TelegramNotificationService(
+            (IServiceScopeFactory)null!,
+            config,
+            new HttpClient(),
+            NullLogger<TelegramNotificationService>.Instance
+        );
+
+        var tooLong = new string('X', 2001);
+        var req = new UpdateTelegramNotificationConfigRequest(
+            MasterEnabled: true,
+            ChatMessageEnabled: true,
+            ChatMessageTemplate: tooLong,
+            ChatMessageButtonText: "btn",
+            MatchRequestEnabled: true,
+            MatchRequestTemplate: "valid",
+            MatchRequestButtonText: "btn",
+            MatchEnabled: true,
+            MatchTemplate: "valid",
+            MatchButtonText: "btn",
+            SuperLikeEnabled: true,
+            SuperLikeTemplate: "valid",
+            SuperLikeButtonText: "btn",
+            WelcomeTemplate: "valid",
+            WelcomeButtonText: "btn"
+        );
+
+        await Assert.ThrowsAsync<AuthFailure>(() => service.UpdateConfigAsync(req, CancellationToken.None));
+    }
 }
+

@@ -41,7 +41,11 @@ public sealed class ChatService(AppDbContext db,MatchService matches,PairSynchro
   await push.Enqueue(message.Id,id,match.FirstId==user?match.SecondId:match.FirstId,"message",ct);
   await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
   var recipient = match.FirstId == user ? match.SecondId : match.FirstId;
-  _ = NotifyChatMessageTelegramAsync(user, recipient, input.Text, CancellationToken.None);
+  _ = Task.Run(async () =>
+  {
+      try { await telegramNotifications.NotifyChatMessageAsync(user, recipient, input.Text, id, CancellationToken.None); }
+      catch { }
+  });
   return ChatDto.Message(message);
  }
  public async Task<HistoryPage> History(Guid user,Guid id,long? before,long? after,CancellationToken ct) {
@@ -72,27 +76,5 @@ public sealed class ChatService(AppDbContext db,MatchService matches,PairSynchro
  public Task<bool> SessionValid(Guid user,Guid session,long expiration,CancellationToken ct)=>db.Sessions.AnyAsync(s=>
   s.Id==session && s.UserId==user && s.RevokedAt==null && s.ExpiresAt>clock.GetUtcNow() && s.User.IsActive &&
   s.User.EmailConfirmed && expiration>clock.GetUtcNow().ToUnixTimeSeconds(),ct);
-
- private async Task NotifyChatMessageTelegramAsync(Guid senderId, Guid recipientId, string text, CancellationToken ct)
- {
-     try
-     {
-         var senderProfile = await db.Set<DatingProfile>().AsNoTracking().FirstOrDefaultAsync(p => p.UserId == senderId, ct);
-         var senderName = senderProfile?.DisplayName ?? "მეწყვილე";
-         var snippet = text.StartsWith("[photo:") ? "📷 ფოტო"
-                     : text.StartsWith("[voice:") ? "🎤 ხმოვანი შეტყობინება"
-                     : text.Length > 80 ? text[..80] + "..." : text;
-
-         await telegramNotifications.SendToUserAsync(
-             recipientId,
-             $"💌 <b>ახალი შეტყობინება!</b>\n\n<b>{senderName}</b>: \"{snippet}\"\nუპასუხეთ სანამ საუბარი ცხელია 🔥",
-             buttonText: "💬 ჩატში გადასვლა",
-             webAppPath: "/messages",
-             ct: ct
-         );
-     }
-     catch
-     {
-     }
- }
 }
+

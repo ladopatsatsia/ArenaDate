@@ -248,6 +248,41 @@ public sealed class ModerationController(AppDbContext db,ModerationService servi
  public async Task<Dating.Api.Features.Notifications.TelegramStatsDto> TelegramStats(CancellationToken ct)
      => await telegramNotifications.GetStatsAsync(ct);
 
+ [HttpGet("telegram-config")]
+ public async Task<Dating.Api.Features.Notifications.TelegramNotificationConfigDto> GetTelegramConfig(CancellationToken ct)
+     => await telegramNotifications.GetConfigDtoAsync(ct);
+
+ [HttpPut("telegram-config"), RequestSizeLimit(16384)]
+ public async Task<Dating.Api.Features.Notifications.TelegramNotificationConfigDto> UpdateTelegramConfig(
+     [FromBody] Dating.Api.Features.Notifications.UpdateTelegramNotificationConfigRequest input,
+     CancellationToken ct)
+ {
+     var updated = await telegramNotifications.UpdateConfigAsync(input, ct);
+     service.Audit(Actor, Guid.NewGuid(), "telegram_config_update", $"Updated telegram notification config: master={input.MasterEnabled}");
+     await db.SaveChangesAsync(ct);
+     return updated;
+ }
+
+ [HttpPost("telegram-config/reset")]
+ public async Task<Dating.Api.Features.Notifications.TelegramNotificationConfigDto> ResetTelegramConfig(CancellationToken ct)
+ {
+     var reset = await telegramNotifications.ResetConfigAsync(ct);
+     service.Audit(Actor, Guid.NewGuid(), "telegram_config_reset", "Reset telegram notification templates to default");
+     await db.SaveChangesAsync(ct);
+     return reset;
+ }
+
+ [HttpPost("telegram-config/test"), RequestSizeLimit(4096)]
+ public async Task<IActionResult> TestTelegramConfig(
+     [FromBody] Dating.Api.Features.Notifications.AdminTelegramTestNotificationRequest input,
+     CancellationToken ct)
+ {
+     var success = await telegramNotifications.SendAdminTestNotificationAsync(input, ct);
+     service.Audit(Actor, Guid.NewGuid(), "telegram_test_notification", $"Test telegram notification type={input.NotificationType}, success={success}");
+     await db.SaveChangesAsync(ct);
+     return Ok(new { success, type = input.NotificationType });
+ }
+
  [HttpPost("broadcast-telegram"), RequestSizeLimit(8192)]
  public async Task<Dating.Api.Features.Notifications.TelegramBroadcastResult> BroadcastTelegram([FromBody] Dating.Api.Features.Notifications.TelegramBroadcastRequest input, CancellationToken ct)
  {

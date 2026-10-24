@@ -34,7 +34,6 @@ public sealed class SafeRequestMiddleware(RequestDelegate next, ILogger<SafeRequ
             context.Response.Headers["X-Correlation-ID"] = context.TraceIdentifier;
             context.Response.StatusCode = 500;
             var problem = SafeProblems.Create(context, 500, "An unexpected error occurred.");
-            problem.Extensions["error"] = ex.GetType().Name + ": " + ex.Message;
             await context.Response.WriteAsJsonAsync(
                 problem,
                 options: (System.Text.Json.JsonSerializerOptions?)null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
