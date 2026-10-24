@@ -64,6 +64,7 @@ export default function ProfileScreen() {
     try {
       await fn();
       await cache.invalidateQueries({ queryKey: key });
+      await profile.refetch();
     } catch (err: unknown) {
       console.error('Photo action failed:', err);
       const e = err as { message?: string; status?: number } | undefined;
@@ -74,6 +75,39 @@ export default function ProfileScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function confirmDeletePhoto(photoId: string) {
+    const title = t('photo_remove');
+    const message = t('photo_remove_confirm');
+    const doDelete = () => {
+      void action(async () => {
+        await api.remove(photoId);
+      });
+    };
+
+    // 1. Telegram WebApp confirm dialog
+    const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : undefined;
+    if (tg && typeof tg.showConfirm === 'function') {
+      tg.showConfirm(message || 'Are you sure you want to delete this photo?', (confirmed: boolean) => {
+        if (confirmed) doDelete();
+      });
+      return;
+    }
+
+    // 2. Standard Web browser confirm dialog
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      if (window.confirm(message || 'Are you sure you want to delete this photo?')) {
+        doDelete();
+      }
+      return;
+    }
+
+    // 3. Native iOS / Android Alert
+    Alert.alert(title, message, [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('photo_remove'), style: 'destructive', onPress: doDelete },
+    ]);
   }
 
   async function deleteAccount() {
@@ -234,11 +268,8 @@ export default function ProfileScreen() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t('photo_remove')}
-                    hitSlop={8}
-                    onPress={() => Alert.alert(t('photo_remove'), t('photo_remove_confirm'), [
-                      { text: t('cancel'), style: 'cancel' },
-                      { text: t('photo_remove'), style: 'destructive', onPress: () => { void action(() => api.remove(photo.id)); } }
-                    ])}
+                    hitSlop={10}
+                    onPress={() => confirmDeletePhoto(photo.id)}
                     style={styles.slotDeleteBtn}
                   >
                     <Text style={styles.slotDeleteText}>✕</Text>
@@ -541,19 +572,23 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     right: 6,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(251, 113, 133, 0.95)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 50,
+    elevation: 6,
+    ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : {}),
   },
   slotDeleteText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '900',
-    lineHeight: 14,
+    lineHeight: 15,
   },
   photosCaption: {
     fontSize: 12,

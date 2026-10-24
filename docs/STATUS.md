@@ -1,3 +1,33 @@
+# Status - Game Lobby Names Readability & Photo Deletion Fix
+
+Updated 2026-10-24. Fixed photo deletion failure on Web/Telegram and resolved cramped/truncated member names in game matchmaking lobby:
+
+1. **Photo Deletion Fix (`mobile/src/profile/ProfileScreen.tsx`)**:
+   - Diagnosed root cause: `Alert.alert` in `react-native-web` is a dummy empty function (`class Alert { static alert() {} }`), so clicking the red ✕ button silently swallowed the delete action on Web and Telegram WebApp.
+   - Implemented environment-aware `confirmDeletePhoto`:
+     - Checks `(window as any).Telegram?.WebApp?.showConfirm` for Telegram WebApp users.
+     - Checks `window.confirm` for Web browsers.
+     - Falls back to `Alert.alert` for iOS / Android native devices.
+   - Refactored `action` helper to call `await profile.refetch()` immediately after deletion so the slot updates in real-time.
+   - Enhanced `styles.slotDeleteBtn` with `zIndex: 50, elevation: 6, width: 28, height: 28, cursor: 'pointer', backgroundColor: '#EF4444'`.
+
+2. **Game Lobby Names Readability (`mobile/src/game/GameLobbyScreen.tsx` & `GameTable.tsx`)**:
+   - Diagnosed root cause: `SlotCard` had rigid dimensions (`width: 52, height: 72`, `maxWidth: 48`) with `numberOfLines={1}`, clipping Georgian names like "თინათინი", "ალექსანდრე", "Mariam" to 1–3 characters.
+   - Updated `SlotCard` to allow 2 lines (`numberOfLines={2}`, `ellipsizeMode="tail"`) with bold pure white text (`fontSize: 11, fontWeight: '700', color: '#FFFFFF'`).
+   - Expanded slot dimensions: `minWidth: 66, maxWidth: 84, minHeight: 104, paddingVertical: 8, paddingHorizontal: 4` with `gap: 8, justifyContent: 'center'`.
+   - Increased slot avatar size from 34px to 44px for clear visual recognition.
+   - Enhanced `seatName` in `mobile/src/game/GameTable.tsx` with `fontSize: 11, fontWeight: '700', color: '#FFFFFF', width: 84, textShadowColor: 'rgba(0,0,0,0.9)'` for clear table-side readability.
+
+3. **Verification & Tests Run**:
+   - `npm run typecheck --workspace mobile`: Exit code 0 (0 type errors).
+   - `npx jest tests/profile-upload.test.ts tests/profile-autosave.test.tsx tests/game-direct-request.test.tsx tests/game-room-chat.test.tsx`: 4 passed, 4 total (10/10 tests passed).
+   - Backend `DELETE /api/profile/photos/{id}` tested against production: HTTP 204 No Content.
+
+4. **NOT RUN**:
+   - Physical iOS and Android store binary builds (requires Apple Developer Program / Google Play signing keys and physical mobile hardware).
+
+---
+
 # Status - Production Database Population & Full User Synchronization
 
 Updated 2026-10-23. Synchronized all 24 registered user accounts, profiles, game questions, and 95 media photo assets into Railway production:

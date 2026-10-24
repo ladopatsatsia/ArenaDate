@@ -2823,11 +2823,14 @@ const styles = StyleSheet.create({
   seatName: {
     position: 'absolute',
     bottom: -18,
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#f1f5f9',
-    width: 76,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    width: 84,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   disconnectedBadge: {
     position: 'absolute',

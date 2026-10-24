@@ -921,11 +921,11 @@ function SlotCard({
           <Text style={styles.genderTagText}>{gender === 'woman' ? '♀' : '♂'}</Text>
         </View>
       </View>
-      <Text style={styles.memberName} numberOfLines={1}>
+      <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
         {member.displayName}
       </Text>
       <Text style={styles.memberAge} numberOfLines={1}>
-        {isMe ? t('game_you_label', 'შენ · ') : ''}{member.age} {t('game_years_short', 'წლ.')}
+        {isMe ? `${t('game_you_label', 'შენ')} · ` : ''}{member.age} {t('game_years_short', 'წლ.')}
       </Text>
     </View>
   );
@@ -1407,60 +1407,66 @@ const styles = StyleSheet.create({
   slotGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    alignItems: 'center',
+    gap: 8,
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    paddingVertical: 4,
   },
   slotBase: {
-    width: 52,
-    height: 72,
-    borderRadius: 8,
+    minWidth: 66,
+    maxWidth: 84,
+    flex: 1,
+    minHeight: 104,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 2,
+    justifyContent: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   emptySlot: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderStyle: 'dashed',
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
   emptyAvatarCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: theme.colors.soft,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 3,
+    marginBottom: 6,
   },
   emptySlotIcon: {
-    fontSize: 16,
-    color: theme.colors.muted,
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
   emptySlotLabel: {
-    fontSize: 9,
-    color: theme.colors.muted,
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.45)',
     textAlign: 'center',
+    fontWeight: '500',
+    marginTop: 2,
   },
   occupiedSlot: {
-    backgroundColor: theme.colors.soft,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
   },
   mySlot: {
     borderColor: theme.colors.primary,
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderWidth: 2,
+    backgroundColor: 'rgba(139, 92, 246, 0.18)',
   },
   avatarWrapper: {
     position: 'relative',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   slotAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   placeholderAvatar: {
     backgroundColor: theme.colors.soft,
@@ -1471,11 +1477,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0f172a',
   },
   tagFemale: {
     backgroundColor: '#EC4899',
@@ -1485,20 +1493,25 @@ const styles = StyleSheet.create({
   },
   genderTagText: {
     color: '#FFFFFF',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '700',
   },
   memberName: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: theme.colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
     textAlign: 'center',
-    maxWidth: 48,
+    width: '100%',
+    lineHeight: 14,
+    marginTop: 2,
+    paddingHorizontal: 2,
   },
   memberAge: {
-    fontSize: 9,
-    color: theme.colors.muted,
+    fontSize: 10,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.75)',
     textAlign: 'center',
+    marginTop: 2,
   },
   devCard: {
     backgroundColor: 'rgba(245, 158, 11, 0.08)',
