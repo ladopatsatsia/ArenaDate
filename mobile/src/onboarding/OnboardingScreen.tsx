@@ -80,10 +80,22 @@ export function OnboardingScreen() {
   const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
-    if (profileQuery.data?.displayName && !displayName) {
-      setDisplayName(profileQuery.data.displayName);
+    if (profileQuery.data) {
+      if (profileQuery.data.displayName && !displayName) {
+        setDisplayName(profileQuery.data.displayName);
+      }
+      if (profileQuery.data.gender && (profileQuery.data.gender === 'woman' || profileQuery.data.gender === 'man' || profileQuery.data.gender === 'nonbinary')) {
+        setGender(profileQuery.data.gender);
+      }
+      if (profileQuery.data.city) {
+        setSelectedCity(profileQuery.data.city);
+      }
+      const firstPhoto = profileQuery.data.photos?.[0];
+      if (firstPhoto && !uploadedPhotoUri) {
+        setUploadedPhotoUri(`/api/media/profile/${firstPhoto.id}`);
+      }
     }
-  }, [profileQuery.data?.displayName]);
+  }, [profileQuery.data]);
 
   // Step 2: Birthday
   const [birthYear, setBirthYear] = useState('');

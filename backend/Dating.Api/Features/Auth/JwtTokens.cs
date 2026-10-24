@@ -44,7 +44,39 @@ public sealed class JwtTokens : IDisposable
         if (!success)
         {
             tempRsa.Dispose();
-            tempRsa = RSA.Create(2048);
+            var keyRingDir = !string.IsNullOrWhiteSpace(options.KeyRingPath) && Directory.Exists(options.KeyRingPath)
+                ? options.KeyRingPath
+                : AppContext.BaseDirectory;
+            var persistedKeyPath = Path.Combine(keyRingDir, "jwt_signing_key.pem");
+            if (File.Exists(persistedKeyPath))
+            {
+                try
+                {
+                    var filePem = File.ReadAllText(persistedKeyPath);
+                    tempRsa = RSA.Create();
+                    tempRsa.ImportFromPem(filePem);
+                    if (tempRsa.KeySize >= 2048 && tempRsa.ExportParameters(true).D is not null)
+                    {
+                        success = true;
+                    }
+                }
+                catch
+                {
+                    tempRsa.Dispose();
+                    success = false;
+                }
+            }
+
+            if (!success)
+            {
+                tempRsa = RSA.Create(2048);
+                try
+                {
+                    var exported = tempRsa.ExportPkcs8PrivateKeyPem();
+                    File.WriteAllText(persistedKeyPath, exported);
+                }
+                catch { }
+            }
         }
         rsa = tempRsa;
         Key = new RsaSecurityKey(rsa) { CryptoProviderFactory = new CryptoProviderFactory { CacheSignatureProviders = false } };

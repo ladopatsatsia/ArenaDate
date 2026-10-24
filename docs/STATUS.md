@@ -1,6 +1,31 @@
-# Status - Bottle Game Kiss Matching & 25-Crystal Unlock Visibility
+# Status - Telegram Mini App Session Persistence & Reload Registration Fix
 
-Updated 2026-10-24. Resolved issue where mutual bottle game kisses failed to match or were hidden from the user looking to unlock for 25 crystals:
+Updated 2026-10-24. Resolved issue where restarting the application or tapping "Reload page" in Telegram Mini App occasionally forced existing users back into registration/onboarding:
+
+1. **Root Cause Analysis**:
+   - **Telegram `initData` Stripping on Reload (`mobile/src/telegram/telegramSdk.ts`)**: On initial load, Telegram supplies `#tgWebAppData=...` in the URL hash, which Expo Router / Telegram SDK clears. On "Reload page", Telegram webview reloads without the hash, rendering `window.Telegram.WebApp.initData` temporarily empty or missing. `isTelegramMiniApp()` returned false, dropping the user into the fallback auth card.
+   - **Forced Onboarding for Existing Users (`mobile/src/auth/OtpAuthScreen.tsx`)**: `handleTelegramLogin` checked `if (res.isNewUser || !res.hasCompleteProfile) router.replace('/onboarding')`. Any existing user who had not completed all 8 dating profile steps (such as players who only use the bottle game) was forcefully redirected into `/onboarding` upon re-authenticating.
+   - **Ephemeral In-Memory RSA Signing Key on Server Restarts (`backend/Dating.Api/Features/Auth/JwtTokens.cs`)**: If `Auth__SigningKeyPem` was not configured, `RSA.Create(2048)` generated an ephemeral in-memory key on each startup. Container restarts invalidated all active JWT access tokens with 401 Unauthorized.
+   - **DataProtection Key Ring Mismatch (`backend/Dating.Api/Features/Auth/AuthService.cs`)**: In `Refresh`, `retryProtector.Unprotect` threw an unhandled exception if DataProtection keys rotated on container restart, turning a recoverable refresh into a 500 error.
+   - **Index Route Guard Mismatch (`mobile/app/_layout.tsx` & `mobile/app/index.tsx`)**: When `signedIn`, `app/index.tsx` was excluded from the signedIn stack guard without an immediate redirect, creating route ambiguity on root `/` reloads.
+
+2. **Implemented Fixes**:
+   - `telegramSdk.ts`: Added `getTelegramInitData()` which captures `initData` from WebApp SDK or URL hash and securely persists it in `sessionStorage` and `localStorage`. "Reload page" now immediately retrieves the cached Telegram credentials.
+   - `OtpAuthScreen.tsx`: Updated navigation so ONLY `res.isNewUser === true` (brand new signups) is sent to `/onboarding`. Existing users (`res.isNewUser === false`) go directly to `/(tabs)/discover`.
+   - `index.tsx` & `_layout.tsx`: Included `index` in the `signedIn` stack with an immediate `<Redirect href="/(tabs)/discover" />` if the user is signed in.
+   - `OnboardingScreen.tsx`: Pre-filled existing profile fields (`displayName`, `gender`, `city`, `photos`) from server profile query so progress is not lost.
+   - `JwtTokens.cs`: Persisted dynamically generated RSA keys to `jwt_signing_key.pem` so backend restarts reload the same key and preserve existing JWT tokens.
+   - `AuthService.cs`: Safely wrapped `retryProtector.Unprotect` in a try/catch so container restarts never crash token refreshes with 500 errors.
+
+3. **Verification**:
+   - Backend Build: `powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task build` -> **0 warnings, 0 errors**.
+   - Unit Tests: `scripts/dev.ps1 -Task test -TestFilter FullyQualifiedName~Dating.UnitTests` -> **57/57 passed (100%)**.
+   - Session Tests: `npm --prefix mobile test -- tests/session.test.ts` -> **10/10 passed (100%)**.
+   - Mobile TypeScript: `npm --prefix mobile run typecheck` -> **0 errors**.
+
+---
+
+
 
 1. **Root Cause Analysis & Backend Fixes (`GameService.cs` & `MatchService.cs`)**:
    - In `SendKiss` (`GameService.cs`), `reciprocalKiss` strictly required `k.SenderGeneration == recipientMembership.Generation && k.RecipientGeneration == senderMembership.Generation`. If either player experienced a socket heartbeat disconnect/reconnect on mobile (which increments `membership.Generation`), the reciprocal kiss check returned null, preventing the mutual match from forming.

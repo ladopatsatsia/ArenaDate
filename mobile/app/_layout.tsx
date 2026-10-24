@@ -63,6 +63,7 @@ function Navigation() {
   </Screen>;
   return <Stack key={state.account?.id??'guest'} screenOptions={{ headerTitle: 'ARENA', headerBackTitle: t('back'),headerStyle:{backgroundColor:theme.colors.background},headerTintColor:theme.colors.text,contentStyle:{backgroundColor:theme.colors.background},animation:reduced?'none':'default' }}>
     <Stack.Protected guard={state.status === 'signedIn'}>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />

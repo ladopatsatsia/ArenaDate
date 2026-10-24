@@ -91,9 +91,45 @@ export function getTelegramWebApp(): TelegramWebApp | null {
   return null;
 }
 
-export function isTelegramMiniApp(): boolean {
+const TG_INIT_DATA_KEY = 'arena_tg_init_data';
+
+export function getTelegramInitData(): string {
   const tg = getTelegramWebApp();
-  return !!(tg && tg.initData && tg.initData.length > 0);
+  if (tg?.initData && tg.initData.length > 0) {
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(TG_INIT_DATA_KEY, tg.initData);
+        window.localStorage.setItem(TG_INIT_DATA_KEY, tg.initData);
+      }
+    } catch {}
+    return tg.initData;
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      const hash = window.location.hash;
+      if (hash && hash.includes('tgWebAppData=')) {
+        const match = hash.match(/tgWebAppData=([^&]+)/);
+        if (match && match[1]) {
+          const decoded = decodeURIComponent(match[1]);
+          window.sessionStorage.setItem(TG_INIT_DATA_KEY, decoded);
+          window.localStorage.setItem(TG_INIT_DATA_KEY, decoded);
+          return decoded;
+        }
+      }
+      const sessionCached = window.sessionStorage.getItem(TG_INIT_DATA_KEY);
+      if (sessionCached && sessionCached.length > 0) return sessionCached;
+      const localCached = window.localStorage.getItem(TG_INIT_DATA_KEY);
+      if (localCached && localCached.length > 0) return localCached;
+    } catch {}
+  }
+
+  return '';
+}
+
+export function isTelegramMiniApp(): boolean {
+  const initData = getTelegramInitData();
+  return initData.length > 0;
 }
 
 export function initTelegram(): void {
@@ -110,6 +146,7 @@ export function initTelegram(): void {
       // safe fallback if not running inside real Telegram client
     }
   }
+  getTelegramInitData();
 }
 
 export function triggerHaptic(style: 'light' | 'medium' | 'heavy' = 'medium'): void {

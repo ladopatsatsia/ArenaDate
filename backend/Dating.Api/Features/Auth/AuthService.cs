@@ -114,9 +114,13 @@ public sealed class AuthService(AppDbContext db, UserManager<AppUser> users, Jwt
         {
             if (credential.RequestId == request.RequestId && now - used <= TimeSpan.FromSeconds(30) && credential.ProtectedRetry is not null)
             {
-                var prior = JsonSerializer.Deserialize<TokenResponse>(retryProtector.Unprotect(credential.ProtectedRetry))!;
-                var successorUnused = await db.RefreshCredentials.AnyAsync(r => r.Hash == JwtTokens.Hash(prior.RefreshToken) && r.UsedAt == null, ct);
-                if (successorUnused) return prior;
+                try
+                {
+                    var prior = JsonSerializer.Deserialize<TokenResponse>(retryProtector.Unprotect(credential.ProtectedRetry))!;
+                    var successorUnused = await db.RefreshCredentials.AnyAsync(r => r.Hash == JwtTokens.Hash(prior.RefreshToken) && r.UsedAt == null, ct);
+                    if (successorUnused) return prior;
+                }
+                catch { }
                 throw new AuthFailure(409, "refresh_conflict");
             }
             // Benign concurrent callers must not revoke a healthy session.

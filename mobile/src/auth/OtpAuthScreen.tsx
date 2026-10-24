@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Screen } from '../components/Screen';
 import { theme } from '../components/theme';
 import { useAuth } from './AuthProvider';
-import { getTelegramWebApp, isTelegramMiniApp, triggerHaptic } from '../telegram/telegramSdk';
+import { getTelegramWebApp, getTelegramInitData, isTelegramMiniApp, triggerHaptic } from '../telegram/telegramSdk';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const logoSource = require('../../assets/logo.png');
@@ -23,8 +23,8 @@ export function OtpAuthScreen() {
   const [inTelegram, setInTelegram] = useState(() => isTelegramMiniApp());
 
   const handleTelegramLogin = useCallback(async () => {
-    const tg = getTelegramWebApp();
-    if (!tg || !tg.initData) {
+    const initData = getTelegramInitData();
+    if (!initData) {
       setError('auth_telegram_browser_note');
       setInTelegram(false);
       return;
@@ -34,9 +34,9 @@ export function OtpAuthScreen() {
     setBusy(true);
     triggerHaptic('medium');
     try {
-      const res = await api.loginTelegram({ initData: tg.initData });
+      const res = await api.loginTelegram({ initData });
       await manager.signInWithTokens(res.tokens);
-      if (res.isNewUser || !res.hasCompleteProfile) {
+      if (res.isNewUser) {
         router.replace('/onboarding');
       } else {
         router.replace('/(tabs)/discover');
