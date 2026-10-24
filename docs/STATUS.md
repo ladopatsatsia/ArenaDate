@@ -1,3 +1,28 @@
+# Status - Bottle Game Kiss Matching & 25-Crystal Unlock Visibility
+
+Updated 2026-10-24. Resolved issue where mutual bottle game kisses failed to match or were hidden from the user looking to unlock for 25 crystals:
+
+1. **Root Cause Analysis & Backend Fixes (`GameService.cs` & `MatchService.cs`)**:
+   - In `SendKiss` (`GameService.cs`), `reciprocalKiss` strictly required `k.SenderGeneration == recipientMembership.Generation && k.RecipientGeneration == senderMembership.Generation`. If either player experienced a socket heartbeat disconnect/reconnect on mobile (which increments `membership.Generation`), the reciprocal kiss check returned null, preventing the mutual match from forming.
+   - `SingleOrDefaultAsync(ct)` on `GameKiss` was susceptible to crashing with an `InvalidOperationException` (500 Server Error) if multiple pending kisses existed between the same users in the same room. Switched to `OrderByDescending(k => k.CreatedAtUtc).FirstOrDefaultAsync(ct)`.
+   - When a mutual kiss completes, all pending kisses between the pair in that room are cleanly marked as `Matched`.
+   - In `MatchService.CreateOrUnlockGameMatchAsync`, if a pre-existing `DatingMatch` was deactivated (`!existingMatch.Active`), it is now properly reactivated (`existingMatch.Active = true`).
+
+2. **Mobile App Display & 25-Crystal Unlock Accessibility (`mobile/app/(tabs)/matches.tsx`)**:
+   - In standard dating app logic, when both users kiss at the table, it forms an immediate `DatingMatch` (with `Origin = "GameArena"` and `HasChatEntitlement = false`), which lives under **`💖 წყვილები (Matches)`** with the button **`💎 25 ჩატი`**.
+   - Because users often look under the **`💌 მოთხოვნები (Requests)`** tab expecting a "match request" to unlock, we added a prominent banner at the top of the Requests tab whenever locked Game Arena matches exist, showing the partner's name, age, city, and a direct **`💎 25 ჩატი`** unlock button.
+   - If the Requests tab is empty, this banner is displayed in `ListEmptyComponent` instead of a plain empty message.
+   - `matchItems` now sorts locked Game Arena matches (`hasChatEntitlement === false`) to the very top of `💖 წყვილები (Matches)`.
+   - Updated celebration modal in `GameTable.tsx` to explicitly indicate that the connection was saved under „წყვილები“ and requires 25 💎 to unlock chat.
+
+3. **Verification**:
+   - Backend Build: `powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task build` -> **0 warnings, 0 errors**.
+   - Unit Tests: `scripts/dev.ps1 -Task test -TestFilter FullyQualifiedName~Dating.UnitTests` -> **57/57 passed (100%)**.
+   - Mobile TypeScript: `npx tsc --noEmit` -> **0 errors**.
+   - Pushed to `origin/main` and `origin/master` (`dcba08f`) for Railway production deployment.
+
+---
+
 # Status - Game Room Matchmaking: Matched Users Allowed at Table
 
 Updated 2026-10-24. Removed the `alreadyMatched` (`DatingMatch`) restriction that was isolating matched players into separate game rooms:
