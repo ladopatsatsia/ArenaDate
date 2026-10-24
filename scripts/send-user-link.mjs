@@ -1,4 +1,8 @@
-const token = '8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg';
+const token = process.env.TELEGRAM_BOT_TOKEN || process.env.Telegram__BotToken || '';
+if (!token) {
+  console.error('Error: TELEGRAM_BOT_TOKEN environment variable is required.');
+  process.exit(1);
+}
 const chatId = process.argv[2] || '8233503382';
 const publicUrl = process.argv[3] || 'https://equality-elect-hair-toner.trycloudflare.com';
 

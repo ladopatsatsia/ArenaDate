@@ -70,7 +70,9 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["Media:Mode"]))
 }
 if (string.IsNullOrWhiteSpace(builder.Configuration["Telegram:BotToken"]))
 {
-    var tgToken = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN") ?? Environment.GetEnvironmentVariable("Telegram__BotToken") ?? "8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg";
+    var tgToken = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN") 
+        ?? Environment.GetEnvironmentVariable("Telegram__BotToken")
+        ?? Environment.GetEnvironmentVariable("Telegram:BotToken") ?? "";
     builder.Configuration["Telegram:BotToken"] = tgToken;
 }
 builder.Logging.ClearProviders();

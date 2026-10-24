@@ -210,7 +210,7 @@ public sealed class TelegramPaymentService(
             var botToken = config["Telegram:BotToken"] 
                 ?? Environment.GetEnvironmentVariable("Telegram__BotToken")
                 ?? Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
-                ?? "8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg";
+                ?? "";
 
             string? webAppUrl = null;
             try

@@ -200,7 +200,7 @@ Updated 2026-10-23. Resolved Telegram bot `/start` message responsiveness and We
    - Hardened `JwtTokens.cs` and `Program.cs` with try-catch fallback to auto-generate a valid 2048-bit RSA key if PEM formatting is invalid, preventing any 500 startup or request failure.
 
 3. **Telegram Authentication & Bot Token Fallback (`backend/Dating.Api/Features/Auth/AuthService.cs` & `TelegramPaymentService.cs`)**:
-   - Updated `AuthService.LoginTelegram` and `TelegramPaymentService` to reliably fallback to `Telegram__BotToken`, `TELEGRAM_BOT_TOKEN`, and `8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg`.
+   - Updated `AuthService.LoginTelegram` and `TelegramPaymentService` to reliably read from `Telegram__BotToken` and `TELEGRAM_BOT_TOKEN`.
    - Updated `Telegram__WebAppUrl` fallback to `https://arenadate-production.up.railway.app`.
    - Safely wrapped subscriber database registration to ensure welcome message and menu button dispatch are never blocked.
 

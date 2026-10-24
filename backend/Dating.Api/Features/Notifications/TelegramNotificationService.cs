@@ -177,7 +177,7 @@ public sealed class TelegramNotificationService : ITelegramNotificationService
             }
             catch { }
 
-            return "8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg";
+            return null;
         }
     }
 

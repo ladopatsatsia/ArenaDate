@@ -65,7 +65,7 @@ export Auth__Audience="${Auth__Audience:-DatingMVP-Users}"
 export Auth__KeyRingPath="/app/auth-keyring"
 export Media__LocalPath="/app/private-media"
 export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Development}"
-export Telegram__BotToken="${Telegram__BotToken:-${TELEGRAM_BOT_TOKEN:-8909547232:AAEx5dJSZjYY_D1UH9ifmlyCDgaI1csUseg}}"
+export Telegram__BotToken="${Telegram__BotToken:-${TELEGRAM_BOT_TOKEN:-}}"
 export Telegram__WebAppUrl="${Telegram__WebAppUrl:-https://arenadate-production.up.railway.app}"
 
 mkdir -p /app/auth-keyring /app/private-media
