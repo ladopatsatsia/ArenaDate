@@ -385,6 +385,15 @@ public sealed record GameGiftEventDto(
     DateTimeOffset CreatedAtUtc
 );
 
+public sealed record GameKissEventDto(
+    Guid Id,
+    Guid RoundId,
+    Guid SenderUserId,
+    Guid RecipientUserId,
+    string Status,
+    DateTimeOffset CreatedAtUtc
+);
+
 public sealed record GameRoomSnapshot(
     Guid RoomId,
     string Title,
@@ -409,7 +418,8 @@ public sealed record GameRoomSnapshot(
     GameRoundDto? CurrentRound = null,
     DirectMatchRequestDto[]? PendingDirectRequests = null,
     Guid[]? SentDirectRequestUserIds = null,
-    GameGiftEventDto[]? RecentGifts = null
+    GameGiftEventDto[]? RecentGifts = null,
+    GameKissEventDto[]? RecentKisses = null
 );
 
 public sealed record SpinRequest(

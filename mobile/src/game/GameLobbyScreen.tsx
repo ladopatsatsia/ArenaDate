@@ -217,8 +217,22 @@ export function GameLobbyScreen() {
       cache.invalidateQueries({ queryKey: ['game', 'current'] });
       cache.invalidateQueries({ queryKey: ['game', 'room', room.id] });
     },
-    onError: (err: unknown) => {
+    onError: async (err: unknown) => {
       const code = extractErrorCode(err, 'queue_failed');
+      if (code === 'active_membership_exists') {
+        try {
+          const currentRoom = await gameApi.getCurrentRoom();
+          if (currentRoom) {
+            setErrorMessage(null);
+            setActiveRoomId(currentRoom.id);
+            cache.setQueryData(['game', 'current'], currentRoom);
+            cache.setQueryData(['game', 'room', currentRoom.id], currentRoom);
+            return;
+          }
+        } catch {
+          // fallback
+        }
+      }
       setErrorMessage(mapErrorCode(code));
     },
   });
@@ -260,8 +274,22 @@ export function GameLobbyScreen() {
       cache.invalidateQueries({ queryKey: ['game', 'current'] });
       cache.invalidateQueries({ queryKey: ['game', 'room', variables.roomId] });
     },
-    onError: (err: unknown) => {
+    onError: async (err: unknown) => {
       const code = extractErrorCode(err, 'join_failed');
+      if (code === 'active_membership_exists') {
+        try {
+          const currentRoom = await gameApi.getCurrentRoom();
+          if (currentRoom) {
+            setErrorMessage(null);
+            setActiveRoomId(currentRoom.id);
+            cache.setQueryData(['game', 'current'], currentRoom);
+            cache.setQueryData(['game', 'room', currentRoom.id], currentRoom);
+            return;
+          }
+        } catch {
+          // fallback
+        }
+      }
       setErrorMessage(mapErrorCode(code));
     },
   });

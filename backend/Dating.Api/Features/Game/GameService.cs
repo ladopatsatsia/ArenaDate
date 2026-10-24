@@ -421,17 +421,27 @@ public sealed class GameService(
         }
 
         // One active room membership per account (only for non-ended rooms)
-        var activeElsewhere = await (
+        var existingActive = await (
             from m in db.Set<GameMembership>()
             join r in db.Set<GameRoom>() on m.RoomId equals r.Id
             where m.UserId == userId
                && (m.Status == GameMembershipStatus.Active || m.Status == GameMembershipStatus.Disconnected)
                && r.State != GameRoomState.Ended
             select m
-        ).AnyAsync(ct);
+        ).FirstOrDefaultAsync(ct);
 
-        if (activeElsewhere)
-            throw new AuthFailure(409, "active_membership_exists");
+        if (existingActive != null)
+        {
+            if (existingActive.Status == GameMembershipStatus.Disconnected)
+            {
+                existingActive.Status = GameMembershipStatus.Active;
+                existingActive.ReservationExpiresAtUtc = null;
+            }
+            existingActive.LastHeartbeatUtc = now;
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return await GetRoom(existingActive.RoomId, userId, ct);
+        }
 
         var incompatibleSet = await GetIncompatibleUserIds(userId, ct);
 
@@ -1409,6 +1419,20 @@ public sealed class GameService(
             ))
             .ToArrayAsync(ct);
 
+        var recentKisses = await db.Set<GameKiss>()
+            .AsNoTracking()
+            .Where(k => k.RoomId == room.Id && k.CreatedAtUtc >= recentCutoff && k.Status != "Skipped")
+            .OrderBy(k => k.CreatedAtUtc)
+            .Select(k => new GameKissEventDto(
+                k.Id,
+                k.RoundId,
+                k.SenderUserId,
+                k.RecipientUserId,
+                k.Status,
+                k.CreatedAtUtc
+            ))
+            .ToArrayAsync(ct);
+
         return new GameRoomSnapshot(
             room.Id,
             room.Title,
@@ -1433,7 +1457,8 @@ public sealed class GameService(
             roundDto,
             pendingDirectRequestDtos,
             sentDirectRequestUserIds,
-            recentGifts
+            recentGifts,
+            recentKisses
         );
     }
 
@@ -1777,9 +1802,10 @@ public sealed class GameService(
                             }
                             else
                             {
-                                round.State = "QuestionRevealing";
-                                lockedRoom.DeadlineUtc = now.AddSeconds(4);
-                                lockedRoom.DeadlineType = "QuestionRevealing";
+                                round.SummaryCommentary = await GenerateRoundSummaryCommentaryAsync(round, ct);
+                                round.State = "KissChoice";
+                                lockedRoom.DeadlineUtc = now.AddSeconds(30);
+                                lockedRoom.DeadlineType = "KissChoice";
                                 lockedRoom.StateVersion++;
 
                                 await EmitOutboxEventAsync(lockedRoom, "QuestionRevealed", new
@@ -1790,6 +1816,17 @@ public sealed class GameService(
                                     IsSuppressed = true,
                                     IsMatch = false,
                                     Commentary = "დრო ამოიწურა. კითხვა გამოტოვებულია.",
+                                    TimestampUtc = now
+                                }, ct);
+
+                                await EmitOutboxEventAsync(lockedRoom, "KissChoiceStarted", new
+                                {
+                                    RoomId = lockedRoom.Id,
+                                    RoundId = round.Id,
+                                    SpinnerUserId = round.SpinnerUserId,
+                                    DefaultTargetUserId = round.TargetUserId,
+                                    SummaryCommentary = round.SummaryCommentary,
+                                    DeadlineUtc = lockedRoom.DeadlineUtc,
                                     TimestampUtc = now
                                 }, ct);
                             }
@@ -2085,7 +2122,7 @@ public sealed class GameService(
         round.State = "QuestionAnswering";
         round.CurrentQuestionIndex = 0;
 
-        room.DeadlineUtc = now.AddSeconds(15);
+        room.DeadlineUtc = now.AddSeconds(30);
         room.DeadlineType = "QuestionAnswering";
         room.StateVersion++;
 
@@ -2580,12 +2617,22 @@ public sealed class GameService(
             db.Set<GameRoundAnswer>().Add(answer);
             await db.SaveChangesAsync(ct);
         }
+        else if (existingAnswer.IsSkipped && !req.IsSkipped && req.SelectedOption != null)
+        {
+            existingAnswer.IsSkipped = false;
+            existingAnswer.SelectedOption = req.SelectedOption;
+            existingAnswer.SubmittedAtUtc = now;
+            await db.SaveChangesAsync(ct);
+        }
 
         var allAnswers = await db.Set<GameRoundAnswer>()
             .Where(a => a.RoundId == roundId && a.QuestionIndex == questionIndex)
             .ToListAsync(ct);
 
-        var isSkipped = req.IsSkipped || allAnswers.Any(a => a.IsSkipped);
+        var spinnerAnswer = allAnswers.SingleOrDefault(a => a.UserId == round.SpinnerUserId);
+        var targetAnswer = allAnswers.SingleOrDefault(a => a.UserId == round.TargetUserId);
+
+        var isSkipped = req.IsSkipped || (spinnerAnswer?.IsSkipped == true) || (targetAnswer?.IsSkipped == true);
 
         if (!isSkipped && allAnswers.Count < 2)
         {
@@ -2593,11 +2640,14 @@ public sealed class GameService(
             return new AnswerQuestionResult(roundId, questionIndex, Submitted: true, WaitingForPartner: true, Revealed: false, RevealedSelection: null);
         }
 
-        var spinnerAnswer = allAnswers.SingleOrDefault(a => a.UserId == round.SpinnerUserId);
-        var targetAnswer = allAnswers.SingleOrDefault(a => a.UserId == round.TargetUserId);
+        var isSuppressed = isSkipped ||
+                           spinnerAnswer == null || spinnerAnswer.SelectedOption == null ||
+                           targetAnswer == null || targetAnswer.SelectedOption == null;
 
-        var isSuppressed = isSkipped || (spinnerAnswer?.IsSkipped == true) || (targetAnswer?.IsSkipped == true);
-        var isMatch = !isSuppressed && spinnerAnswer != null && targetAnswer != null && (spinnerAnswer.SelectedOption == targetAnswer.SelectedOption);
+        var isMatch = !isSuppressed &&
+                      spinnerAnswer != null && targetAnswer != null &&
+                      spinnerAnswer.SelectedOption.HasValue && targetAnswer.SelectedOption.HasValue &&
+                      (spinnerAnswer.SelectedOption.Value == targetAnswer.SelectedOption.Value);
 
         string commentary;
         if (isSuppressed)
@@ -2652,11 +2702,9 @@ public sealed class GameService(
         );
 
         var currentRevealed = JsonSerializer.Deserialize<List<RevealedSelectionDto>>(round.RevealedSelectionsJson) ?? [];
-        if (!currentRevealed.Any(r => r.QuestionIndex == questionIndex))
-        {
-            currentRevealed.Add(revealed);
-            round.RevealedSelectionsJson = JsonSerializer.Serialize(currentRevealed);
-        }
+        currentRevealed.RemoveAll(r => r.QuestionIndex == questionIndex);
+        currentRevealed.Add(revealed);
+        round.RevealedSelectionsJson = JsonSerializer.Serialize(currentRevealed);
 
         if (round.ConsecutiveIncompleteQuestions >= 2)
         {
@@ -2670,9 +2718,10 @@ public sealed class GameService(
         }
         else
         {
-            round.State = "QuestionRevealing";
-            room.DeadlineUtc = now.AddSeconds(4);
-            room.DeadlineType = "QuestionRevealing";
+            round.SummaryCommentary = await GenerateRoundSummaryCommentaryAsync(round, ct);
+            round.State = "KissChoice";
+            room.DeadlineUtc = now.AddSeconds(30);
+            room.DeadlineType = "KissChoice";
         }
 
         room.StateVersion++;
@@ -2687,6 +2736,20 @@ public sealed class GameService(
             Commentary = commentary,
             TimestampUtc = now
         }, ct);
+
+        if (round.State == "KissChoice")
+        {
+            await EmitOutboxEventAsync(room, "KissChoiceStarted", new
+            {
+                RoomId = roomId,
+                RoundId = roundId,
+                SpinnerUserId = round.SpinnerUserId,
+                DefaultTargetUserId = round.TargetUserId,
+                SummaryCommentary = round.SummaryCommentary,
+                DeadlineUtc = room.DeadlineUtc,
+                TimestampUtc = now
+            }, ct);
+        }
 
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

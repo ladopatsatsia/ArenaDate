@@ -21,6 +21,8 @@ import {
   type GameRoomSnapshot,
   type GameMember
 } from './GameApi';
+import { useAuth } from '../auth/AuthProvider';
+import { PremiumApi } from '../premium/PremiumApi';
 import { theme } from '../components/theme';
 import { Text, Card, Button } from '../components/UI';
 import { PrivatePhoto } from '../profile/PrivatePhoto';
@@ -43,6 +45,26 @@ interface GameTableProps {
 export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTableProps) {
   const { t } = useTranslation();
   const cache = useQueryClient();
+  const { api: authApi, manager } = useAuth();
+  const premiumApi = React.useMemo(() => new PremiumApi(authApi, manager), [authApi, manager]);
+  const premiumQuery = useQuery({
+    queryKey: ['account', currentUserId, 'premium-status'],
+    queryFn: async () => {
+      try {
+        const res = await premiumApi.status();
+        return res ?? { hasPremium: false };
+      } catch {
+        return { hasPremium: false };
+      }
+    },
+    enabled: !!currentUserId && !!premiumApi,
+    staleTime: 30000,
+  });
+  const isArenaBlack = Boolean(premiumQuery.data?.hasPremium);
+
+  const seenKissIdsRef = useRef<Set<string>>(new Set());
+  const [tableNotice, setTableNotice] = useState<string | null>(null);
+
   const [reduceMotion, setReduceMotion] = useState(false);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   const [lastRoundId, setLastRoundId] = useState<string | null>(null);
@@ -618,6 +640,27 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
     }
   }, [snapshot?.recentGifts]);
 
+  useEffect(() => {
+    const recent = snapshot?.recentKisses;
+    if (!recent || recent.length === 0) return;
+    for (const k of recent) {
+      if (!seenKissIdsRef.current.has(k.id)) {
+        seenKissIdsRef.current.add(k.id);
+        launchSeatKiss(k.senderUserId, k.recipientUserId);
+        gameSound.playKissSent();
+
+        const sender = snapshot?.members.find((m) => m.userId === k.senderUserId);
+        const recipient = snapshot?.members.find((m) => m.userId === k.recipientUserId);
+        if (sender && recipient) {
+          setTableNotice(`💋 ${sender.displayName} ➔ ${recipient.displayName}`);
+          setTimeout(() => {
+            setTableNotice((prev) => (prev?.includes(sender.displayName) ? null : prev));
+          }, 3500);
+        }
+      }
+    }
+  }, [snapshot?.recentKisses, snapshot?.members]);
+
   const handleSendGift = async (giftId: string) => {
     if (!selectedMemberId) return;
     const recipientId = selectedMemberId;
@@ -947,7 +990,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
 
   useEffect(() => {
     setHasLocallyDecidedKiss(false);
-  }, [currentRound?.roundId, currentRound?.state]);
+  }, [currentRound?.roundId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -980,9 +1023,48 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
   const pairPartnerName = pairPartnerMember?.displayName ?? t('game_partner', 'მეწყვილე');
   const hasDecidedKiss = currentRound?.kissRecipientUserId != null || currentRound?.kissSkipped || hasLocallyDecidedKiss;
 
+  const latestRevealed =
+    currentRound?.revealedSelections?.find(
+      (r) => r.questionIndex === currentRound.currentQuestionIndex
+    ) ?? currentRound?.revealedSelections?.slice(-1)[0];
+
+  const isQuestionMatch = Boolean(
+    latestRevealed?.isMatch ||
+      (!latestRevealed?.isSuppressed &&
+        latestRevealed?.spinnerOption != null &&
+        latestRevealed?.targetOption != null &&
+        latestRevealed.spinnerOption === latestRevealed.targetOption)
+  );
+
+  const isQuestionSkipped = Boolean(latestRevealed?.isSuppressed) && !isQuestionMatch;
+
+  const summaryCommentaryText =
+    currentRound?.summaryCommentary ||
+    latestRevealed?.fallbackCommentary ||
+    '';
+
+  const roundQuestions = currentRound?.currentQuestion
+    ? [currentRound.currentQuestion]
+    : [];
+  const currentQ = roundQuestions[0];
+  const spinnerOptIndex = latestRevealed?.spinnerOption;
+  const targetOptIndex = latestRevealed?.targetOption;
+
+  const chosenOptionsSummary = React.useMemo(() => {
+    if (!currentQ || spinnerOptIndex == null || targetOptIndex == null) return null;
+    const isCurrentUserSpinner = currentRound?.spinnerUserId === currentUserId;
+    const myOptIdx = Number(isCurrentUserSpinner ? spinnerOptIndex : targetOptIndex);
+    const partnerOptIdx = Number(isCurrentUserSpinner ? targetOptIndex : spinnerOptIndex);
+    const myOpt = (Number.isFinite(myOptIdx) && myOptIdx >= 0 && currentQ.options) ? (currentQ.options[myOptIdx] ?? '') : '';
+    const partnerOpt = (Number.isFinite(partnerOptIdx) && partnerOptIdx >= 0 && currentQ.options) ? (currentQ.options[partnerOptIdx] ?? '') : '';
+    if (!myOpt && !partnerOpt) return null;
+    return `შენ: "${myOpt}" • ${pairPartnerName}: "${partnerOpt}"`;
+  }, [currentQ, spinnerOptIndex, targetOptIndex, currentRound?.spinnerUserId, currentUserId, pairPartnerName]);
+
   const handleSendKiss = () => {
     if (pairPartnerId) {
       setHasLocallyDecidedKiss(true);
+      launchSeatKiss(currentUserId, pairPartnerId);
       kissMutation.mutate(pairPartnerId);
     }
   };
@@ -1441,8 +1523,12 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
                 {/* Luxury Label */}
                 <View style={styles.bottleLabel}>
                   <Text style={styles.bottleLabelBrand}>ARENA</Text>
-                  <View style={styles.bottleLabelDivider} />
-                  <Text style={styles.bottleLabelVip}>VIP</Text>
+                  {isArenaBlack && (
+                    <>
+                      <View style={styles.bottleLabelDivider} />
+                      <Text style={styles.bottleLabelVip}>VIP</Text>
+                    </>
+                  )}
                 </View>
 
                 {/* Base Rim */}
@@ -1451,6 +1537,15 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
             </View>
           </Animated.View>
         </View>
+
+        {/* Table Flying Kiss Announcement Notice */}
+        {tableNotice && (
+          <View style={styles.tableNoticeContainer} pointerEvents="none">
+            <View style={styles.tableNoticePill}>
+              <Text style={styles.tableNoticeText}>{tableNotice}</Text>
+            </View>
+          </View>
+        )}
 
         {/* Round 1-18 Announcement Pop-up Overlay before each spin */}
         {roundAnnouncement && (
@@ -1643,7 +1738,8 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
       {/* Soft Question Modal Overlay covering the table */}
       <Modal
         visible={
-          (currentRound?.state === 'QuestionAnswering' || currentRound?.state === 'QuestionRevealing') &&
+          (currentRound?.state === 'QuestionAnswering' ||
+            (currentRound?.state === 'QuestionRevealing' && (!isParticipant || !hasLocallyDecidedKiss))) &&
           !showWalletModal &&
           !showMatchModal &&
           !selectedMemberId &&
@@ -1688,15 +1784,40 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
                   // Reveal View
                   <View style={styles.revealBox}>
                     <Text style={styles.revealTitle}>
-                      {currentRound.revealedSelections?.slice(-1)[0]?.isSuppressed
-                        ? t('game_question_skipped', '⏳ კითხვა გამოტოვებულია')
-                        : currentRound.revealedSelections?.slice(-1)[0]?.isMatch
+                      {isQuestionMatch
                         ? t('game_question_matched', '🎉 თანხვედრა! ორივემ ერთი და იგივე აირჩიეთ!')
+                        : isQuestionSkipped
+                        ? t('game_question_skipped', '⏳ კითხვა გამოტოვებულია')
                         : t('game_question_differed', '✨ განსხვავებული ხედვები!')}
                     </Text>
+                    {chosenOptionsSummary && (
+                      <View style={styles.kissOptionsRow}>
+                        <Text style={styles.kissOptionsText}>{chosenOptionsSummary}</Text>
+                      </View>
+                    )}
                     <Text style={styles.commentaryText}>
-                      {currentRound.revealedSelections?.slice(-1)[0]?.fallbackCommentary ?? ''}
+                      {summaryCommentaryText}
                     </Text>
+                    {/* Action buttons directly below commentary */}
+                    <View style={[styles.kissModalActionsRow, { marginTop: 14 }]}>
+                      <Button
+                        variant="primary"
+                        title={`💋 ${t('game_send_kiss', 'კოცნის გაგზავნა')}`}
+                        onPress={handleSendKiss}
+                        busy={kissMutation.isPending}
+                        disabled={kissMutation.isPending || skipKissMutation.isPending}
+                        style={styles.kissModalSendBtn}
+                        testID="send-kiss-partner-button-revealing"
+                      />
+                      <Button
+                        variant="secondary"
+                        title={`⏭️ ${t('game_skip_turn', 'გამოტოვება')}`}
+                        onPress={handleSkipKiss}
+                        disabled={kissMutation.isPending || skipKissMutation.isPending}
+                        style={styles.kissModalSkipBtn}
+                        testID="skip-kiss-button-revealing"
+                      />
+                    </View>
                   </View>
                 ) : (
                   // Answering View
@@ -1800,10 +1921,10 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
                   {currentRound?.state === 'QuestionRevealing' && (
                     <View style={styles.spectatorReveal}>
                       <Text style={styles.spectatorRevealStatus}>
-                        {currentRound.revealedSelections?.slice(-1)[0]?.isSuppressed
-                          ? t('game_question_skipped', 'კითხვა გამოტოვებულია')
-                          : currentRound.revealedSelections?.slice(-1)[0]?.isMatch
+                        {isQuestionMatch
                           ? t('game_question_pair_matched', '🎉 წყვილს ჰქონდა თანხვედრა!')
+                          : isQuestionSkipped
+                          ? t('game_question_skipped', 'კითხვა გამოტოვებულია')
                           : t('game_question_pair_differed', '✨ წყვილს ჰქონდა განსხვავებული არჩევანი')}
                       </Text>
                       {Boolean(currentRound.revealedSelections?.slice(-1)[0]?.fallbackCommentary) && (
@@ -1874,9 +1995,43 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
               </Text>
             </View>
 
-            <Text style={styles.kissModalTitle}>
-              {t('game_kiss_modal_title', '💋 კოცნის გაგზავნა')}
-            </Text>
+            {/* Round Question Result & Summary Commentary */}
+            <View style={styles.kissSummarySection}>
+              <View
+                style={[
+                  styles.kissMatchBadge,
+                  isQuestionMatch ? styles.kissMatchBadgeSuccess : styles.kissMatchBadgeDiffer,
+                ]}
+              >
+                <Text style={styles.kissMatchBadgeText}>
+                  {isQuestionMatch
+                    ? t('game_question_matched', '🎉 თანხვედრა! ორივემ ერთი და იგივე აირჩიეთ!')
+                    : isQuestionSkipped
+                    ? t('game_question_skipped', '⏳ კითხვა გამოტოვებულია')
+                    : t('game_question_differed', '✨ განსხვავებული ხედვები!')}
+                </Text>
+              </View>
+
+              {chosenOptionsSummary && (
+                <View style={styles.kissOptionsRow}>
+                  <Text style={styles.kissOptionsText}>{chosenOptionsSummary}</Text>
+                </View>
+              )}
+
+              {Boolean(summaryCommentaryText) && (
+                <View style={styles.kissCommentaryCard}>
+                  <Text style={styles.kissCommentaryHeader}>
+                    {t('game_question_round_summary', '🤖 შემაჯამებელი პასუხი')}
+                  </Text>
+                  <ScrollView style={styles.kissCommentaryScroll} nestedScrollEnabled={true}>
+                    <Text style={styles.kissCommentaryBody}>
+                      {summaryCommentaryText}
+                    </Text>
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
             <Text style={styles.kissModalSub}>
               {t('game_kiss_modal_sub', 'ორმხრივი კოცნა ქმნის MATCH-ს და ხსნის პირად ჩატს!')}
             </Text>
@@ -4563,5 +4718,94 @@ const styles = StyleSheet.create({
   kissModalSkipBtn: {
     width: '100%',
     borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  tableNoticeContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 150,
+  },
+  tableNoticePill: {
+    backgroundColor: 'rgba(244, 63, 94, 0.95)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#fda4af',
+    shadowColor: '#f43f5e',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  tableNoticeText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  kissSummarySection: {
+    width: '100%',
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  kissMatchBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  kissMatchBadgeSuccess: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  kissMatchBadgeDiffer: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  kissMatchBadgeText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  kissOptionsRow: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  kissOptionsText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  kissCommentaryCard: {
+    width: '100%',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  kissCommentaryHeader: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  kissCommentaryScroll: {
+    maxHeight: 110,
+  },
+  kissCommentaryBody: {
+    color: '#f8fafc',
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

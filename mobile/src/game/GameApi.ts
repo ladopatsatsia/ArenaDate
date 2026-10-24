@@ -20,9 +20,19 @@ export type JoinRoomResult = components['schemas']['JoinRoomResult'];
 export type LeaveRoomResult = components['schemas']['LeaveRoomResult'];
 export type DevFixtureSeedInput = components['schemas']['DevFixtureSeedRequest'];
 export type JoinQueueInput = components['schemas']['JoinQueueRequest'];
-export type GameRoomSnapshot = Omit<components['schemas']['GameRoomSnapshot'], 'pendingDirectRequests' | 'sentDirectRequestUserIds'> & {
+export type GameKissEventDto = {
+  id: string;
+  roundId: string;
+  senderUserId: string;
+  recipientUserId: string;
+  status: string;
+  createdAtUtc: string;
+};
+
+export type GameRoomSnapshot = Omit<components['schemas']['GameRoomSnapshot'], 'pendingDirectRequests' | 'sentDirectRequestUserIds' | 'recentKisses'> & {
   pendingDirectRequests?: DirectMatchRequestDto[] | null;
   sentDirectRequestUserIds?: string[] | null;
+  recentKisses?: GameKissEventDto[] | null;
 };
 export type GameRoundDto = components['schemas']['GameRoundDto'];
 export type SpinResult = components['schemas']['SpinResult'];

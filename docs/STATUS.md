@@ -1,3 +1,44 @@
+# Status - Bottle Game (Spin The Bottle) Quality & Interaction Fixes
+
+Updated 2026-10-24. Implemented all 5 requested bottle game enhancements:
+
+1. **Seamless Active Table Rejoin (No "აქტიურ მაგიდაზე ხართ" Alert)**:
+   - In `backend/Dating.Api/Features/Game/GameService.cs` (`JoinQueue`), instead of throwing `409 active_membership_exists`, the server now retrieves the user's active table membership, reactivates disconnected reservations, updates `LastHeartbeatUtc`, and immediately returns `await GetRoom(existingActive.RoomId, userId, ct)`.
+   - In `mobile/src/game/GameLobbyScreen.tsx` (`queueMutation` & `joinMutation`), any remaining `active_membership_exists` is caught seamlessly without showing an error banner, automatically fetching the active room and setting `activeRoomId`.
+
+2. **Bottle VIP Label Restricted to Arena Black Subscribers**:
+   - In `mobile/src/game/GameTable.tsx`, hooked into `PremiumApi.status()` with `isArenaBlack = Boolean(premiumQuery.data?.hasPremium)`.
+   - The bottle label now only displays the luxury "VIP" sub-badge if `isArenaBlack === true`. Standard users see only "ARENA".
+
+3. **Global Flying Kiss Animation for All Table Participants**:
+   - Added `GameKissEventDto` and `RecentKisses` to `GameRoomSnapshot` in backend (`GameModels.cs` & `GameService.cs`) and frontend (`GameApi.ts`).
+   - In `mobile/src/game/GameTable.tsx`, added a listener on `snapshot?.recentKisses` that calls `launchSeatKiss(senderUserId, recipientUserId)` and plays sound on all seated players' devices.
+   - Added a floating table notice (`💋 [Sender] ➔ [Recipient]`) so every player in the room sees who kissed whom.
+
+4. **Fixed Matched Answer Incorrectly Marked as "კითხვა გამოტოვებულია"**:
+   - In `backend/Dating.Api/Features/Game/GameService.cs` (`AnswerQuestion`):
+     - Corrected `isSuppressed` and `isMatch` calculation so that when both participants select options (neither skipped, neither null), `isSuppressed` is strictly `false` and `isMatch` is strictly evaluated on option equality.
+     - Allowed real answers to overwrite premature timeout skips.
+     - Replaced any stale timeout record in `RevealedSelectionsJson` for that question index.
+     - Increased question answering deadline from 15s to 30s.
+   - In `mobile/src/game/GameTable.tsx`, updated question reveal evaluation to guarantee that equal selected options are always rendered as `🎉 თანხვედრა! ორივემ ერთი და იგივე აირჩიეთ!`.
+
+5. **Persistent Summary Commentary with Action Buttons Directly Underneath**:
+   - In `backend/Dating.Api/Features/Game/GameService.cs` (`AnswerQuestion`), when both players answer, the game transitions directly to `KissChoice` with a comfortable 30-second deadline and immediately generates `SummaryCommentary`.
+   - In `mobile/src/game/GameTable.tsx`, embedded the full question outcome card (Match status badge + Chosen options + Summary Commentary text) inside the modal right above the action buttons:
+     - `💋 კოცნის გაგზავნა` (Send Kiss)
+     - `⏭️ გამოტოვება` (Skip)
+   - Tapping either button immediately sets `hasLocallyDecidedKiss = true`, dismissing the modal/summary message instantly and triggering the flying kiss animation across the table.
+
+6. **Verification**:
+   - Backend Build: `powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task build` -> **0 warnings, 0 errors**.
+   - Backend Unit Tests: `scripts/dev.ps1 -Task test -TestFilter FullyQualifiedName~Dating.UnitTests` -> **57/57 passed (100%)**.
+   - Mobile TypeScript: `npm --prefix mobile run typecheck` -> **0 errors**.
+   - Mobile Lobby Tests: `npm --prefix mobile test -- tests/game-lobby.test.tsx` -> **5/5 passed (100%)**.
+   - Physical Device / Store verification: NOT RUN (Requires physical device build / deployment to stores).
+
+---
+
 # Status - Telegram Mini App Session Persistence & Reload Registration Fix
 
 Updated 2026-10-24. Resolved issue where restarting the application or tapping "Reload page" in Telegram Mini App occasionally forced existing users back into registration/onboarding:
