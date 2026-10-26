@@ -35,7 +35,7 @@ public sealed class AccountLifecycleService(
     private async Task<AppUser?> LockUser(Guid id, CancellationToken ct) =>
         await db.Users.FromSqlInterpolated($"""SELECT * FROM "AspNetUsers" WHERE "Id" = {id} FOR UPDATE""").SingleOrDefaultAsync(ct);
 
-    public async Task DeleteAccountInApp(Guid userId, string password, CancellationToken ct)
+    public async Task DeleteAccountInApp(Guid userId, string? password, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var user = await LockUser(userId, ct) ?? throw new AuthFailure(404, "account_not_found");
@@ -44,8 +44,15 @@ public sealed class AccountLifecycleService(
         if (await db.Set<StaffAccount>().AnyAsync(s => s.UserId == userId, ct))
             throw new AuthFailure(403, "staff_requires_operator");
 
-        if (!await users.CheckPasswordAsync(user, password))
-            throw new AuthFailure(401, "invalid_credentials");
+        var isTelegramUser = (user.UserName != null && user.UserName.StartsWith("tg_"))
+            || (user.Email != null && user.Email.EndsWith("@dating.local"))
+            || await db.Set<TelegramSubscriber>().AnyAsync(s => s.UserId == userId, ct);
+
+        if (!isTelegramUser)
+        {
+            if (string.IsNullOrWhiteSpace(password) || !await users.CheckPasswordAsync(user, password))
+                throw new AuthFailure(401, "invalid_credentials");
+        }
 
         await ExecuteDeletionCore(user, ct);
         await tx.CommitAsync(ct);
@@ -162,6 +169,9 @@ public sealed class AccountLifecycleService(
 
         await db.Set<PushDevice>().Where(d => d.UserId == id)
             .ExecuteUpdateAsync(d => d.SetProperty(x => x.Active, false).SetProperty(x => x.Ciphertext, "").SetProperty(x => x.TokenHash, ""), ct);
+
+        await db.Set<TelegramSubscriber>().Where(s => s.UserId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsActive, false).SetProperty(x => x.UserId, (Guid?)null), ct);
 
         await db.Set<GameMembership>().Where(m => m.UserId == id && m.Status == GameMembershipStatus.Active)
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.Status, GameMembershipStatus.Left).SetProperty(m => m.LeftAtUtc, now), ct);

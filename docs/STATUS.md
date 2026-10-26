@@ -1,3 +1,41 @@
+# Status - Telegram White Screen Elimination, Spinning Bottle Preloader & Passwordless Account Deletion
+
+Updated 2026-10-26. Implemented fixes for Telegram Mini App initial white screen loading and Telegram-authenticated account deletion:
+
+1. **Elimination of White Screen Flash in Telegram WebView**:
+   - **Root Cause**: The HTML shell in `mobile/dist/web/index.html` lacked explicit background color on `html`, `body`, and `#root` (defaulting to `#ffffff` in WebKit/Chromium WebView), and `#root` was completely blank while the JavaScript bundle was downloaded and parsed. Additionally, Telegram WebApp theme header colors were not initialized early.
+   - **HTML Preloader & Dark Mode**:
+     - Injected `#0b0716 !important` background color and dark color-scheme on `html`, `body`, and `#root`.
+     - Injected immediate inline `<script>` in `<head>` calling `Telegram.WebApp.setHeaderColor('#0b0716')` and `Telegram.WebApp.setBackgroundColor('#0b0716')` upon initial parse.
+     - Added pure CSS 3D spinning emerald luxury bottle preloader with gold pointer tip, foil cap, glass highlights, and pulsing halo inside `<div id="root">`. React replaces this container seamlessly when mounted.
+     - Updated `mobile/app/+html.tsx`, `scripts/serve-web.mjs`, and `mobile/app.config.ts` (`web.backgroundColor = '#0b0716'`).
+   - **React Native Loading Screens**:
+     - Built `<BottleLoadingScreen />` (`mobile/src/components/BottleLoadingScreen.tsx`) with animated continuous 3D spin, pulsing emerald glow, and gold ARENA branding.
+     - In `mobile/app/_layout.tsx`: Replaced generic skeleton during `state.status === 'booting'` with `<BottleLoadingScreen message="ARENA იტვირთება..." />`.
+     - In `mobile/src/auth/OtpAuthScreen.tsx`: Rendered `<BottleLoadingScreen message="მიმდინარეობს ავტორიზაცია..." />` while Telegram automatic authentication runs.
+
+2. **Telegram User Passwordless Account Deletion**:
+   - **Root Cause**: Users registered via Telegram (`tg_{id}@dating.local`) receive a random backend-generated password and authenticate via Telegram `initData`. The account deletion endpoint and UI previously mandated entering a password, preventing Telegram users from deleting their accounts.
+   - **Backend Support (`backend/Dating.Api`)**:
+     - `AccountLifecycleModels.cs`: Made `Password` optional in `DeleteAccountRequest` (`string? Password = null`).
+     - `AccountLifecycleController.cs`: Updated `DeleteAccountPost` and `DeleteAccountDelete` to accept optional request bodies.
+     - `AccountLifecycleService.cs`: Detected `isTelegramUser` via `UserName?.StartsWith("tg_")`, `Email?.EndsWith("@dating.local")`, or linked `TelegramSubscriber`. Password check is bypassed if `isTelegramUser`.
+     - In `ExecuteDeletionCore`, unlinked and deactivated any associated `TelegramSubscriber` (`IsActive = false, UserId = null`).
+     - `ProfileModels.cs` & `ProfileService.cs`: Added `RequiresPassword` property to `OwnProfileDto`, setting it to `!isTelegramUser`.
+   - **Mobile UI & API Support (`mobile/src`)**:
+     - `ProfileApi.ts`: Updated `deleteAccount(password?: string)` to send `{}` if omitted.
+     - `ProfileScreen.tsx`: Identified `isTelegramUser` via `profile.data?.requiresPassword === false || isTelegramMiniApp()`. For Telegram users, hid password input, updated confirmation description to `account_delete_confirm_desc_no_password`, and activated confirmation button immediately.
+     - Added localized Georgian, English, and Russian copy in `qualityStrings.ts` and `locales/*.json`.
+
+3. **Verification**:
+   - Backend Build: `.tools/dotnet/dotnet.exe build backend/Dating.Api/Dating.Api.csproj` -> **0 Warnings, 0 Errors**.
+   - Backend Unit Tests: `.tools/dotnet/dotnet.exe test backend/tests/Dating.UnitTests/Dating.UnitTests.csproj` -> **57/57 Passed (100%)**.
+   - TypeScript Typecheck: `npm run typecheck` across all workspaces (`api-contract`, `mobile`, `admin`) -> **0 Errors**.
+   - Mobile Unit Tests: `npx jest tests/account-lifecycle.test.tsx` -> **3/3 Passed (100%)**, including both standard password-based deletion and new Telegram passwordless deletion.
+   - Physical Device / Store verification: NOT RUN (Not requested; verified via React Native and Jest unit tests).
+
+---
+
 # Status - Bottle Game (Spin The Bottle) Quality & Interaction Fixes
 
 Updated 2026-10-24. Implemented all 5 requested bottle game enhancements:

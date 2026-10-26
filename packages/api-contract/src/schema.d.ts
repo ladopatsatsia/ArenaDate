@@ -6442,6 +6442,7 @@ export interface components {
             /** Format: int64 */
             revision: number | string;
             visible: boolean;
+            requiresPassword?: boolean;
         };
         PhotoDto: {
             /** Format: int32 */

@@ -39,7 +39,7 @@ export class ProfileApi {
   reorder = (revision: OwnProfile['revision'], photoIds: string[]) => this.authorized(t => this.api.request<OwnProfile>('/api/profile/photos/reorder', { revision, photoIds }, t));
   setLanguage = (language: string) => this.authorized(t => this.api.request<void>('/api/profile/language', { language }, t));
   pauseDiscoverability = (paused: boolean) => this.authorized(t => this.api.request<void>('/api/account/discoverability-pause', { paused }, t));
-  deleteAccount = (password: string) => this.authorized(t => this.api.request<void>('/api/account/delete', { password }, t));
+  deleteAccount = (password?: string) => this.authorized(t => this.api.request<void>('/api/account/delete', password ? { password } : {}, t));
   private async fetch(path: string, token: string, init?: RequestInit) {
     const abort = new AbortController(); const timeout = setTimeout(() => abort.abort(), 45000);
     try {

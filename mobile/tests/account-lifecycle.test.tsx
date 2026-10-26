@@ -165,3 +165,78 @@ test('ProfileScreen renders account deletion flow, requires password, and clears
 
   view.unmount();
 });
+
+test('ProfileScreen allows Telegram users to delete account without password', async () => {
+  const tgUserId = '22222222-2222-4222-8222-222222222222';
+  const tgProfile = {
+    ...mockProfile,
+    id: tgUserId,
+    requiresPassword: false,
+  };
+
+  mockApi.login.mockResolvedValue({
+    account: { id: tgUserId },
+    accessToken: 'access-' + tgUserId,
+    refreshToken: 'refresh-' + tgUserId,
+    accessExpiresAt: new Date(Date.now() + 300000).toISOString(),
+    sessionExpiresAt: new Date(Date.now() + 86400000).toISOString(),
+  });
+
+  mockApi.request.mockImplementation(async (path: string) => {
+    if (path === '/api/profile') return tgProfile;
+    if (path === '/api/profile/choices') return mockChoices;
+    if (path === '/api/account/delete') return undefined;
+    return undefined;
+  });
+
+  function TestApp() {
+    const { manager, state } = useAuth();
+    return (
+      <>
+        {state.status === 'signedIn' ? (
+          <ProfileScreen />
+        ) : (
+          <>
+            <Text>{state.notice ?? state.status}</Text>
+            <Button title="Sign in" onPress={() => void manager.signIn({ email: 'tg@test.test', password: 'pw' })} />
+          </>
+        )}
+      </>
+    );
+  }
+
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TestApp />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+
+  await waitFor(() => expect(screen.getByText('signedOut')).toBeTruthy());
+  fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
+
+  await waitFor(() => expect(screen.getByTestId('delete-account-button')).toBeTruthy());
+  fireEvent.press(screen.getByTestId('delete-account-button'));
+
+  // Password input is omitted for Telegram user
+  expect(screen.queryByTestId('delete-account-password')).toBeNull();
+
+  // Confirm button is active immediately and deletion succeeds without password
+  const confirmBtn = screen.getByTestId('delete-account-confirm');
+  expect(confirmBtn).toBeTruthy();
+
+  await act(async () => {
+    fireEvent.press(confirmBtn);
+  });
+
+  expect(mockApi.request).toHaveBeenCalledWith(
+    '/api/account/delete',
+    {},
+    expect.any(String)
+  );
+
+  await waitFor(() => expect(screen.getByText('account_deleted')).toBeTruthy());
+  view.unmount();
+});

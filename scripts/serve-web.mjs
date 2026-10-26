@@ -120,10 +120,19 @@ const server = http.createServer((req, res) => {
       if (!html.includes('telegram-web-app.js')) {
         html = html.replace(
           '</head>',
-          '  <script src="https://telegram.org/js/telegram-web-app.js"></script>\n  <script>try{if(window.Telegram&&window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}}catch(e){console.error(e);}</script>\n</head>'
+          '  <script src="https://telegram.org/js/telegram-web-app.js"></script>\n  <script>try{if(window.Telegram&&window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();window.Telegram.WebApp.setHeaderColor("#0b0716");window.Telegram.WebApp.setBackgroundColor("#0b0716");}}catch(e){console.error(e);}</script>\n</head>'
         );
-        payload = Buffer.from(html, 'utf-8');
       }
+      if (!html.includes('theme-color')) {
+        html = html.replace('<head>', '<head>\n  <meta name="theme-color" content="#0b0716">\n  <meta name="color-scheme" content="dark">');
+      }
+      if (!html.includes('arena-initial-loader') && html.includes('<div id="root">')) {
+        html = html.replace(
+          '<div id="root">',
+          '<div id="root"><div id="arena-initial-loader" class="arena-loader-wrap"><div class="arena-loader-halo"></div><div class="arena-bottle-box"><div class="arena-bottle"><div class="arena-pointer-tip"></div><div class="arena-foil-cap"><div class="arena-foil-ring"></div></div><div class="arena-neck"></div><div class="arena-shoulders"></div><div class="arena-body"><div class="arena-glass-sheen"></div><div class="arena-glass-secondary"></div><div class="arena-label"><div class="arena-label-brand">ARENA</div><div class="arena-label-divider"></div><div class="arena-label-vip">VIP</div></div></div></div></div><div class="arena-loader-text"><div class="arena-brand-text">ARENA</div><div class="arena-status-text">მიმდინარეობს ჩატვირთვა...</div></div></div>'
+        );
+      }
+      payload = Buffer.from(html, 'utf-8');
     }
 
     res.writeHead(200, {

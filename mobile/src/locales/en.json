@@ -2,6 +2,7 @@
   "account_delete": "Delete account",
   "account_delete_action": "Permanently delete account",
   "account_delete_confirm_desc": "This permanently hides your profile, deactivates matches, revokes all sessions, and queues your photos and data for irreversible deletion. Enter your password to confirm.",
+  "account_delete_confirm_desc_no_password": "This permanently hides your profile, deactivates matches, revokes all sessions, and queues your photos and data for irreversible deletion.",
   "account_delete_confirm_title": "Delete your account?",
   "account_delete_failed": "Account deletion failed. Check your password and try again.",
   "account_delete_password": "Enter current password",

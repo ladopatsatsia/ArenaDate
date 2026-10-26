@@ -48,6 +48,7 @@ const config: ExpoConfig = {
   web: {
     favicon: './assets/favicon.png',
     bundler: 'metro',
+    backgroundColor: '#0b0716',
   },
   plugins: [
     ['expo-notifications', { defaultChannel: 'activity' }],

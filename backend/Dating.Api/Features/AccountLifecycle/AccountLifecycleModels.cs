@@ -22,7 +22,7 @@ public sealed class DeletionTombstone
 }
 
 public sealed record DeleteAccountRequest(
-    [Required, MinLength(1), MaxLength(128)] string Password);
+    [MaxLength(128)] string? Password = null);
 
 public sealed record DeletionStatusResponse(
     Guid UserId,

@@ -59,7 +59,8 @@ public sealed record PhotoDto(Guid Id, string State, int Position, int Width, in
 public sealed record OwnProfileDto(long Revision, string DisplayName, int Age, string Bio, string Gender,
     string[] DesiredGenders, string City, string[] Interests, string RelationshipGoal, bool Visible, bool Complete, PhotoDto[] Photos,
     string[]? Languages = null,
-    string AppLanguage = "ka");
+    string AppLanguage = "ka",
+    bool RequiresPassword = true);
 public sealed record ProfileChoices(string[] Genders, string[] Interests, string[] RelationshipGoals, string[] Languages);
 public sealed record UploadRequest(Guid RequestId);
 public sealed record ReorderRequest(long Revision, [Required, MaxLength(6)] Guid[] PhotoIds);

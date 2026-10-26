@@ -13,6 +13,7 @@ import { ProfileApi } from '../src/profile/api';
 import { Screen } from '../src/components/Screen';
 import { theme } from '../src/components/theme';
 import { useReducedMotion } from '../src/components/useReducedMotion';
+import { BottleLoadingScreen } from '../src/components/BottleLoadingScreen';
 import { StatusBar } from 'expo-status-bar';
 
 export { ErrorBoundary } from 'expo-router';
@@ -56,7 +57,7 @@ function Navigation() {
     }
   }, [state.status, state.account?.id, api, manager]);
 
-  if (state.status === 'booting') return <Screen title="ARENA"><DiscoveryCardSkeleton /></Screen>;
+  if (state.status === 'booting') return <BottleLoadingScreen message={t('loading', 'ARENA იტვირთება...')} />;
   if (state.status === 'offline') return <Screen title="ARENA">
     <Text>{t(state.notice ?? 'connection_error')}</Text>
     <Button title={t('logout_local')} onPress={() => { void manager.clear('logout_local_only'); }} />

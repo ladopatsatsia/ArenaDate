@@ -19,8 +19,12 @@ public sealed class ProfileService(AppDbContext db, IPrivateStorage storage, Pho
         var p = await db.Set<DatingProfile>().AsNoTracking().SingleOrDefaultAsync(p => p.UserId == id, ct) ?? new DatingProfile { UserId = id };
         var photos = await db.Set<ProfilePhoto>().AsNoTracking().Where(p => p.UserId == id && !p.Deleted).OrderBy(p => p.Position)
             .Select(p => new PhotoDto(p.Id, p.State, p.Position, p.Width, p.Height)).ToArrayAsync(ct);
+        var isTelegramUser = (user.UserName != null && user.UserName.StartsWith("tg_"))
+            || (user.Email != null && user.Email.EndsWith("@dating.local"))
+            || await db.Set<Dating.Api.Features.Notifications.TelegramSubscriber>().AnyAsync(s => s.UserId == id, ct);
         return new(p.Revision, p.DisplayName, ProfileRules.Age(user.DateOfBirth, clock.GetUtcNow()), p.Bio, p.Gender,
-            p.DesiredGenders, p.City, p.Interests, p.RelationshipGoal, p.Visible, ProfileRules.Complete(p), photos, p.Languages, p.AppLanguage ?? "ka");
+            p.DesiredGenders, p.City, p.Interests, p.RelationshipGoal, p.Visible, ProfileRules.Complete(p), photos, p.Languages, p.AppLanguage ?? "ka",
+            RequiresPassword: !isTelegramUser);
     }
     public async Task SetAppLanguage(Guid id, string language, CancellationToken ct)
     {

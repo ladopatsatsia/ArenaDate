@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Screen } from '../components/Screen';
 import { theme } from '../components/theme';
 import { useAuth } from './AuthProvider';
+import { BottleLoadingScreen } from '../components/BottleLoadingScreen';
 import { getTelegramWebApp, getTelegramInitData, isTelegramMiniApp, triggerHaptic } from '../telegram/telegramSdk';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -77,6 +78,15 @@ export function OtpAuthScreen() {
       void Linking.openURL(TELEGRAM_BOT_URL);
     }
   };
+
+  if (inTelegram && busy && !error) {
+    return (
+      <BottleLoadingScreen
+        message={t('auth_telegram_logging_in', 'მიმდინარეობს ავტორიზაცია...')}
+        subMessage={t('auth_telegram_sub', 'სწრაფი და უსაფრთხო შესვლა Telegram ანგარიშით')}
+      />
+    );
+  }
 
   return (
     <Screen title={t('brand_name')}>

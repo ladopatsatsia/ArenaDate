@@ -16,6 +16,7 @@ import { ProfileEditor } from './ProfileEditor';
 import { PrivatePhoto } from './PrivatePhoto';
 import { PremiumApi, type PremiumStatus } from '../premium/PremiumApi';
 import { PremiumModal } from '../premium/PremiumModal';
+import { isTelegramMiniApp } from '../telegram/telegramSdk';
 
 const EMPTY_PREMIUM_STATUS: PremiumStatus = {
   hasPremium: false,
@@ -35,6 +36,7 @@ export default function ProfileScreen() {
   const profile = useQuery({ queryKey: key, queryFn: api.get });
   const { refetch } = profile;
   useFocusEffect(useCallback(() => { void refetch(); }, [refetch]));
+  const isTelegramUser = profile.data?.requiresPassword === false || isTelegramMiniApp();
   const choices = useQuery({ queryKey: ['account', state.account?.id, 'profile-choices'], queryFn: api.choices });
   const premiumStatus = useQuery({
     queryKey: ['account', state.account?.id, 'premium-status'],
@@ -111,11 +113,11 @@ export default function ProfileScreen() {
   }
 
   async function deleteAccount() {
-    if (!deletePassword) return;
+    if (!isTelegramUser && !deletePassword) return;
     setBusy(true);
     setMessage('');
     try {
-      await api.deleteAccount(deletePassword);
+      await api.deleteAccount(isTelegramUser ? undefined : deletePassword);
       await manager.clear('account_deleted');
     } catch {
       setMessage('account_delete_failed');
@@ -410,20 +412,24 @@ export default function ProfileScreen() {
         ) : (
           <View style={styles.deleteBox}>
             <Text style={{ fontWeight: 'bold', color: theme.colors.danger }}>{t('account_delete_confirm_title')}</Text>
-            <Text style={{ color: theme.colors.text }}>{t('account_delete_confirm_desc')}</Text>
-            <TextInput
-              testID="delete-account-password"
-              accessibilityLabel={t('account_delete_password')}
-              placeholder={t('account_delete_password')}
-              secureTextEntry
-              value={deletePassword}
-              onChangeText={setDeletePassword}
-              style={{ borderWidth: 1, borderColor: theme.colors.danger, padding: 10, color: theme.colors.text, backgroundColor: theme.colors.background, borderRadius: 8 }}
-            />
+            <Text style={{ color: theme.colors.text }}>
+              {isTelegramUser ? t('account_delete_confirm_desc_no_password') : t('account_delete_confirm_desc')}
+            </Text>
+            {!isTelegramUser && (
+              <TextInput
+                testID="delete-account-password"
+                accessibilityLabel={t('account_delete_password')}
+                placeholder={t('account_delete_password')}
+                secureTextEntry
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+                style={{ borderWidth: 1, borderColor: theme.colors.danger, padding: 10, color: theme.colors.text, backgroundColor: theme.colors.background, borderRadius: 8 }}
+              />
+            )}
             <Button
               testID="delete-account-confirm"
               title={t('account_delete_action')}
-              disabled={busy || !deletePassword}
+              disabled={busy || (!isTelegramUser && !deletePassword)}
               onPress={() => { void deleteAccount(); }}
             />
             <Button title={t('cancel')} disabled={busy} onPress={() => { setShowDelete(false); setDeletePassword(''); }} />

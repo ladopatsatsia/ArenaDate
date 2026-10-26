@@ -13,17 +13,17 @@ public sealed class AccountLifecycleController(AccountLifecycleService service) 
 
     [HttpPost("api/account/delete"), Authorize, EnableRateLimiting("auth")]
     [ProducesResponseType(204)]
-    public async Task<IActionResult> DeleteAccountPost(DeleteAccountRequest request, CancellationToken ct)
+    public async Task<IActionResult> DeleteAccountPost([FromBody] DeleteAccountRequest? request, CancellationToken ct)
     {
-        await service.DeleteAccountInApp(UserId, request.Password, ct);
+        await service.DeleteAccountInApp(UserId, request?.Password, ct);
         return NoContent();
     }
 
     [HttpDelete("api/account"), Authorize, EnableRateLimiting("auth")]
     [ProducesResponseType(204)]
-    public async Task<IActionResult> DeleteAccountDelete(DeleteAccountRequest request, CancellationToken ct)
+    public async Task<IActionResult> DeleteAccountDelete([FromBody] DeleteAccountRequest? request, CancellationToken ct)
     {
-        await service.DeleteAccountInApp(UserId, request.Password, ct);
+        await service.DeleteAccountInApp(UserId, request?.Password, ct);
         return NoContent();
     }
 
