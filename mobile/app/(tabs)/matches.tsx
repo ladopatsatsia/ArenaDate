@@ -85,6 +85,7 @@ export default function Matches() {
   } | null>(null);
   const [superLikeSending, setSuperLikeSending] = useState(false);
   const [superLikeFeedback, setSuperLikeFeedback] = useState<string | null>(null);
+  const [locallyReadConversations, setLocallyReadConversations] = useState<Record<string, boolean>>({});
 
   const gameApi = useMemo(() => new GameApi(auth, manager), [auth, manager]);
   const wallet = useQuery({
@@ -209,12 +210,47 @@ export default function Matches() {
     }
   };
 
+  const markConversationReadLocally = useCallback((conversationId?: string) => {
+    if (!conversationId) return;
+    setLocallyReadConversations(prev => ({ ...prev, [conversationId]: true }));
+    if (!accountId) return;
+    cache.setQueryData(matchesKey, (old: any) => {
+      if (!old?.pages) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: any) => ({
+          ...page,
+          items: page.items.map((m: any) => m.conversationId === conversationId ? { ...m, unreadCount: 0 } : m),
+        })),
+      };
+    });
+    cache.setQueryData(['account', accountId, 'matches-badge'], (old: any) => {
+      if (!old?.items) return old;
+      return {
+        ...old,
+        items: old.items.map((m: any) => m.conversationId === conversationId ? { ...m, unreadCount: 0 } : m),
+      };
+    });
+  }, [cache, accountId, matchesKey]);
+
+  const openMatchChat = useCallback((match: MatchSummary) => {
+    markConversationReadLocally(match.conversationId);
+    router.push({
+      pathname: '/chat/[id]',
+      params: { id: match.conversationId, name: match.displayName },
+    });
+  }, [markConversationReadLocally, router]);
+
   const matchItems = [...new Map((matches.data?.pages.flatMap(page => page.items) ?? []).map(m => [m.id, m])).values()]
+    .map(m => locallyReadConversations[m.conversationId] ? { ...m, unreadCount: 0 } : m)
     .sort((a, b) => {
       if (a.hasChatEntitlement === false && b.hasChatEntitlement !== false) return -1;
       if (a.hasChatEntitlement !== false && b.hasChatEntitlement === false) return 1;
       return 0;
     });
+  const totalUnreadMatches = useMemo(() => {
+    return matchItems.reduce((acc, m) => acc + (Number(m.unreadCount) || 0), 0);
+  }, [matchItems]);
   const requestItems = requests.data ?? [];
   const lockedGameMatches = matchItems.filter(m => m.origin === 'GameArena' && m.hasChatEntitlement === false);
   const viewedYouItems = viewedYou.data ?? [];
@@ -246,12 +282,22 @@ export default function Matches() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('matches')}
+            testID="tab-matches-section"
             onPress={() => setSection('matches')}
             style={[styles.gridTile, section === 'matches' && styles.gridTileActive]}
           >
-            <Text style={[styles.gridTileText, section === 'matches' && styles.gridTileTextActive]}>
-              💖 {t('matches')} {matchItems.length > 0 ? `(${matchItems.length})` : ''}
-            </Text>
+            <View style={styles.gridTileContentRow}>
+              <Text style={[styles.gridTileText, section === 'matches' && styles.gridTileTextActive]}>
+                💖 {t('matches')} {matchItems.length > 0 ? `(${matchItems.length})` : ''}
+              </Text>
+              {totalUnreadMatches > 0 && (
+                <View style={styles.unreadRedDot} testID="matches-section-unread-dot">
+                  <Text style={styles.unreadRedDotText}>
+                    {totalUnreadMatches > 99 ? '99+' : totalUnreadMatches}
+                  </Text>
+                </View>
+              )}
+            </View>
           </Pressable>
 
           <Pressable
@@ -705,10 +751,7 @@ export default function Matches() {
                     if (match.hasChatEntitlement === false) {
                       setUnlockMatchCandidate(match);
                     } else {
-                      router.push({
-                        pathname: '/chat/[id]',
-                        params: { id: match.conversationId, name: match.displayName },
-                      });
+                      openMatchChat(match);
                     }
                   }}
                   style={({ pressed }) => [styles.cardPressable, pressed && { opacity: 0.85 }]}
@@ -726,7 +769,7 @@ export default function Matches() {
                           </View>
                         )}
                         {unreadNum > 0 && (
-                          <View style={styles.matchUnreadBadge}>
+                          <View style={styles.matchUnreadBadge} testID={`unread-badge-${match.id}`}>
                             <Text style={styles.matchUnreadBadgeText}>{unreadNum > 99 ? '99+' : unreadNum}</Text>
                           </View>
                         )}
@@ -762,11 +805,16 @@ export default function Matches() {
                       }}
                       style={styles.cardRightGroup}
                     >
-                      <View style={styles.avatarOval}>
-                        {match.photo ? (
-                          <PrivatePhoto photo={match.photo} avatar />
-                        ) : (
-                          <Text style={{ fontSize: 18, color: theme.colors.muted }}>👤</Text>
+                      <View style={styles.avatarWrapper}>
+                        <View style={styles.avatarOval}>
+                          {match.photo ? (
+                            <PrivatePhoto photo={match.photo} avatar />
+                          ) : (
+                            <Text style={{ fontSize: 18, color: theme.colors.muted }}>👤</Text>
+                          )}
+                        </View>
+                        {unreadNum > 0 && (
+                          <View style={styles.avatarUnreadDot} testID={`avatar-unread-dot-${match.id}`} />
                         )}
                       </View>
                       <SafetyActions conversationId={match.conversationId} variant="dots" onDone={() => { void handleManualRefresh(); }} />
@@ -804,10 +852,7 @@ export default function Matches() {
                       if (match.hasChatEntitlement === false) {
                         setUnlockMatchCandidate(match);
                       } else {
-                        router.push({
-                          pathname: '/chat/[id]',
-                          params: { id: match.conversationId, name: match.displayName },
-                        });
+                        openMatchChat(match);
                       }
                     }}
                     style={styles.openChatBtn}
@@ -1259,6 +1304,9 @@ export default function Matches() {
                   onPress={() => {
                     const convId = selectedProfile.conversationId;
                     const peerName = selectedProfile.displayName;
+                    if (convId) {
+                      markConversationReadLocally(convId);
+                    }
                     setSelectedProfile(null);
                     if (convId) {
                       router.push({
@@ -1418,9 +1466,10 @@ export default function Matches() {
                   setUnlockError(null);
                   try {
                     const res = await api.unlock(unlockMatchCandidate.id, Crypto.randomUUID());
-                    await cache.invalidateQueries({ queryKey: matchesKey });
                     const convId = res.conversationId;
                     const peerName = unlockMatchCandidate.displayName;
+                    markConversationReadLocally(convId);
+                    await cache.invalidateQueries({ queryKey: matchesKey });
                     setUnlockMatchCandidate(null);
                     router.push({
                       pathname: '/chat/[id]',
@@ -1589,19 +1638,72 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
+  gridTileContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  unreadRedDot: {
+    backgroundColor: '#EF4444',
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: theme.colors.surface,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  unreadRedDotText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 11,
+    textAlign: 'center',
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  avatarUnreadDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: '#EF4444',
+    borderWidth: 2,
+    borderColor: theme.colors.surface,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
+    elevation: 4,
+  },
   matchUnreadBadge: {
-    backgroundColor: theme.colors.match,
+    backgroundColor: '#EF4444',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.7,
+    shadowRadius: 3,
+    elevation: 3,
   },
   matchUnreadBadgeText: {
     color: '#ffffff',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   matchProfileBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',

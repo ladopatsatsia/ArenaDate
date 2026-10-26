@@ -220,7 +220,14 @@ export function ChatScreen({ id, peerName, account }: { id: string; peerName?: s
         }
       } while (again.current && current());
       setNotice('');
+      const latestNonPending = rows.current
+        .filter((m) => !m.id.startsWith('pending-'))
+        .sort((a, b) => (BigInt(a.sequence) > BigInt(b.sequence) ? -1 : 1))[0];
+      if (latestNonPending && current()) {
+        void api.read(id, latestNonPending.id).catch(() => undefined);
+      }
       void cache.invalidateQueries({ queryKey: ['account', account, 'matches'] });
+      void cache.invalidateQueries({ queryKey: ['account', account, 'matches-badge'] });
     } catch (error) {
       if (current()) {
         setNotice(error instanceof ApiError && [403, 404].includes(error.status) ? 'chat_unavailable' : 'connection_error');
@@ -244,6 +251,26 @@ export function ChatScreen({ id, peerName, account }: { id: string; peerName?: s
   stopLive.current = () => {
     void live.stop();
   };
+
+  useEffect(() => {
+    cache.setQueryData(['account', account, 'matches'], (old: any) => {
+      if (!old?.pages) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: any) => ({
+          ...page,
+          items: page.items.map((m: any) => m.conversationId === id ? { ...m, unreadCount: 0 } : m),
+        })),
+      };
+    });
+    cache.setQueryData(['account', account, 'matches-badge'], (old: any) => {
+      if (!old?.items) return old;
+      return {
+        ...old,
+        items: old.items.map((m: any) => m.conversationId === id ? { ...m, unreadCount: 0 } : m),
+      };
+    });
+  }, [cache, account, id]);
 
   useEffect(() => {
     active.current = true;
@@ -288,15 +315,20 @@ export function ChatScreen({ id, peerName, account }: { id: string; peerName?: s
         subscription.remove();
         clearInterval(fallback);
         void live.stop();
+        void cache.invalidateQueries({ queryKey: ['account', account, 'matches'] });
+        void cache.invalidateQueries({ queryKey: ['account', account, 'matches-badge'] });
       };
-    }, [live, catchup])
+    }, [live, catchup, cache, account])
   );
 
   useEffect(() => {
     if (!visible || !focused.current || AppState.currentState !== 'active') return;
     const timer = setTimeout(() => {
       void api.read(id, visible.id).then(
-        () => cache.invalidateQueries({ queryKey: ['account', account, 'matches'] }),
+        () => {
+          void cache.invalidateQueries({ queryKey: ['account', account, 'matches'] });
+          void cache.invalidateQueries({ queryKey: ['account', account, 'matches-badge'] });
+        },
         (error) => {
           if (current()) {
             if (error instanceof ApiError && [403, 404].includes(error.status)) clear();

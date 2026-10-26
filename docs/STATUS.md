@@ -1,3 +1,42 @@
+# Status - Unread Messages Red Dot Indicators & Instant Clearance
+
+Updated 2026-10-26. Implemented unread message notifications across the mobile app:
+
+1. **Bottom Navigation Tab Bar (Heart Icon `💖 matches`)**:
+   - In `mobile/app/(tabs)/_layout.tsx`:
+     - Added background polling query `['account', accountId, 'matches-badge']` with `refetchInterval: 5000` and fallback to existing cache.
+     - When `totalUnread > 0`, the heart icon displays a glowing notification red badge (`#EF4444`, `testID="tab-matches-unread-badge"`) displaying unread message count (e.g., `1`..`99+`).
+     - Visible from anywhere in the app (discover, today-plans, game arena, profile).
+
+2. **Matches Screen (`mobile/app/(tabs)/matches.tsx`)**:
+   - Added `totalUnreadMatches` calculation from incoming matches.
+   - On the top row "კავშირები" grid tile (`testID="tab-matches-section"`), added a bright red indicator badge (`testID="matches-section-unread-dot"`).
+   - In the matches list, each unread match displays:
+     - Prominent red badge (`#EF4444`, `testID="unread-badge-{id}"`) with unread count in `nameRow`.
+     - Red dot indicator (`#EF4444`, `testID="avatar-unread-dot-{id}"`) on the avatar image.
+     - Highlighted bold message snippet.
+
+3. **Immediate Clearance Upon Opening Chat**:
+   - Added `markConversationReadLocally(conversationId)` and `openMatchChat(match)` helper in `matches.tsx`:
+     - Optimistically updates `locallyReadConversations` React state (zero delay, immediate synchronous re-render).
+     - Optimistically updates `['account', accountId, 'matches']` and `['account', accountId, 'matches-badge']` in React Query cache.
+     - Applied to: match card press, match "ჩატი" button, profile modal "ჩატი" button, and crystal unlock confirm.
+   - In `mobile/src/chat/ChatScreen.tsx`:
+     - On mount, immediately zeros out unread count for that conversation in React Query cache.
+     - In `catchup()`, automatically detects latest non-pending message and triggers server `api.read(id, latest.id)`.
+     - Invalidates both matches queries on unmount and on reading messages.
+
+4. **Verification**:
+   - TypeScript Typecheck: `npm run typecheck` across `api-contract`, `mobile`, `admin` -> **0 Warnings, 0 Errors**.
+   - Mobile Unit Tests:
+     - `npx jest tests/unread-messages-indicator.test.tsx --forceExit` -> **2/2 Passed (100%)**.
+     - `npx jest tests/cities.test.ts tests/discovery-location.test.ts tests/unread-messages-indicator.test.tsx --forceExit` -> **10/10 Passed (100%)**.
+     - `npm test -- --testPathPattern=chat-screen.test.tsx` -> **5/5 Passed (100%)**.
+   - Web export: `npx expo export --platform web --output-dir dist/web` -> verified compatible.
+   - Physical Device verification: NOT RUN (Not requested; verified via React Native and Jest tests).
+
+---
+
 # Status - Onboarding GPS Location Auto-Detection & Geocoding
 
 Updated 2026-10-26. Implemented automatic GPS location detection during account setup / onboarding (Step 4 "სად იმყოფებით?"):
