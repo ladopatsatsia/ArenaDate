@@ -1,8 +1,9 @@
 import { Button, Text, TextInput, Card } from '../components/UI';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -45,6 +46,39 @@ const INTEREST_OPTIONS = [
   { id: 'technology', labelKey: 'choice_technology', emoji: '💻' },
 ];
 
+export const MONTHS_DATA = [
+  { value: '01', ka: 'იანვარი', en: 'January', ru: 'Январь' },
+  { value: '02', ka: 'თებერვალი', en: 'February', ru: 'Февраль' },
+  { value: '03', ka: 'მარტი', en: 'March', ru: 'Март' },
+  { value: '04', ka: 'აპრილი', en: 'April', ru: 'Апрель' },
+  { value: '05', ka: 'მაისი', en: 'May', ru: 'Май' },
+  { value: '06', ka: 'ივნისი', en: 'June', ru: 'Июнь' },
+  { value: '07', ka: 'ივლისი', en: 'July', ru: 'Июль' },
+  { value: '08', ka: 'აგვისტო', en: 'August', ru: 'Август' },
+  { value: '09', ka: 'სექტემბერი', en: 'September', ru: 'Сентябрь' },
+  { value: '10', ka: 'ოქტომბერი', en: 'October', ru: 'Октябрь' },
+  { value: '11', ka: 'ნოემბერი', en: 'November', ru: 'Ноябрь' },
+  { value: '12', ka: 'დეკემბერი', en: 'December', ru: 'Декабрь' },
+];
+
+export function getMaxDaysInMonth(yearStr: string, monthStr: string): number {
+  const m = parseInt(monthStr, 10);
+  if (!m || isNaN(m)) return 31;
+  if ([4, 6, 9, 11].includes(m)) return 30;
+  if (m === 2) {
+    const y = parseInt(yearStr, 10);
+    if (!y || isNaN(y)) return 29;
+    const isLeap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    return isLeap ? 29 : 28;
+  }
+  return 31;
+}
+
+const CURRENT_YEAR = new Date().getFullYear();
+const MAX_ADULT_YEAR = CURRENT_YEAR - 18;
+const MIN_YEAR = 1940;
+export const ALL_ADULT_YEARS = Array.from({ length: MAX_ADULT_YEAR - MIN_YEAR + 1 }, (_, i) => String(MAX_ADULT_YEAR - i));
+
 export function OnboardingScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -66,10 +100,12 @@ export function OnboardingScreen() {
 
   const isProfileComplete = Boolean(
     profileQuery.data &&
-    profileQuery.data.displayName?.trim()?.length >= 2 &&
-    profileQuery.data.gender &&
-    profileQuery.data.desiredGenders?.length > 0 &&
-    profileQuery.data.photos?.length > 0
+    (profileQuery.data.complete || (
+      profileQuery.data.displayName?.trim()?.length >= 2 &&
+      profileQuery.data.gender &&
+      profileQuery.data.desiredGenders?.length > 0 &&
+      profileQuery.data.photos?.length > 0
+    ))
   );
 
   useEffect(() => {
@@ -92,6 +128,14 @@ export function OnboardingScreen() {
       if (profileQuery.data.city) {
         setSelectedCity(profileQuery.data.city);
       }
+      if (profileQuery.data.age && !birthYear) {
+        const parsedAge = Number(profileQuery.data.age);
+        if (!isNaN(parsedAge) && parsedAge > 0) {
+          setBirthYear(String(CURRENT_YEAR - parsedAge));
+          setBirthMonth('01');
+          setBirthDay('01');
+        }
+      }
       const firstPhoto = profileQuery.data.photos?.[0];
       if (firstPhoto && !uploadedPhotoUri) {
         setUploadedPhotoUri(`/api/media/profile/${firstPhoto.id}`);
@@ -103,6 +147,48 @@ export function OnboardingScreen() {
   const [birthYear, setBirthYear] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
+  const [showDayPicker, setShowDayPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [yearFilter, setYearFilter] = useState<'all' | '2000s' | '90s' | '80s' | 'older'>('all');
+
+  const currentLang = i18n.language?.startsWith('ru') ? 'ru' : i18n.language?.startsWith('en') ? 'en' : 'ka';
+  const selectedMonthObj = MONTHS_DATA.find((m) => m.value === birthMonth);
+  const selectedMonthName = selectedMonthObj ? selectedMonthObj[currentLang] : '';
+
+  const maxDays = getMaxDaysInMonth(birthYear, birthMonth);
+  const daysList = useMemo(() => Array.from({ length: maxDays }, (_, i) => String(i + 1).padStart(2, '0')), [maxDays]);
+
+  const filteredYears = useMemo(() => {
+    if (yearFilter === '2000s') return ALL_ADULT_YEARS.filter((y) => parseInt(y, 10) >= 2000);
+    if (yearFilter === '90s') return ALL_ADULT_YEARS.filter((y) => { const n = parseInt(y, 10); return n >= 1990 && n <= 1999; });
+    if (yearFilter === '80s') return ALL_ADULT_YEARS.filter((y) => { const n = parseInt(y, 10); return n >= 1980 && n <= 1989; });
+    if (yearFilter === 'older') return ALL_ADULT_YEARS.filter((y) => parseInt(y, 10) < 1980);
+    return ALL_ADULT_YEARS;
+  }, [yearFilter]);
+
+  const selectDay = (d: string) => {
+    setBirthDay(d);
+    setShowDayPicker(false);
+  };
+
+  const selectMonth = (mVal: string) => {
+    setBirthMonth(mVal);
+    setShowMonthPicker(false);
+    const newMax = getMaxDaysInMonth(birthYear, mVal);
+    if (birthDay && parseInt(birthDay, 10) > newMax) {
+      setBirthDay(String(newMax).padStart(2, '0'));
+    }
+  };
+
+  const selectYear = (yVal: string) => {
+    setBirthYear(yVal);
+    setShowYearPicker(false);
+    const newMax = getMaxDaysInMonth(yVal, birthMonth);
+    if (birthDay && parseInt(birthDay, 10) > newMax) {
+      setBirthDay(String(newMax).padStart(2, '0'));
+    }
+  };
 
   // Step 3: Gender & Desired
   const [gender, setGender] = useState<'woman' | 'man' | 'nonbinary'>('woman');
@@ -402,58 +488,73 @@ export function OnboardingScreen() {
               <Text style={styles.stepSubtitle}>{t('onboarding_birthday_subtitle')}</Text>
 
               <View style={styles.dateRow}>
+                {/* Day selector */}
                 <View style={styles.dateCol}>
                   <Text style={styles.dateLabel}>{t('onboarding_birthday_day')}</Text>
-                  <TextInput
+                  <Pressable
                     testID="onboarding-day-input"
                     accessibilityLabel={t('onboarding_birthday_day')}
-                    style={[styles.textInput, styles.dateInput]}
-                    value={birthDay}
-                    onChangeText={(val) => setBirthDay(val.replace(/\D/g, '').slice(0, 2))}
-                    placeholder="15"
-                    placeholderTextColor={theme.colors.muted}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
+                    accessibilityRole="button"
+                    style={[styles.pickerTrigger, birthDay ? styles.pickerTriggerActive : null]}
+                    onPress={() => setShowDayPicker(true)}
+                  >
+                    <Text style={[styles.pickerTriggerText, !birthDay && styles.pickerTriggerPlaceholder]}>
+                      {birthDay ? parseInt(birthDay, 10) : t('onboarding_birthday_day', 'დღე')}
+                    </Text>
+                    <Text style={styles.pickerChevron}>▼</Text>
+                  </Pressable>
                 </View>
 
-                <View style={styles.dateCol}>
+                {/* Month selector */}
+                <View style={[styles.dateCol, { flex: 1.35 }]}>
                   <Text style={styles.dateLabel}>{t('onboarding_birthday_month')}</Text>
-                  <TextInput
+                  <Pressable
                     testID="onboarding-month-input"
                     accessibilityLabel={t('onboarding_birthday_month')}
-                    style={[styles.textInput, styles.dateInput]}
-                    value={birthMonth}
-                    onChangeText={(val) => setBirthMonth(val.replace(/\D/g, '').slice(0, 2))}
-                    placeholder="05"
-                    placeholderTextColor={theme.colors.muted}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
+                    accessibilityRole="button"
+                    style={[styles.pickerTrigger, birthMonth ? styles.pickerTriggerActive : null]}
+                    onPress={() => setShowMonthPicker(true)}
+                  >
+                    <Text
+                      style={[styles.pickerTriggerText, !birthMonth && styles.pickerTriggerPlaceholder]}
+                      numberOfLines={1}
+                    >
+                      {selectedMonthName || t('onboarding_birthday_month', 'თვე')}
+                    </Text>
+                    <Text style={styles.pickerChevron}>▼</Text>
+                  </Pressable>
                 </View>
 
-                <View style={[styles.dateCol, { flex: 1.4 }]}>
+                {/* Year selector */}
+                <View style={[styles.dateCol, { flex: 1.1 }]}>
                   <Text style={styles.dateLabel}>{t('onboarding_birthday_year')}</Text>
-                  <TextInput
+                  <Pressable
                     testID="onboarding-year-input"
                     accessibilityLabel={t('onboarding_birthday_year')}
-                    style={[styles.textInput, styles.dateInput]}
-                    value={birthYear}
-                    onChangeText={(val) => setBirthYear(val.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="2000"
-                    placeholderTextColor={theme.colors.muted}
-                    keyboardType="number-pad"
-                    maxLength={4}
-                  />
+                    accessibilityRole="button"
+                    style={[styles.pickerTrigger, birthYear ? styles.pickerTriggerActive : null]}
+                    onPress={() => setShowYearPicker(true)}
+                  >
+                    <Text style={[styles.pickerTriggerText, !birthYear && styles.pickerTriggerPlaceholder]}>
+                      {birthYear || t('onboarding_birthday_year', 'წელი')}
+                    </Text>
+                    <Text style={styles.pickerChevron}>▼</Text>
+                  </Pressable>
                 </View>
               </View>
 
-              {currentAge !== null && (
+              {currentAge !== null ? (
                 <View style={[styles.ageBadge, !isAdult && styles.ageBadgeError]}>
                   <Text style={[styles.ageBadgeText, !isAdult && styles.ageBadgeTextError]}>
                     {isAdult
                       ? `✓ ${t('onboarding_age_display', { age: currentAge })}`
                       : `⚠ ${t('adult_required')}`}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.ageBadgeHint}>
+                  <Text style={styles.ageBadgeHintText}>
+                    {t('onboarding_birthday_hint', '💡 აირჩიეთ დაბადების დღე, თვე და წელი (18+)')}
                   </Text>
                 </View>
               )}
@@ -851,6 +952,145 @@ export function OnboardingScreen() {
           )}
         </ScrollView>
       </View>
+
+      {/* Day Picker Modal */}
+      <Modal
+        visible={showDayPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDayPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowDayPicker(false)}>
+          <Pressable style={styles.pickerModalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>📅 {t('onboarding_select_day', 'აირჩიეთ დაბადების დღე')}</Text>
+              <Pressable hitSlop={10} onPress={() => setShowDayPicker(false)} style={styles.pickerModalCloseBtn}>
+                <Text style={styles.pickerModalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={styles.daysGrid} showsVerticalScrollIndicator={false}>
+              {daysList.map((d) => {
+                const isSelected = birthDay === d;
+                const num = parseInt(d, 10);
+                return (
+                  <Pressable
+                    key={d}
+                    testID={`onboarding-day-${num}`}
+                    accessibilityRole="button"
+                    style={[styles.dayItem, isSelected && styles.itemSelected]}
+                    onPress={() => selectDay(d)}
+                  >
+                    <Text style={[styles.dayItemText, isSelected && styles.itemTextSelected]}>
+                      {num}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Month Picker Modal */}
+      <Modal
+        visible={showMonthPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMonthPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowMonthPicker(false)}>
+          <Pressable style={styles.pickerModalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>🗓️ {t('onboarding_select_month', 'აირჩიეთ დაბადების თვე')}</Text>
+              <Pressable hitSlop={10} onPress={() => setShowMonthPicker(false)} style={styles.pickerModalCloseBtn}>
+                <Text style={styles.pickerModalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={styles.monthsGrid} showsVerticalScrollIndicator={false}>
+              {MONTHS_DATA.map((m) => {
+                const isSelected = birthMonth === m.value;
+                const label = m[currentLang];
+                return (
+                  <Pressable
+                    key={m.value}
+                    testID={`onboarding-month-${m.value}`}
+                    accessibilityRole="button"
+                    style={[styles.monthItem, isSelected && styles.itemSelected]}
+                    onPress={() => selectMonth(m.value)}
+                  >
+                    <Text style={[styles.monthItemNum, isSelected && styles.itemTextSelected]}>{m.value}</Text>
+                    <Text style={[styles.monthItemText, isSelected && styles.itemTextSelected]} numberOfLines={1}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Year Picker Modal */}
+      <Modal
+        visible={showYearPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowYearPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowYearPicker(false)}>
+          <Pressable style={styles.pickerModalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.pickerModalHeader}>
+              <View>
+                <Text style={styles.pickerModalTitle}>⏳ {t('onboarding_select_year', 'აირჩიეთ დაბადების წელი')}</Text>
+                <Text style={styles.pickerModalSubtitle}>{t('onboarding_adult_years', 'მხოლოდ სრულწლოვანი (18+) ასაკი')}</Text>
+              </View>
+              <Pressable hitSlop={10} onPress={() => setShowYearPicker(false)} style={styles.pickerModalCloseBtn}>
+                <Text style={styles.pickerModalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            {/* Decade filter pills */}
+            <View style={styles.decadeRow}>
+              {[
+                { id: 'all', label: t('all', 'ყველა') },
+                { id: '2000s', label: '2000–2008' },
+                { id: '90s', label: '90-იანები' },
+                { id: '80s', label: '80-იანები' },
+                { id: 'older', label: '1940–1979' },
+              ].map((pill) => (
+                <Pressable
+                  key={pill.id}
+                  style={[styles.decadePill, yearFilter === pill.id && styles.decadePillActive]}
+                  onPress={() => setYearFilter(pill.id as any)}
+                >
+                  <Text style={[styles.decadePillText, yearFilter === pill.id && styles.decadePillTextActive]}>
+                    {pill.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <ScrollView contentContainerStyle={styles.yearsGrid} showsVerticalScrollIndicator={true} style={{ maxHeight: 340 }}>
+              {filteredYears.map((yr) => {
+                const isSelected = birthYear === yr;
+                return (
+                  <Pressable
+                    key={yr}
+                    testID={`onboarding-year-${yr}`}
+                    accessibilityRole="button"
+                    style={[styles.yearItem, isSelected && styles.itemSelected]}
+                    onPress={() => selectYear(yr)}
+                  >
+                    <Text style={[styles.yearItemText, isSelected && styles.itemTextSelected]}>
+                      {yr}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -1303,5 +1543,206 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.muted,
     fontWeight: '500',
+  },
+  pickerTrigger: {
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerTriggerActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+  },
+  pickerTriggerText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  pickerTriggerPlaceholder: {
+    fontSize: 14,
+    color: theme.colors.muted,
+    fontWeight: '500',
+  },
+  pickerChevron: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    marginLeft: 4,
+  },
+  ageBadgeHint: {
+    marginTop: 4,
+    alignItems: 'center',
+  },
+  ageBadgeHintText: {
+    fontSize: 12,
+    color: theme.colors.muted,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  pickerModalContent: {
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: '80%',
+    backgroundColor: '#1E1B2E',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  pickerModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  pickerModalSubtitle: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    marginTop: 2,
+  },
+  pickerModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerModalCloseText: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'flex-start',
+    paddingBottom: 8,
+  },
+  dayItem: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  monthsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
+    paddingBottom: 8,
+  },
+  monthItem: {
+    width: '48%',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  monthItemNum: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  monthItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  decadeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  decadePill: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  decadePillActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  decadePillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.muted,
+  },
+  decadePillTextActive: {
+    color: '#FFFFFF',
+  },
+  yearsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'flex-start',
+    paddingBottom: 8,
+  },
+  yearItem: {
+    width: 68,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  yearItemText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  itemSelected: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  itemTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

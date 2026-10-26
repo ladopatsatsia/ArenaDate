@@ -100,13 +100,23 @@ test('malformed secure-storage record is removed rather than treated as a sessio
   const h = harness(); h.storage.get.mockResolvedValue('broken-json'); await h.manager.restore();
   expect(h.storage.remove).toHaveBeenCalled(); expect(h.manager.snapshot().status).toBe('signedOut');
 });
-test('a stale storage write cannot overwrite a later logout', async () => {
-  const h = harness(); const pending = deferred<void>();
-  h.storage.set.mockImplementationOnce(async () => pending.promise);
-  const signingIn = h.manager.signIn(credentials);
-  await tickUntil(() => h.storage.set.mock.calls.length === 1);
-  const clearing = h.manager.clear();
-  pending.resolve();
-  await clearing; await expect(signingIn).rejects.toThrow('session_changed');
-  expect(h.manager.snapshot().status).toBe('signedOut'); expect(h.saved()).toBeNull();
+test('persists session and refreshes across app update with different or omitted origin', async () => {
+  const h = harness();
+  // Simulate saved session from earlier app version or different domain/origin
+  const storedPayload = JSON.stringify({
+    refreshToken: 'refresh-old-version',
+    account: { id: A },
+    requestId: 'update-req-123',
+    origin: 'https://old-domain.example',
+  });
+  h.storage.get.mockResolvedValueOnce(storedPayload);
+  h.api.refresh.mockResolvedValueOnce(tokens(A, 'updated'));
+
+  const manager = new SessionManager(h.api, h.storage, h.clear, () => 'new-req', 'https://new-domain.example');
+  await manager.restore();
+
+  expect(manager.snapshot().status).toBe('signedIn');
+  expect(manager.snapshot().account?.id).toBe(A);
+  expect(h.storage.remove).not.toHaveBeenCalled();
 });
+

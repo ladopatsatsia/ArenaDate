@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ApiError, type Account, type Login, type SessionApi, type Tokens } from './api';
 
 export interface TokenStorage { get(): Promise<string | null>; set(value: string): Promise<void>; remove(): Promise<void> }
-const storedSchema = z.object({ refreshToken: z.string().min(1), origin: z.string(), requestId: z.uuid().optional() });
+const storedSchema = z.object({ refreshToken: z.string().min(1), origin: z.string().optional(), requestId: z.string().optional() });
 type Stored = z.infer<typeof storedSchema>;
 export type SessionState = { status: 'booting' | 'signedOut' | 'signedIn' | 'offline'; account: Account | null; notice?: string };
 export class SessionManager {
@@ -47,8 +47,12 @@ export class SessionManager {
       let decoded: unknown;
       try { decoded = JSON.parse(raw); } catch { await this.clear("session_expired"); return; }
       const parsed = storedSchema.safeParse(decoded);
-      if (!parsed.success || parsed.data.origin !== this.origin) { await this.clear('session_expired'); return; }
-      this.record = parsed.data;
+      if (!parsed.success) { await this.clear('session_expired'); return; }
+      this.record = {
+        refreshToken: parsed.data.refreshToken,
+        origin: this.origin,
+        requestId: parsed.data.requestId,
+      };
       await this.refresh();
     } catch {
       if (epoch === this.generation) { this.access = null; this.clearCache(); this.update({ status: 'offline', account: null, notice: 'connection_error' }); }

@@ -21,22 +21,60 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const storage = Platform.OS === 'web'
       ? {
           get: async () => {
-            try { return typeof window !== 'undefined' ? window.localStorage.getItem('dating.refresh') : null; }
-            catch { return null; }
+            try {
+              if (typeof window === 'undefined') return null;
+              return window.localStorage.getItem('dating.refresh') || window.sessionStorage?.getItem('dating.refresh') || null;
+            } catch {
+              return null;
+            }
           },
           set: async (val: string) => {
-            try { if (typeof window !== 'undefined') window.localStorage.setItem('dating.refresh', val); }
-            catch { /* ignore */ }
+            try {
+              if (typeof window !== 'undefined') {
+                window.localStorage.setItem('dating.refresh', val);
+                window.sessionStorage?.setItem('dating.refresh', val);
+              }
+            } catch { /* ignore */ }
           },
           remove: async () => {
-            try { if (typeof window !== 'undefined') window.localStorage.removeItem('dating.refresh'); }
-            catch { /* ignore */ }
+            try {
+              if (typeof window !== 'undefined') {
+                window.localStorage.removeItem('dating.refresh');
+                window.sessionStorage?.removeItem('dating.refresh');
+              }
+            } catch { /* ignore */ }
           },
         }
       : {
-          get: () => SecureStore.getItemAsync('dating.refresh', options),
-          set: (val: string) => SecureStore.setItemAsync('dating.refresh', val, options),
-          remove: () => SecureStore.deleteItemAsync('dating.refresh', options),
+          get: async () => {
+            try {
+              return await SecureStore.getItemAsync('dating.refresh', options);
+            } catch {
+              try {
+                return await SecureStore.getItemAsync('dating.refresh');
+              } catch {
+                return null;
+              }
+            }
+          },
+          set: async (val: string) => {
+            try {
+              await SecureStore.setItemAsync('dating.refresh', val, options);
+            } catch {
+              try {
+                await SecureStore.setItemAsync('dating.refresh', val);
+              } catch { /* ignore */ }
+            }
+          },
+          remove: async () => {
+            try {
+              await SecureStore.deleteItemAsync('dating.refresh', options);
+            } catch {
+              try {
+                await SecureStore.deleteItemAsync('dating.refresh');
+              } catch { /* ignore */ }
+            }
+          },
         };
 
     const manager = new SessionManager(api, storage, () => { void queryClient.cancelQueries(); queryClient.clear(); }, Crypto.randomUUID, baseUrl);

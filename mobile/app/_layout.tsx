@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, DiscoveryCardSkeleton, Text } from '../src/components/UI';
 import {PushProvider} from "../src/notifications/PushProvider";
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import i18n, { normalizeLanguageCode, registerLanguageBackendSync } from '../src/i18n';
 import { Stack } from 'expo-router';
@@ -57,11 +58,39 @@ function Navigation() {
     }
   }, [state.status, state.account?.id, api, manager]);
 
+  useEffect(() => {
+    if (state.status === 'offline') {
+      const timer = setTimeout(() => {
+        void manager.restore();
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [state.status, manager]);
+
   if (state.status === 'booting') return <BottleLoadingScreen message="loading...." />;
-  if (state.status === 'offline') return <Screen title="ARENA">
-    <Text>{t(state.notice ?? 'connection_error')}</Text>
-    <Button title={t('logout_local')} onPress={() => { void manager.clear('logout_local_only'); }} />
-  </Screen>;
+  if (state.status === 'offline') return (
+    <Screen title="ARENA">
+      <View style={{ gap: 16, padding: 20, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 18, color: theme.colors.text, textAlign: 'center' }}>
+          {t(state.notice ?? 'connection_error')}
+        </Text>
+        <Text style={{ fontSize: 14, color: theme.colors.muted, textAlign: 'center' }}>
+          {t('connection_retry_hint', 'გთხოვთ შეამოწმოთ ინტერნეტთან კავშირი და სცადოთ ხელახლა')}
+        </Text>
+        <View style={{ width: '100%', gap: 10, marginTop: 10 }}>
+          <Button
+            variant="primary"
+            title={`🔄 ${t('retry', 'ხელახლა ცდა')}`}
+            onPress={() => { void manager.restore(); }}
+          />
+          <Button
+            title={t('logout_local')}
+            onPress={() => { void manager.clear('logout_local_only'); }}
+          />
+        </View>
+      </View>
+    </Screen>
+  );
   return <Stack key={state.account?.id??'guest'} screenOptions={{ headerTitle: 'ARENA', headerBackTitle: t('back'),headerStyle:{backgroundColor:theme.colors.background},headerTintColor:theme.colors.text,contentStyle:{backgroundColor:theme.colors.background},animation:reduced?'none':'default' }}>
     <Stack.Protected guard={state.status === 'signedIn'}>
       <Stack.Screen name="index" options={{ headerShown: false }} />

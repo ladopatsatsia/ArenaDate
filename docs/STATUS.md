@@ -1,3 +1,27 @@
+# Status - App Update Session Persistence & Registration Birthday Selectors (Day, Month, Year)
+
+Updated 2026-10-26. Implemented comprehensive fixes for session retention across app updates/reopening and replaced the buggy Android registration birthday text inputs with dedicated touchable Day, Month, Year pickers:
+
+1. **Session Retention Across App Updates & Network Blips (`session.ts`, `AuthProvider.tsx`, `_layout.tsx`)**:
+   - **Root Cause of Re-registration Prompt**: In `mobile/src/auth/session.ts`, `storedSchema` previously strictly enforced `origin: z.string()` and executed `if (parsed.data.origin !== this.origin) { await this.clear('session_expired'); }`. Whenever the mobile app updated, was rebuilt, or the API host/origin shifted slightly, stored credentials were treated as expired and wiped from storage, forcing users back to the registration/login flow. Additionally, `requestId` strictly demanded a UUID (`z.uuid()`), rejecting any non-UUID request identifiers.
+   - **Origin Tolerance & Storage Resiliency**: Made `origin` and `requestId` optional strings in `storedSchema` (`origin: z.string().optional()`, `requestId: z.string().optional()`) and removed the destructive origin-wipe. Refresh tokens now persist across app versions and origin shifts.
+   - **Android SecureStore OEM Fallback**: Enhanced native `SecureStore` reading in `AuthProvider.tsx` with a try/catch fallback without `keychainAccessible` flags to handle Android OEM updates where keystore tags change.
+   - **Offline Auto-Reconnect & Retry UI**: In `_layout.tsx`, added a 2.5s auto-reconnect timer when in `offline` state on launch, plus a dedicated `🔄 ხელახლა ცდა` button calling `manager.restore()`. Users are never trapped or forced to log out because of temporary network latency on app launch.
+
+2. **Selectable Day, Month, Year Pickers for Registration (`OnboardingScreen.tsx`, locales)**:
+   - **Root Cause of Android Keyboard Dismissal**: In `Screen.tsx` + `OnboardingScreen.tsx`, `KeyboardAvoidingView` with `behavior="height"` inside a nested `ScrollView` caused Android layout recalculations whenever a date `TextInput` was focused, immediately blurring the field and dismissing the soft keyboard.
+   - **Interactive Modal Pickers**: Completely replaced `<TextInput>` fields with three touchable selector cards: Day (`onboarding-day-input`), Month (`onboarding-month-input`), and Year (`onboarding-year-input`).
+   - **Dynamic Calendar Logic & Leap Years**: Added `getMaxDaysInMonth(year, month)` which accurately recalculates available days (28, 29, 30, 31) when selecting February in leap years (e.g. 2000, 2004, 2024).
+   - **Strict 18+ Adult Year Enforcement**: Restricts selectable years to 1940 through `currentYear - 18` (e.g. 2008), with decade filter pills (`ყველა`, `2000–2008`, `90-იანები`, `80-იანები`, `1940–1979`).
+   - **Localization**: Added full translations in Georgian, English, and Russian for day/month names, picker titles, and hints.
+
+3. **Automated Verification**:
+   - `npx tsc --noEmit` (mobile): 0 TypeScript errors. (PASS)
+   - `npx jest tests/session.test.ts tests/onboarding-birthday.test.tsx --forceExit`: 2 test suites passed, 14 tests passed. (PASS)
+   - `npx jest tests/game-round-fixes.test.tsx tests/quality.test.tsx tests/filters.test.tsx tests/account-lifecycle.test.tsx --forceExit`: 4 test suites passed, 14 tests passed. (PASS)
+
+---
+
 # Status - Arena Bottle Game: Question Variety, Match Creation & Snappy State Transitions
 
 Updated 2026-10-26. Implemented comprehensive fixes for the Arena Bottle Game (ბოთლის თამაში) covering question repetition, match creation, and state progression:
