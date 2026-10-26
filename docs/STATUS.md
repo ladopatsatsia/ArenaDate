@@ -11,7 +11,7 @@ Updated 2026-10-26. Implemented fixes for Telegram Mini App initial white screen
      - Updated `mobile/app/+html.tsx`, `scripts/serve-web.mjs`, and `mobile/app.config.ts` (`web.backgroundColor = '#0b0716'`).
    - **React Native Loading Screens**:
      - Built `<BottleLoadingScreen />` (`mobile/src/components/BottleLoadingScreen.tsx`) with animated continuous 3D spin, pulsing emerald glow, and gold ARENA branding.
-     - In `mobile/app/_layout.tsx`: Replaced generic skeleton during `state.status === 'booting'` with `<BottleLoadingScreen message="ARENA იტვირთება..." />`.
+     - In `mobile/app/_layout.tsx`: Replaced generic skeleton during `state.status === 'booting'` with `<BottleLoadingScreen message="ჩატვირთვა..." />`.
      - In `mobile/src/auth/OtpAuthScreen.tsx`: Rendered `<BottleLoadingScreen message="მიმდინარეობს ავტორიზაცია..." />` while Telegram automatic authentication runs.
 
 2. **Telegram User Passwordless Account Deletion**:

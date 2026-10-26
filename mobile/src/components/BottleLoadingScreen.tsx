@@ -7,7 +7,7 @@ interface BottleLoadingScreenProps {
 }
 
 export function BottleLoadingScreen({
-  message = 'ARENA იტვირთება...',
+  message = 'ჩატვირთვა...',
   subMessage,
 }: BottleLoadingScreenProps) {
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -124,11 +124,9 @@ export function BottleLoadingScreen({
               <View style={styles.glassSpecularSheen} />
               <View style={styles.glassSecondarySheen} />
 
-              {/* Luxury Label */}
+              {/* Luxury Label without text to prevent raw text flashes */}
               <View style={styles.bottleLabel}>
-                <Text style={styles.bottleLabelBrand}>ARENA</Text>
-                <View style={styles.bottleLabelDivider} />
-                <Text style={styles.bottleLabelVip}>VIP</Text>
+                <View style={styles.bottleLabelBadge} />
               </View>
 
               {/* Base Rim */}
@@ -138,9 +136,8 @@ export function BottleLoadingScreen({
         </Animated.View>
       </View>
 
-      {/* Brand & Loading Status Info */}
+      {/* Clean Centered Loading Status Info */}
       <View style={styles.textContainer}>
-        <Text style={styles.brandTitle}>ARENA</Text>
         <Text style={styles.statusMessage}>{message}</Text>
         {subMessage && <Text style={styles.subMessage}>{subMessage}</Text>}
       </View>
@@ -261,31 +258,20 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
   },
   bottleLabel: {
-    width: 30,
-    paddingVertical: 2.5,
+    width: 28,
+    height: 16,
     backgroundColor: '#18181b',
     borderRadius: 3,
     borderWidth: 1,
     borderColor: '#D97706',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  bottleLabelBrand: {
-    fontSize: 7,
-    fontWeight: '900',
-    color: '#F59E0B',
-    letterSpacing: 0.8,
-  },
-  bottleLabelDivider: {
-    width: 18,
-    height: 0.8,
-    backgroundColor: '#D97706',
-    marginVertical: 1,
-  },
-  bottleLabelVip: {
-    fontSize: 6,
-    fontWeight: '800',
-    color: '#FEF08A',
-    letterSpacing: 0.5,
+  bottleLabelBadge: {
+    width: 14,
+    height: 2,
+    backgroundColor: '#F59E0B',
+    borderRadius: 1,
   },
   bottleBaseRim: {
     position: 'absolute',
@@ -297,22 +283,13 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     alignItems: 'center',
-    gap: 8,
-  },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#F59E0B',
-    letterSpacing: 5,
-    textShadowColor: 'rgba(245, 158, 11, 0.35)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    marginTop: 8,
   },
   statusMessage: {
-    fontSize: 14,
-    color: '#DDD6FE',
+    fontSize: 15,
+    color: '#E0E7FF',
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     textAlign: 'center',
   },
   subMessage: {

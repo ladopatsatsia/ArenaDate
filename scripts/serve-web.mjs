@@ -126,10 +126,182 @@ const server = http.createServer((req, res) => {
       if (!html.includes('theme-color')) {
         html = html.replace('<head>', '<head>\n  <meta name="theme-color" content="#0b0716">\n  <meta name="color-scheme" content="dark">');
       }
+      if (!html.includes('arena-preloader-style')) {
+        html = html.replace(
+          '</head>',
+          `  <style id="arena-preloader-style">
+          html, body, #root {
+            height: 100%;
+            background-color: #0b0716 !important;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+          }
+          .arena-loader-wrap {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0b0716;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            box-sizing: border-box;
+          }
+          .arena-loader-halo {
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, rgba(139, 92, 246, 0.14) 45%, transparent 70%);
+            animation: arenaHaloPulse 2s ease-in-out infinite;
+          }
+          .arena-bottle-box {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: arenaBottleSpin 1.8s linear infinite;
+            transform-origin: center center;
+          }
+          .arena-bottle {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+          }
+          .arena-pointer-tip {
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 9px solid #F59E0B;
+            margin-bottom: 2px;
+          }
+          .arena-foil-cap {
+            width: 14px;
+            height: 16px;
+            background-color: #D97706;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            border: 1px solid #F59E0B;
+            position: relative;
+            box-sizing: border-box;
+          }
+          .arena-foil-ring {
+            position: absolute;
+            top: 4px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: #FEF08A;
+          }
+          .arena-neck {
+            width: 13px;
+            height: 18px;
+            background-color: #064e3b;
+            border: 0.8px solid rgba(16, 185, 129, 0.45);
+            box-sizing: border-box;
+          }
+          .arena-shoulders {
+            width: 36px;
+            height: 12px;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            background-color: #04382a;
+            border: 0.8px solid rgba(16, 185, 129, 0.35);
+            box-sizing: border-box;
+          }
+          .arena-body {
+            width: 42px;
+            height: 56px;
+            background-color: #022c22;
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+            border: 1.2px solid rgba(16, 185, 129, 0.4);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+            box-sizing: border-box;
+          }
+          .arena-glass-sheen {
+            position: absolute;
+            left: 4px;
+            top: 0;
+            bottom: 0;
+            width: 3.5px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 2px;
+          }
+          .arena-glass-secondary {
+            position: absolute;
+            right: 4px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 1px;
+          }
+          .arena-label {
+            width: 28px;
+            height: 16px;
+            background-color: #18181b;
+            border-radius: 3px;
+            border: 1px solid #D97706;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+          }
+          .arena-label-badge {
+            width: 14px;
+            height: 2px;
+            background-color: #F59E0B;
+            border-radius: 1px;
+            box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
+          }
+          .arena-loader-text {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+          .arena-status-text {
+            font-size: 15px;
+            font-weight: 600;
+            color: #E0E7FF;
+            letter-spacing: 1px;
+            animation: arenaTextPulse 1.6s ease-in-out infinite;
+          }
+          @keyframes arenaBottleSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes arenaHaloPulse {
+            0%, 100% { transform: scale(0.92); opacity: 0.45; }
+            50% { transform: scale(1.1); opacity: 0.95; }
+          }
+          @keyframes arenaTextPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+          }
+          </style>\n</head>`
+        );
+      }
       if (!html.includes('arena-initial-loader') && html.includes('<div id="root">')) {
         html = html.replace(
           '<div id="root">',
-          '<div id="root"><div id="arena-initial-loader" class="arena-loader-wrap"><div class="arena-loader-halo"></div><div class="arena-bottle-box"><div class="arena-bottle"><div class="arena-pointer-tip"></div><div class="arena-foil-cap"><div class="arena-foil-ring"></div></div><div class="arena-neck"></div><div class="arena-shoulders"></div><div class="arena-body"><div class="arena-glass-sheen"></div><div class="arena-glass-secondary"></div><div class="arena-label"><div class="arena-label-brand">ARENA</div><div class="arena-label-divider"></div><div class="arena-label-vip">VIP</div></div></div></div></div><div class="arena-loader-text"><div class="arena-brand-text">ARENA</div><div class="arena-status-text">მიმდინარეობს ჩატვირთვა...</div></div></div>'
+          '<div id="root"><div id="arena-initial-loader" class="arena-loader-wrap"><div class="arena-loader-halo"></div><div class="arena-bottle-box"><div class="arena-bottle"><div class="arena-pointer-tip"></div><div class="arena-foil-cap"><div class="arena-foil-ring"></div></div><div class="arena-neck"></div><div class="arena-shoulders"></div><div class="arena-body"><div class="arena-glass-sheen"></div><div class="arena-glass-secondary"></div><div class="arena-label"><div class="arena-label-badge"></div></div></div></div></div><div class="arena-loader-text"><div class="arena-status-text">ჩატვირთვა...</div></div></div>'
         );
       }
       payload = Buffer.from(html, 'utf-8');

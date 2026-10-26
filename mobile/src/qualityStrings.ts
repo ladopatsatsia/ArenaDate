@@ -9,7 +9,7 @@ export const qualityStrings={
   account_delete_confirm_desc_no_password:'This permanently hides your profile, deactivates matches, revokes all sessions, and queues your photos and data for irreversible deletion.',
   account_delete_password:'Enter current password',account_delete_action:'Permanently delete account',
   account_deleted:'Your account has been deleted.',account_delete_failed:'Account deletion failed. Check your password and try again.',
-  discoverability_pause:'Pause discovery',discoverability_paused:'Discovery paused. You will not appear to new people.',discoverability_resumed:'Discovery active.',
+  discoverability_pause:'Pause discovery',discoverability_paused:'Discovery paused. You will not appear to new people.',discoverability_resumed:'Discovery active.',loading:'Loading...',
  },
  ka:{filters_hide:'პარამეტრების დამალვა',safety_empty_blocks:'დაბლოკილი ანგარიშები არ გაქვს.','safety_empty_prior-conversations':'დახურული საუბრები ჯერ არ არის.',
   welcome_note:'კარგი საუბარი გულწრფელობით იწყება.',welcome_privacy:'შენი ტემპი, შენი საზღვრები. დაბლოკვა და საჩივრის გაგზავნა ნებისმიერ დროს შეგიძლია.',profile_refresh:'ფოტოს სტატუსის განახლება',distance_km:'{{count}} კმ',photos_empty:'დაამატე ფოტო, რომელიც შენ გამოგხატავს.',
@@ -21,6 +21,6 @@ export const qualityStrings={
   account_delete_confirm_desc_no_password:'ეს სამუდამოდ დამალავს შენს პროფილს, გააუქმებს წყვილებს, გამოვა ყველა მოწყობილობიდან და შეუქცევადად წაშლის შენს მონაცემებს.',
   account_delete_password:'შეიყვანე მიმდინარე პაროლი',account_delete_action:'ანგარიშის სამუდამოდ წაშლა',
   account_deleted:'შენი ანგარიში წაშლილია.',account_delete_failed:'ანგარიშის წაშლა ვერ მოხერხდა. სცადე ხელახლა.',
-  discoverability_pause:'ძებნის შეჩერება',discoverability_paused:'ძებნა შეჩერებულია. ახალ ადამიანებს აღარ გამოუჩნდები.',discoverability_resumed:'ძებნა აქტიურია.',
+  discoverability_pause:'ძებნის შეჩერება',discoverability_paused:'ძებნა შეჩერებულია. ახალ ადამიანებს აღარ გამოუჩნდები.',discoverability_resumed:'ძებნა აქტიურია.',loading:'ჩატვირთვა...',
  }
 };

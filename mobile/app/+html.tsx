@@ -161,56 +161,34 @@ export default function Root({ children }: PropsWithChildren) {
             border-radius: 1px;
           }
           .arena-label {
-            width: 30px;
-            padding: 2.5px 0;
+            width: 28px;
+            height: 16px;
             background-color: #18181b;
             border-radius: 3px;
             border: 1px solid #D97706;
-            text-align: center;
             display: flex;
-            flex-direction: column;
             align-items: center;
+            justify-content: center;
             box-sizing: border-box;
           }
-          .arena-label-brand {
-            font-size: 7px;
-            font-weight: 900;
-            color: #F59E0B;
-            letter-spacing: 0.8px;
-            line-height: 8px;
-          }
-          .arena-label-divider {
-            width: 18px;
-            height: 0.8px;
-            background-color: #D97706;
-            margin: 1px 0;
-          }
-          .arena-label-vip {
-            font-size: 6px;
-            font-weight: 800;
-            color: #FEF08A;
-            letter-spacing: 0.5px;
-            line-height: 7px;
+          .arena-label-badge {
+            width: 14px;
+            height: 2px;
+            background-color: #F59E0B;
+            border-radius: 1px;
+            box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
           }
           .arena-loader-text {
-            margin-top: 24px;
+            margin-top: 16px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
-          }
-          .arena-brand-text {
-            font-size: 24px;
-            font-weight: 900;
-            color: #F59E0B;
-            letter-spacing: 5px;
-            text-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
           }
           .arena-status-text {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
-            color: #DDD6FE;
-            letter-spacing: 0.5px;
+            color: #E0E7FF;
+            letter-spacing: 1px;
             animation: arenaTextPulse 1.6s ease-in-out infinite;
           }
           @keyframes arenaBottleSpin {
