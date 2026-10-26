@@ -23,8 +23,8 @@ public sealed class DiscoveryEligibility(AppDbContext db, TimeProvider clock)
             p.User.DateOfBirth >= oldestAllowed && p.User.DateOfBirth > minimumDob && p.User.DateOfBirth <= maximumDob &&
             p.MinAge <= myAge && p.MaxAge >= myAge &&
             viewer.DesiredGenders.Contains(p.Gender) && p.DesiredGenders.Contains(viewer.Gender) &&
-            db.Set<ProfilePhoto>().Any(f => f.UserId == viewer.UserId && !f.Deleted && f.State == "approved") &&
-            db.Set<ProfilePhoto>().Any(f => f.UserId == p.UserId && !f.Deleted && f.State == "approved") &&
+            db.Set<ProfilePhoto>().Any(f => f.UserId == viewer.UserId && !f.Deleted && f.State != "rejected") &&
+            db.Set<ProfilePhoto>().Any(f => f.UserId == p.UserId && !f.Deleted && f.State != "rejected") &&
             !db.Set<UserBlock>().Any(b => (b.BlockerId == viewer.UserId && b.BlockedId == p.UserId) || (b.BlockerId == p.UserId && b.BlockedId == viewer.UserId)) &&
             !db.Set<DiscoveryDecision>().Any(d => d.UserId == viewer.UserId && d.TargetId == p.UserId) &&
             !db.Set<UnmatchedPair>().Any(u => (u.FirstId == viewer.UserId && u.SecondId == p.UserId) || (u.SecondId == viewer.UserId && u.FirstId == p.UserId)));

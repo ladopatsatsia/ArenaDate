@@ -31,8 +31,8 @@ public sealed class MediaAccess(AppDbContext db, IDataProtectionProvider protect
 
         if (photo.State == "approved" || photo.State == "pending")
         {
-            // 1. Undecided discovery candidate (only if approved)
-            if (photo.State == "approved" && await discovery.CanSee(viewer, photo.UserId, ct)) return photo;
+            // 1. Undecided discovery candidate (if not rejected)
+            if (photo.State != "rejected" && await discovery.CanSee(viewer, photo.UserId, ct)) return photo;
 
             // 2. Confirmed mutual match
             if (await db.Set<DatingMatch>().AnyAsync(m => m.Active && ((m.FirstId == viewer && m.SecondId == photo.UserId) || (m.FirstId == photo.UserId && m.SecondId == viewer)), ct))

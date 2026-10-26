@@ -82,83 +82,102 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
       .Where(s => s.TargetUserId == user)
       .ToDictionaryAsync(s => s.SenderUserId, ct);
 
-  var query = from d in db.Set<DiscoveryDecision>()
-              where d.TargetId == user && d.Kind == "like"
-              where !db.Set<DiscoveryDecision>().Any(myD => myD.UserId == user && myD.TargetId == d.UserId)
-              where !db.Set<UserBlock>().Any(b => (b.BlockerId == user && b.BlockedId == d.UserId) || (b.BlockerId == d.UserId && b.BlockedId == user))
-              where !db.Set<UnmatchedPair>().Any(p => (p.FirstId == user && p.SecondId == d.UserId) || (p.SecondId == user && p.FirstId == d.UserId))
-              join profile in db.Set<DatingProfile>() on d.UserId equals profile.UserId
-              where profile.Visible && profile.User.IsActive && profile.User.EmailConfirmed
-              select new {
-               profile.UserId,
-               profile.DisplayName,
-               profile.City,
-               profile.Bio,
-               profile.Gender,
-               profile.RelationshipGoal,
-               profile.Interests,
-               profile.User.DateOfBirth
-              };
-  var rawRows = await query.Take(50).ToArrayAsync(ct);
+  var directRequests = await db.Set<Dating.Api.Features.Game.GameDirectMatchRequest>().AsNoTracking()
+      .Where(d => d.TargetUserId == user && d.Status == "Pending")
+      .ToDictionaryAsync(d => d.SenderUserId, ct);
+
+  var discoveryLikes = await db.Set<DiscoveryDecision>()
+      .Where(d => d.TargetId == user && d.Kind == "like")
+      .Select(d => d.UserId)
+      .Distinct()
+      .ToListAsync(ct);
+
+  var allCandidateSenderIds = discoveryLikes
+      .Concat(superLikes.Keys)
+      .Concat(allBottleGameSenders)
+      .Distinct()
+      .ToList();
+
+  if (allCandidateSenderIds.Count == 0) return [];
+
+  var alreadyMatchedIds = await db.Set<DatingMatch>()
+      .Where(m => m.Active && ((m.FirstId == user && allCandidateSenderIds.Contains(m.SecondId)) || (m.SecondId == user && allCandidateSenderIds.Contains(m.FirstId))))
+      .Select(m => m.FirstId == user ? m.SecondId : m.FirstId)
+      .ToListAsync(ct);
+
+  var blockedIds = await db.Set<UserBlock>()
+      .Where(b => (b.BlockerId == user && allCandidateSenderIds.Contains(b.BlockedId)) || (b.BlockedId == user && allCandidateSenderIds.Contains(b.BlockerId)))
+      .Select(b => b.BlockerId == user ? b.BlockedId : b.BlockerId)
+      .ToListAsync(ct);
+
+  var unmatchedIds = await db.Set<UnmatchedPair>()
+      .Where(p => (p.FirstId == user && allCandidateSenderIds.Contains(p.SecondId)) || (p.SecondId == user && allCandidateSenderIds.Contains(p.FirstId)))
+      .Select(p => p.FirstId == user ? p.SecondId : p.FirstId)
+      .ToListAsync(ct);
+
+  var alreadyLikedBackIds = await db.Set<DiscoveryDecision>()
+      .Where(d => d.UserId == user && allCandidateSenderIds.Contains(d.TargetId) && d.Kind == "like")
+      .Select(d => d.TargetId)
+      .ToListAsync(ct);
+
+  var validSenderIds = allCandidateSenderIds
+      .Except(alreadyMatchedIds)
+      .Except(blockedIds)
+      .Except(unmatchedIds)
+      .Except(alreadyLikedBackIds)
+      .Take(50)
+      .ToList();
+
+  if (validSenderIds.Count == 0) return [];
+
+  var rawRows = await db.Set<DatingProfile>()
+      .Where(p => validSenderIds.Contains(p.UserId) && p.Visible && p.User.IsActive && p.User.EmailConfirmed)
+      .Select(profile => new {
+       profile.UserId,
+       profile.DisplayName,
+       profile.City,
+       profile.Bio,
+       profile.Gender,
+       profile.RelationshipGoal,
+       profile.Interests,
+       profile.User.DateOfBirth
+      })
+      .ToListAsync(ct);
+
   // Prioritize Super Likes and Bottle Game matches at the top of incoming requests
   var rows = rawRows.OrderByDescending(r => superLikes.ContainsKey(r.UserId) || allBottleGameSenders.Contains(r.UserId)).ToArray();
 
   var ids = rows.Select(r => r.UserId).ToArray();
   var photos = await db.Set<ProfilePhoto>().AsNoTracking()
-              .Where(f => ids.Contains(f.UserId) && !f.Deleted && f.State == "approved")
+              .Where(f => ids.Contains(f.UserId) && !f.Deleted && f.State != "rejected")
               .OrderBy(f => f.Position)
               .Select(f => new { f.UserId, Photo = new PhotoDto(f.Id, f.State, f.Position, f.Width, f.Height) })
               .ToListAsync(ct);
 
   var hasPremium = await premiumService.HasActivePremiumAsync(user, ct);
-  if (!hasPremium)
-  {
-   // Dating app premium flow: only name and age visible, photos provided with IsBlurred = true
-   return rows.Select(r => {
-    var userPhotos = photos.Where(f => f.UserId == r.UserId).Select(f => f.Photo).ToArray();
-    var isSuperLike = superLikes.TryGetValue(r.UserId, out _);
-    var isArenaKiss = allBottleGameSenders.Contains(r.UserId);
-    var origin = isSuperLike ? "SuperLike" : (isArenaKiss ? "GameArena" : "Discovery");
-    var note = isSuperLike ? "⭐ გამოგიგზავნა სუპერ ლაიქი" : (isArenaKiss ? "🍾 ბოთლის თამაშიდან არის მეჩი" : null);
-    var isBlurred = !isArenaKiss;
-    return new LikeRequestSummary(
-     UserId: r.UserId,
-     DisplayName: r.DisplayName,
-     Age: ProfileRules.Age(r.DateOfBirth, clock.GetUtcNow()),
-     City: isArenaKiss ? r.City : "",
-     Bio: isArenaKiss ? r.Bio : "",
-     Photo: userPhotos.FirstOrDefault(),
-     Gender: isArenaKiss ? r.Gender : "",
-     RelationshipGoal: isArenaKiss ? r.RelationshipGoal : "",
-     Interests: isArenaKiss ? r.Interests : null,
-     Photos: isArenaKiss ? userPhotos : null,
-     Origin: origin,
-     Note: note,
-     IsBlurred: isBlurred
-    );
-   }).ToArray();
-  }
-
   return rows.Select(r => {
    var userPhotos = photos.Where(f => f.UserId == r.UserId).Select(f => f.Photo).ToArray();
    var isSuperLike = superLikes.TryGetValue(r.UserId, out var sl);
    var isArenaKiss = allBottleGameSenders.Contains(r.UserId);
+   directRequests.TryGetValue(r.UserId, out var directReq);
    var origin = isSuperLike ? "SuperLike" : (isArenaKiss ? "GameArena" : "Discovery");
-   var note = isSuperLike ? (sl?.Note ?? "⭐ სუპერ ლაიქი") : (isArenaKiss ? "🍾 ბოთლის თამაშიდან არის მეჩი" : null);
+   var note = isSuperLike ? (sl?.Note ?? "⭐ გამოგიგზავნა სუპერ ლაიქი") : (directReq != null && !string.IsNullOrWhiteSpace(directReq.Message) ? $"💌 \"{directReq.Message}\"" : (isArenaKiss ? "🍾 ბოთლის თამაშიდან არის მეჩი" : null));
+   // SuperLikes and GameArena are special sender actions, never blurred
+   var isBlurred = !hasPremium && origin == "Discovery";
    return new LikeRequestSummary(
-    r.UserId,
-    r.DisplayName,
-    ProfileRules.Age(r.DateOfBirth, clock.GetUtcNow()),
-    r.City,
-    r.Bio,
-    userPhotos.FirstOrDefault(),
-    r.Gender,
-    r.RelationshipGoal,
-    r.Interests,
-    userPhotos,
+    UserId: r.UserId,
+    DisplayName: r.DisplayName,
+    Age: ProfileRules.Age(r.DateOfBirth, clock.GetUtcNow()),
+    City: r.City,
+    Bio: r.Bio,
+    Photo: userPhotos.FirstOrDefault(),
+    Gender: r.Gender,
+    RelationshipGoal: r.RelationshipGoal,
+    Interests: r.Interests,
+    Photos: userPhotos,
     Origin: origin,
     Note: note,
-    IsBlurred: false
+    IsBlurred: isBlurred
    );
   }).ToArray();
  }
@@ -171,38 +190,76 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
    if (receipt.TargetId != input.TargetId || receipt.Kind != input.Kind) throw new AuthFailure(409,"request_id_reused");
    var replay = await Result(receipt, ct); await tx.CommitAsync(ct); return replay;
   }
-  if (await db.Set<DiscoveryDecision>().AnyAsync(d => d.UserId == user && d.TargetId == input.TargetId, ct))
-   throw new AuthFailure(409,"decision_final");
-  // Includes BOTH people's current preferences, account status, photos, blocks and unmatches.
-  await eligibility.RequireCurrent(user, input.TargetId, ct);
-  db.Add(new DiscoveryDecision { UserId = user, TargetId = input.TargetId, Kind = input.Kind });
-  receipt = new SwipeReceipt { UserId=user, TargetId=input.TargetId, RequestId=input.RequestId, Kind=input.Kind, CreatedAt=clock.GetUtcNow() };
-  db.Add(receipt);
 
+  // Check if this decision is responding to an incoming like, superlike, or game request
+  var incomingLike = await db.Set<DiscoveryDecision>().AnyAsync(d => d.UserId == input.TargetId && d.TargetId == user && d.Kind == "like", ct);
+  var incomingSuperLike = await db.Set<DiscoverySuperLike>().AnyAsync(s => s.SenderUserId == input.TargetId && s.TargetUserId == user, ct);
   var pendingKisses = await db.Set<GameKiss>()
       .Where(k => (k.SenderUserId == input.TargetId && k.RecipientUserId == user) ||
                   (k.SenderUserId == user && k.RecipientUserId == input.TargetId))
       .Where(k => k.Status == "Pending")
       .ToListAsync(ct);
+  var pendingDirects = await db.Set<Dating.Api.Features.Game.GameDirectMatchRequest>()
+      .Where(d => (d.SenderUserId == input.TargetId && d.TargetUserId == user) ||
+                  (d.SenderUserId == user && d.TargetUserId == input.TargetId))
+      .Where(d => d.Status == "Pending")
+      .ToListAsync(ct);
+
+  var isRespondingToIncoming = incomingLike || incomingSuperLike || pendingKisses.Count > 0 || pendingDirects.Count > 0;
+
+  var existingDecision = await db.Set<DiscoveryDecision>().SingleOrDefaultAsync(d => d.UserId == user && d.TargetId == input.TargetId, ct);
+  if (existingDecision != null) {
+      if (existingDecision.Kind == input.Kind) {
+          throw new AuthFailure(409, "decision_final");
+      }
+      // If user previously passed, but is now liking in response to an incoming request, allow updating!
+      if (isRespondingToIncoming && input.Kind == "like") {
+          existingDecision.Kind = "like";
+      } else {
+          throw new AuthFailure(409, "decision_final");
+      }
+  } else {
+      db.Add(new DiscoveryDecision { UserId = user, TargetId = input.TargetId, Kind = input.Kind });
+  }
+
+  if (isRespondingToIncoming) {
+      if (await db.Set<UserBlock>().AnyAsync(b => (b.BlockerId == user && b.BlockedId == input.TargetId) || (b.BlockerId == input.TargetId && b.BlockedId == user), ct))
+          throw new AuthFailure(404, "profile_unavailable");
+      if (await db.Set<UnmatchedPair>().AnyAsync(u => (u.FirstId == user && u.SecondId == input.TargetId) || (u.SecondId == user && u.FirstId == input.TargetId), ct))
+          throw new AuthFailure(404, "profile_unavailable");
+      var targetProfile = await db.Set<DatingProfile>().Include(p => p.User).SingleOrDefaultAsync(p => p.UserId == input.TargetId, ct);
+      if (targetProfile is null || !targetProfile.Visible || !targetProfile.User.IsActive || !AdultPolicy.IsAdult(targetProfile.User.DateOfBirth, clock.GetUtcNow()))
+          throw new AuthFailure(404, "profile_unavailable");
+  } else {
+      await eligibility.RequireCurrent(user, input.TargetId, ct);
+  }
+
+  receipt = new SwipeReceipt { UserId=user, TargetId=input.TargetId, RequestId=input.RequestId, Kind=input.Kind, CreatedAt=clock.GetUtcNow() };
+  db.Add(receipt);
 
   if (input.Kind == "pass") {
       foreach (var k in pendingKisses) {
           k.Status = "Declined";
       }
-  } else if (input.Kind == "like" && (pendingKisses.Count > 0 || await db.Set<DiscoveryDecision>().AnyAsync(d => d.UserId == input.TargetId && d.TargetId == user && d.Kind == "like", ct))) {
+      foreach (var d in pendingDirects) {
+          d.Status = "Declined";
+          d.RespondedAtUtc = clock.GetUtcNow();
+      }
+  } else if (input.Kind == "like" && (incomingLike || incomingSuperLike || pendingKisses.Count > 0 || pendingDirects.Count > 0)) {
    var (first,second) = PairSynchronization.Order(user,input.TargetId);
    var existingMatch = await db.Set<DatingMatch>().SingleOrDefaultAsync(m => m.FirstId == first && m.SecondId == second, ct);
    if (existingMatch != null) {
     if (!existingMatch.HasChatEntitlement) {
      existingMatch.HasChatEntitlement = true;
     }
+    existingMatch.Active = true;
     receipt.MatchId = existingMatch.Id;
    } else {
     var superLike = await db.Set<DiscoverySuperLike>().AsNoTracking()
         .SingleOrDefaultAsync(s => (s.SenderUserId == input.TargetId && s.TargetUserId == user) ||
                                    (s.SenderUserId == user && s.TargetUserId == input.TargetId), ct);
     var isFromSuperLike = superLike != null;
-    var isFromGame = pendingKisses.Count > 0;
+    var isFromGame = pendingKisses.Count > 0 || pendingDirects.Count > 0;
     var matchOrigin = isFromSuperLike ? "SuperLike" : (isFromGame ? "GameArena" : "Discovery");
     var hasChatEntitlement = !isFromGame; // GameArena matches require 25 crystals to unlock chat!
 
@@ -211,10 +268,18 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
         k.Status = "Matched";
         k.MatchedAtUtc = now;
     }
+    foreach (var d in pendingDirects) {
+        d.Status = "Accepted";
+        d.RespondedAtUtc = now;
+    }
 
-    var match = new DatingMatch { Id=Guid.NewGuid(), FirstId=first, SecondId=second, Origin=matchOrigin, HasChatEntitlement=hasChatEntitlement, CreatedAt=now };
+    var match = new DatingMatch { Id=Guid.NewGuid(), FirstId=first, SecondId=second, Origin=matchOrigin, HasChatEntitlement=hasChatEntitlement, CreatedAt=now, Active=true };
     var conversation=new Conversation {Id=Guid.NewGuid(),MatchId=match.Id};var matchEvent=new MatchEvent {Id=Guid.NewGuid(),MatchId=match.Id,CreatedAt=now};
     db.Add(match);db.Add(conversation);db.Add(matchEvent);
+
+    foreach (var d in pendingDirects) {
+        d.MatchId = match.Id;
+    }
 
     if (superLike != null && !string.IsNullOrWhiteSpace(superLike.Note)) {
         var introMessage = new ChatMessage {
@@ -224,6 +289,18 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
             ClientMessageId = Guid.NewGuid(),
             Sequence = 1,
             Text = superLike.Note,
+            SentAt = now
+        };
+        db.Add(introMessage);
+        conversation.LastSequence = 1;
+    } else if (pendingDirects.FirstOrDefault(d => !string.IsNullOrWhiteSpace(d.Message)) is { } directWithMsg) {
+        var introMessage = new ChatMessage {
+            Id = Guid.NewGuid(),
+            ConversationId = conversation.Id,
+            SenderId = directWithMsg.SenderUserId,
+            ClientMessageId = Guid.NewGuid(),
+            Sequence = 1,
+            Text = directWithMsg.Message,
             SentAt = now
         };
         db.Add(introMessage);
@@ -274,10 +351,19 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
       return new SuperLikeResult(input.RequestId, input.TargetId, receipt.MatchId, currentWallet?.Balance ?? 0, existingSuperLike?.Note);
   }
 
-  if (await db.Set<DiscoveryDecision>().AnyAsync(d => d.UserId == user && d.TargetId == input.TargetId, ct))
-      throw new AuthFailure(409, "decision_final");
+  var existingUserDecision = await db.Set<DiscoveryDecision>().SingleOrDefaultAsync(d => d.UserId == user && d.TargetId == input.TargetId, ct);
+  if (existingUserDecision != null) {
+      existingUserDecision.Kind = "like";
+  }
 
-  await eligibility.RequireCurrent(user, input.TargetId, ct);
+  // Safety checks
+  if (await db.Set<UserBlock>().AnyAsync(b => (b.BlockerId == user && b.BlockedId == input.TargetId) || (b.BlockerId == input.TargetId && b.BlockedId == user), ct))
+      throw new AuthFailure(404, "profile_unavailable");
+  if (await db.Set<UnmatchedPair>().AnyAsync(u => (u.FirstId == user && u.SecondId == input.TargetId) || (u.SecondId == user && u.FirstId == input.TargetId), ct))
+      throw new AuthFailure(404, "profile_unavailable");
+  var superLikeTargetProfile = await db.Set<DatingProfile>().Include(p => p.User).SingleOrDefaultAsync(p => p.UserId == input.TargetId, ct);
+  if (superLikeTargetProfile is null || !superLikeTargetProfile.Visible || !superLikeTargetProfile.User.IsActive || !AdultPolicy.IsAdult(superLikeTargetProfile.User.DateOfBirth, clock.GetUtcNow()))
+      throw new AuthFailure(404, "profile_unavailable");
 
   const int SuperLikePrice = 20;
 
@@ -315,7 +401,9 @@ public sealed class MatchService(AppDbContext db, PairSynchronization pairs, Dis
   };
   db.Add(superLikeEntity);
 
-  db.Add(new DiscoveryDecision { UserId = user, TargetId = input.TargetId, Kind = "like" });
+  if (existingUserDecision == null) {
+      db.Add(new DiscoveryDecision { UserId = user, TargetId = input.TargetId, Kind = "like" });
+  }
   receipt = new SwipeReceipt { UserId = user, TargetId = input.TargetId, RequestId = input.RequestId, Kind = "superlike", CreatedAt = now };
   db.Add(receipt);
 

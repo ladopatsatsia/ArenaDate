@@ -180,6 +180,11 @@ export default function Matches() {
       if (kind === 'like') {
         setSection('matches');
       }
+    } catch {
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: requestsKey }),
+        cache.invalidateQueries({ queryKey: matchesKey }),
+      ]);
     } finally {
       setActionBusy(null);
     }
@@ -987,7 +992,7 @@ export default function Matches() {
             </View>
           }
           renderItem={({ item: req }) => {
-            const isLocked = (req.isBlurred || !hasPremium) && req.origin !== 'GameArena';
+            const isLocked = (req.isBlurred || !hasPremium) && req.origin !== 'GameArena' && req.origin !== 'SuperLike';
             if (isLocked) {
               return (
                 <Card style={[styles.card, styles.lockedCard]}>
@@ -1007,12 +1012,10 @@ export default function Matches() {
                           
                         </View>
                         <Text style={styles.subText}>
-                          {req.origin === 'SuperLike'
-                            ? t('matches_sent_superlike', '⭐ გამოგიგზავნათ სუპერ ლაიქი!')
-                            : t('matches_sent_like', 'მოგცათ მოწონება!')}
+                          {t('matches_sent_like', 'მოგცათ მოწონება!')}
                         </Text>
                         <Text style={styles.blurHintText}>
-                          {t('matches_enable_black_to_unlock', 'ჩართე Arena Black ფოტოს გასახსნელად და სასაუბროდ')}
+                          {t('matches_enable_black_to_unlock', 'ჩართე Arena Black ფოტოს გასახსნელად ან პირდაპირ დაადასტურე')}
                         </Text>
                       </View>
 
@@ -1029,9 +1032,26 @@ export default function Matches() {
                       </View>
                     </View>
                   </Pressable>
-                  <View style={styles.requestActionsRow}>
+                  <View style={{ gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <Button
+                        title={`✕ ${t('request_decline')}`}
+                        disabled={actionBusy === req.userId}
+                        onPress={() => { void handleDecision(req.userId, 'pass'); }}
+                        style={styles.declineBtn}
+                        textStyle={styles.declineBtnText}
+                        testID={`request-locked-decline-${req.userId}`}
+                      />
+                      <Button
+                        variant="primary"
+                        title={`❤️ ${t('request_confirm')}`}
+                        disabled={actionBusy === req.userId}
+                        onPress={() => { void handleDecision(req.userId, 'like'); }}
+                        style={styles.confirmBtn}
+                        testID={`request-locked-confirm-${req.userId}`}
+                      />
+                    </View>
                     <Button
-                      variant="primary"
                       title={t('matches_unlock_photo_btn', '🖤 Arena Black — ფოტოს გახსნა')}
                       onPress={() => setPremiumModalVisible(true)}
                       style={styles.premiumUnlockBtn}

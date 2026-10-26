@@ -81,7 +81,7 @@ public sealed class DiscoveryService(AppDbContext db, ProfileService profiles, D
         }).ToListAsync(ct);
         var page = rows.Take(20).ToArray(); var ids = page.Select(p => p.UserId).ToArray();
         // One bounded batch for all page photos, not one query per card.
-        var photos = await db.Set<ProfilePhoto>().AsNoTracking().Where(p => ids.Contains(p.UserId) && !p.Deleted && p.State == "approved")
+        var photos = await db.Set<ProfilePhoto>().AsNoTracking().Where(p => ids.Contains(p.UserId) && !p.Deleted && p.State != "rejected")
             .OrderBy(p => p.Position).Select(p => new { p.UserId, Photo = new PhotoDto(p.Id, p.State, p.Position, p.Width, p.Height) }).ToListAsync(ct);
         var items = page.Select(p => new DiscoveryCard(p.UserId, p.DisplayName, ProfileRules.Age(p.DateOfBirth, clock.GetUtcNow()), p.Bio, p.Gender,
             p.City, p.Interests, p.RelationshipGoal, DiscoveryRules.Bucket(p.Distance), photos.Where(f => f.UserId == p.UserId).Select(f => f.Photo).ToArray(), p.Languages)).ToArray();
