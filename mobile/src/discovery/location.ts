@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as Location from 'expo-location';
-import { findCity } from '../components/cities';
+import { findCity, findNearestCity } from '../components/cities';
 
 function getWebPosition(timeoutMs = 6000): Promise<{ latitude: number; longitude: number }> {
   return new Promise((resolve, reject) => {
@@ -87,6 +87,23 @@ export async function detectLocationAndCity(
 }> {
   const coords = await foregroundFix(consent);
 
+  // 1. Instant nearest Georgian city matching (0ms, robust across web and native)
+  const nearest = findNearestCity(coords.latitude, coords.longitude, 75);
+  if (nearest) {
+    const cityName =
+      lang === 'en'
+        ? nearest.labelEn
+        : lang === 'ru' && nearest.labelRu
+        ? nearest.labelRu
+        : nearest.labelKa;
+    return {
+      ...coords,
+      cityName,
+      canonicalKey: nearest.key,
+    };
+  }
+
+  // 2. Try native Location.reverseGeocodeAsync
   try {
     const addresses = await Promise.race([
       Location.reverseGeocodeAsync(coords),
@@ -103,7 +120,12 @@ export async function detectLocationAndCity(
         const matched = findCity(rawCity);
         let cityName: string;
         if (matched) {
-          cityName = lang === 'en' ? matched.labelEn : lang === 'ru' ? matched.labelRu : matched.labelKa;
+          cityName =
+            lang === 'en'
+              ? matched.labelEn
+              : lang === 'ru' && matched.labelRu
+              ? matched.labelRu
+              : matched.labelKa;
         } else if (country && country.trim().toLowerCase() !== rawCity.trim().toLowerCase()) {
           cityName = `${rawCity}, ${country}`;
         } else {
@@ -125,7 +147,59 @@ export async function detectLocationAndCity(
     // Reverse geocode failed or timed out
   }
 
-  // Fallback to default city in Georgia if coordinates are around Georgia
+  // 3. Optional Nominatim reverse lookup for international coordinates
+  if (typeof fetch !== 'undefined') {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=jsonv2&accept-language=${lang}`,
+        {
+          headers: { Accept: 'application/json' },
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timer);
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.address;
+        const rawCity =
+          addr?.city ||
+          addr?.town ||
+          addr?.village ||
+          addr?.municipality ||
+          addr?.suburb ||
+          addr?.county;
+        const country = addr?.country;
+        if (rawCity) {
+          const matched = findCity(rawCity);
+          const cityName = matched
+            ? lang === 'en'
+              ? matched.labelEn
+              : lang === 'ru' && matched.labelRu
+              ? matched.labelRu
+              : matched.labelKa
+            : country && country.trim().toLowerCase() !== rawCity.trim().toLowerCase()
+            ? `${rawCity}, ${country}`
+            : rawCity;
+          return {
+            ...coords,
+            cityName,
+            canonicalKey: matched?.key,
+          };
+        } else if (country) {
+          return {
+            ...coords,
+            cityName: country,
+          };
+        }
+      }
+    } catch {
+      // Nominatim failed or timed out
+    }
+  }
+
+  // 4. Fallback to default city in Georgia if coordinates are around Georgia
   if (coords.latitude >= 41.0 && coords.latitude <= 43.6 && coords.longitude >= 40.0 && coords.longitude <= 46.8) {
     const defaultCity = lang === 'en' ? 'Tbilisi' : lang === 'ru' ? 'Тбилиси' : 'თბილისი';
     return {

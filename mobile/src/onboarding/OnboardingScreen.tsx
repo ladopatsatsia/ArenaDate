@@ -19,7 +19,9 @@ import { Screen } from '../components/Screen';
 import { theme } from '../components/theme';
 import { useAuth } from '../auth/AuthProvider';
 import { ProfileApi, uploadPhoto } from '../profile/api';
+import { DiscoveryApi } from '../discovery/api';
 import { formatCityName } from '../components/cities';
+import { detectLocationAndCity } from '../discovery/location';
 
 const TOTAL_STEPS = 8;
 
@@ -106,9 +108,44 @@ export function OnboardingScreen() {
   const [gender, setGender] = useState<'woman' | 'man' | 'nonbinary'>('woman');
   const [targetPreference, setTargetPreference] = useState<'woman' | 'man' | 'both'>('man');
 
-  // Step 4: City
-  const [selectedCity, setSelectedCity] = useState('თბილისი');
+  // Step 4: City & Location Detection
+  const [selectedCity, setSelectedCity] = useState('');
   const [customCity, setCustomCity] = useState('');
+  const [detectedCoords, setDetectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [locationDetected, setLocationDetected] = useState(false);
+  const [showManualSelection, setShowManualSelection] = useState(false);
+
+  const handleDetectLocation = useCallback(async () => {
+    setGpsLoading(true);
+    setGpsError(null);
+    try {
+      const res = await detectLocationAndCity(true, i18n.language);
+      if (res.cityName) {
+        setSelectedCity(res.cityName);
+        setLocationDetected(true);
+        setDetectedCoords({ latitude: res.latitude, longitude: res.longitude });
+        setShowManualSelection(false);
+      }
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error && err.message === 'location_denied'
+          ? 'location_denied'
+          : 'location_unavailable';
+      setGpsError(msg);
+      setShowManualSelection(true);
+    } finally {
+      setGpsLoading(false);
+    }
+  }, [i18n.language]);
+
+  // When reaching Step 4, prompt to turn on location and automatically detect city
+  useEffect(() => {
+    if (step === 4 && !selectedCity && !locationDetected && !gpsLoading && !gpsError) {
+      void handleDetectLocation();
+    }
+  }, [step, selectedCity, locationDetected, gpsLoading, gpsError, handleDetectLocation]);
 
   // Step 5: Photo
   const [uploadedPhotoUri, setUploadedPhotoUri] = useState<string | null>(null);
@@ -221,7 +258,7 @@ export function OnboardingScreen() {
         desiredGenders = [targetPreference];
       }
 
-      const finalCity = selectedCity === 'სხვა' ? customCity.trim() || 'თბილისი' : selectedCity;
+      const finalCity = selectedCity === 'სხვა' ? customCity.trim() || 'თბილისი' : (selectedCity || customCity.trim() || 'თბილისი');
 
       let formattedDob: string | null = null;
       if (birthYear && birthMonth && birthDay) {
@@ -246,6 +283,15 @@ export function OnboardingScreen() {
         visible: true,
         dateOfBirth: formattedDob,
       });
+
+      if (detectedCoords) {
+        try {
+          const discoveryApi = new DiscoveryApi(auth, manager);
+          await discoveryApi.location(detectedCoords.latitude, detectedCoords.longitude);
+        } catch (locErr) {
+          console.warn('Failed to save discovery location:', locErr);
+        }
+      }
 
       await cache.invalidateQueries({ queryKey: ['account', state.account?.id, 'profile'] });
       router.replace('/(tabs)/discover');
@@ -496,45 +542,160 @@ export function OnboardingScreen() {
             </Card>
           )}
 
-          {/* STEP 4: CITY */}
+          {/* STEP 4: CITY & GPS LOCATION */}
           {step === 4 && (
             <Card style={styles.stepCard}>
-              <Text style={styles.stepTitle}>{t('onboarding_city_title')}</Text>
-              <Text style={styles.stepSubtitle}>{t('onboarding_city_subtitle')}</Text>
-
-              <View style={styles.cityGrid}>
-                {['თბილისი', 'ბათუმი', 'ქუთაისი', 'რუსთავი', 'სოხუმი', 'ცხინვალი', 'ზუგდიდი', 'თელავი', 'გორი', 'ფოთი', 'სხვა'].map((city) => (
-                  <Pressable
-                    key={city}
-                    accessibilityRole="button"
-                    onPress={() => setSelectedCity(city)}
-                    style={[
-                      styles.cityChip,
-                      selectedCity === city && styles.cityChipActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.cityChipText,
-                        selectedCity === city && styles.cityChipTextActive,
-                      ]}
-                    >
-                      {city === 'სხვა' ? t('city_other', 'სხვა') : formatCityName(city, i18n.language)}
-                    </Text>
-                  </Pressable>
-                ))}
+              <View style={styles.stepHeaderCenter}>
+                <View style={styles.locationIconBadge}>
+                  <Text style={{ fontSize: 32 }}>📍</Text>
+                </View>
+                <Text style={styles.stepTitle}>{t('onboarding_city_title')}</Text>
+                <Text style={styles.stepSubtitle}>
+                  {t('onboarding_city_gps_subtitle')}
+                </Text>
               </View>
 
-              {selectedCity === 'სხვა' && (
-                <View style={styles.inputGroup}>
-                  <TextInput
-                    style={styles.textInput}
-                    value={customCity}
-                    onChangeText={setCustomCity}
-                    placeholder={t('onboarding_custom_city_placeholder', 'ჩაწერეთ ქალაქის სახელი')}
-                    placeholderTextColor={theme.colors.muted}
-                    autoFocus
-                  />
+              {/* GPS Detection State: Loading */}
+              {gpsLoading && (
+                <View style={styles.gpsDetectingCard}>
+                  <ActivityIndicator size="large" color={theme.colors.primary} />
+                  <Text style={styles.gpsDetectingTitle}>
+                    {t('onboarding_city_detecting')}
+                  </Text>
+                  <Text style={styles.gpsDetectingSub}>
+                    {t('onboarding_city_detecting_sub')}
+                  </Text>
+                </View>
+              )}
+
+              {/* GPS Detection State: Successfully Detected */}
+              {!gpsLoading && locationDetected && selectedCity && (
+                <View style={styles.gpsSuccessCard}>
+                  <View style={styles.gpsSuccessHeader}>
+                    <View style={styles.gpsPulseDot} />
+                    <Text style={styles.gpsSuccessBadge}>
+                      {t('onboarding_city_detected_badge')}
+                    </Text>
+                  </View>
+
+                  <View style={styles.gpsCityDisplay}>
+                    <Text style={styles.gpsCityName}>
+                      {formatCityName(selectedCity, i18n.language)}
+                    </Text>
+                    {detectedCoords && (
+                      <Text style={styles.gpsCoordsText}>
+                        📍 {detectedCoords.latitude.toFixed(2)}°, {detectedCoords.longitude.toFixed(2)}°
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={styles.gpsActionRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => void handleDetectLocation()}
+                      style={({ pressed }) => [
+                        styles.gpsSecondaryBtn,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Text style={styles.gpsSecondaryBtnText}>
+                        🔄 {t('onboarding_city_redetect')}
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setShowManualSelection((prev) => !prev)}
+                      style={({ pressed }) => [
+                        styles.gpsSecondaryBtn,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Text style={styles.gpsSecondaryBtnText}>
+                        ✏️ {t('onboarding_city_manual_toggle')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
+              {/* GPS Detection State: Not detected / Error / Denied */}
+              {!gpsLoading && (!locationDetected || !selectedCity || gpsError) && (
+                <View style={styles.gpsPromptCard}>
+                  {gpsError ? (
+                    <View style={styles.gpsErrorBox}>
+                      <Text style={styles.gpsErrorIcon}>⚠️</Text>
+                      <Text style={styles.gpsErrorText}>
+                        {t(gpsError)}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <Pressable
+                    testID="onboarding-detect-location-btn"
+                    accessibilityRole="button"
+                    onPress={() => void handleDetectLocation()}
+                    style={({ pressed }) => [
+                      styles.gpsPrimaryBtn,
+                      pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                    ]}
+                  >
+                    <Text style={styles.gpsPrimaryBtnText}>
+                      {t('onboarding_city_detect_btn')}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* Manual City Selection (shown if toggled or if GPS was not detected / error) */}
+              {(showManualSelection || (!locationDetected && !gpsLoading)) && (
+                <View style={styles.manualSelectionContainer}>
+                  <View style={styles.dividerRow}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>
+                      {t('onboarding_or_choose_city')}
+                    </Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  <View style={styles.cityGrid}>
+                    {['თბილისი', 'ბათუმი', 'ქუთაისი', 'რუსთავი', 'სოხუმი', 'ცხინვალი', 'ზუგდიდი', 'თელავი', 'გორი', 'ფოთი', 'სხვა'].map((city) => (
+                      <Pressable
+                        key={city}
+                        accessibilityRole="button"
+                        onPress={() => {
+                          setSelectedCity(city);
+                          setLocationDetected(false);
+                        }}
+                        style={[
+                          styles.cityChip,
+                          selectedCity === city && styles.cityChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.cityChipText,
+                            selectedCity === city && styles.cityChipTextActive,
+                          ]}
+                        >
+                          {city === 'სხვა' ? t('city_other', 'სხვა') : formatCityName(city, i18n.language)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {selectedCity === 'სხვა' && (
+                    <View style={styles.inputGroup}>
+                      <TextInput
+                        style={styles.textInput}
+                        value={customCity}
+                        onChangeText={setCustomCity}
+                        placeholder={t('onboarding_custom_city_placeholder', 'ჩაწერეთ ქალაქის სახელი')}
+                        placeholderTextColor={theme.colors.muted}
+                        autoFocus
+                      />
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -542,6 +703,7 @@ export function OnboardingScreen() {
                 testID="onboarding-step4-next"
                 variant="primary"
                 title={t('onboarding_next')}
+                disabled={gpsLoading || (!selectedCity && !customCity)}
                 onPress={nextStep}
               />
             </Card>
@@ -1053,5 +1215,160 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 14,
     textAlign: 'center',
+  },
+  stepHeaderCenter: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationIconBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(234, 179, 8, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(234, 179, 8, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  gpsDetectingCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.25)',
+    gap: 10,
+    marginVertical: 12,
+  },
+  gpsDetectingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  gpsDetectingSub: {
+    fontSize: 13,
+    color: theme.colors.muted,
+    textAlign: 'center',
+  },
+  gpsSuccessCard: {
+    padding: 16,
+    backgroundColor: 'rgba(52, 211, 153, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.35)',
+    marginVertical: 12,
+    gap: 12,
+  },
+  gpsSuccessHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  gpsPulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#34D399',
+  },
+  gpsSuccessBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34D399',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  gpsCityDisplay: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    gap: 4,
+  },
+  gpsCityName: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: theme.colors.text,
+    letterSpacing: 0.5,
+  },
+  gpsCoordsText: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    fontWeight: '500',
+  },
+  gpsActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  gpsSecondaryBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  gpsSecondaryBtnText: {
+    fontSize: 13,
+    color: theme.colors.text,
+    fontWeight: '600',
+  },
+  gpsPromptCard: {
+    marginVertical: 12,
+    gap: 10,
+  },
+  gpsPrimaryBtn: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gpsPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  gpsErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  gpsErrorIcon: {
+    fontSize: 18,
+  },
+  gpsErrorText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#F87171',
+    lineHeight: 18,
+  },
+  manualSelectionContainer: {
+    marginVertical: 10,
+    gap: 12,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginVertical: 6,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+  dividerText: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    fontWeight: '500',
   },
 });

@@ -1,4 +1,4 @@
-import { CITIES, POPULAR_CITIES, findCity, formatCityName, searchCities } from '../src/components/cities';
+import { CITIES, POPULAR_CITIES, findCity, formatCityName, searchCities, findNearestCity } from '../src/components/cities';
 
 describe('Canonical Cities System', () => {
   test('POPULAR_CITIES has the top hubs of Georgia', () => {
@@ -52,4 +52,25 @@ describe('Canonical Cities System', () => {
     const emptySearch = searchCities('', 'ka');
     expect(emptySearch.length).toBe(CITIES.length);
   });
+
+  test('findNearestCity accurately matches Georgian cities from GPS coordinates', () => {
+    // Exact or near Tbilisi
+    expect(findNearestCity(41.7151, 44.8271)?.key).toBe('tbilisi');
+    expect(findNearestCity(41.73, 44.78)?.key).toBe('tbilisi');
+
+    // Exact or near Batumi
+    expect(findNearestCity(41.6416, 41.6359)?.key).toBe('batumi');
+    expect(findNearestCity(41.62, 41.60)?.key).toBe('batumi');
+
+    // Exact or near Kutaisi
+    expect(findNearestCity(42.2679, 42.6946)?.key).toBe('kutaisi');
+
+    // Exact or near Rustavi
+    expect(findNearestCity(41.5495, 45.0094)?.key).toBe('rustavi');
+
+    // International coordinates outside Georgia return undefined within max distance
+    expect(findNearestCity(52.52, 13.405)).toBeUndefined(); // Berlin
+    expect(findNearestCity(40.7128, -74.006)).toBeUndefined(); // New York
+  });
 });
+

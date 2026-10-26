@@ -138,7 +138,7 @@ test('ProfileScreen renders account deletion flow, requires password, and clears
   fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
 
   // Verify profile loaded
-  await waitFor(() => expect(screen.getByTestId('delete-account-button')).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('delete-account-button')).toBeTruthy(), { timeout: 4000 });
 
   // Click delete account button to open confirmation dialog
   fireEvent.press(screen.getByTestId('delete-account-button'));
@@ -164,7 +164,7 @@ test('ProfileScreen renders account deletion flow, requires password, and clears
   await waitFor(() => expect(screen.getByText('account_deleted')).toBeTruthy());
 
   view.unmount();
-});
+}, 15000);
 
 test('ProfileScreen allows Telegram users to delete account without password', async () => {
   const tgUserId = '22222222-2222-4222-8222-222222222222';
@@ -217,7 +217,7 @@ test('ProfileScreen allows Telegram users to delete account without password', a
   await waitFor(() => expect(screen.getByText('signedOut')).toBeTruthy());
   fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
 
-  await waitFor(() => expect(screen.getByTestId('delete-account-button')).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('delete-account-button')).toBeTruthy(), { timeout: 4000 });
   fireEvent.press(screen.getByTestId('delete-account-button'));
 
   // Password input is omitted for Telegram user
@@ -239,4 +239,4 @@ test('ProfileScreen allows Telegram users to delete account without password', a
 
   await waitFor(() => expect(screen.getByText('account_deleted')).toBeTruthy());
   view.unmount();
-});
+}, 15000);

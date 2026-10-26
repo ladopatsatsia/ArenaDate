@@ -1,3 +1,34 @@
+# Status - Onboarding GPS Location Auto-Detection & Geocoding
+
+Updated 2026-10-26. Implemented automatic GPS location detection during account setup / onboarding (Step 4 "სად იმყოფებით?"):
+
+1. **Automatic Location Permission & GPS City Detection**:
+   - In `mobile/src/onboarding/OnboardingScreen.tsx`:
+     - Step 4 now automatically requests location permission upon entering the step (or via a prominent 1-tap "📍 ლოკაციის ჩართვა და დადგენა" button).
+     - While determining coordinates, renders an animated loader (`ActivityIndicator`) with clear guidance: "მიმდინარეობს ლოკაციის დადგენა… გთხოვთ დაეთანხმოთ ლოკაციის მოთხოვნას".
+     - Once detected, displays a luxury green-accented verification badge ("✓ დადგენილია ლოკაციით"), the detected city name, and exact coordinates.
+     - Provides convenient controls: "🔄 ხელახლა დადგენა" (re-detect) and "✏️ ქალაქის შეცვლა" (switch to manual selection).
+     - In `handleFinish`, saves the selected city to profile and automatically sends coordinates to `discoveryApi.location(latitude, longitude)`.
+   - **Fault-Tolerant & Manual Fallback**:
+     - If permission is denied or location is unavailable, displays a friendly warning banner with a retry button and immediately reveals the manual city chips and custom input so user progress is never blocked.
+
+2. **High-Precision Offline & Web Reverse Geocoding (`cities.ts` & `location.ts`)**:
+   - Added exact geographical coordinates (`lat`, `lng`) to all 56 Georgian cities in `CITIES` (`mobile/src/components/cities.ts`).
+   - Implemented `findNearestCity(lat, lng, maxDistanceKm)` using the Haversine spherical distance formula.
+   - Updated `detectLocationAndCity` in `mobile/src/discovery/location.ts` to first match against canonical Georgian cities instantly (0ms latency, zero network dependence, works reliably in browser, Telegram WebView, iOS, and Android).
+   - Added secondary native reverse-geocoding and OpenStreetMap Nominatim reverse lookup for international coordinates.
+
+3. **Verification**:
+   - TypeScript Typecheck (`npm run typecheck` across `api-contract`, `mobile`, `admin`) -> **0 Warnings, 0 Errors**.
+   - Mobile Unit Tests:
+     - `npx jest tests/cities.test.ts --forceExit` -> **5/5 Passed (100%)** (including new `findNearestCity` tests).
+     - `npx jest tests/discovery-location.test.ts --forceExit` -> **3/3 Passed (100%)**.
+     - `npx jest tests/account-lifecycle.test.tsx --forceExit` -> **3/3 Passed (100%)**.
+   - Mobile Web Export: `npx expo export --platform web --output-dir dist/web` -> **Exported successfully**.
+   - Physical Device verification: NOT RUN (Not requested; verified via React Native and Jest tests).
+
+---
+
 # Status - Telegram White Screen Elimination, Spinning Bottle Preloader & Passwordless Account Deletion
 
 Updated 2026-10-26. Implemented fixes for Telegram Mini App initial white screen loading and Telegram-authenticated account deletion:
