@@ -1964,7 +1964,7 @@ public sealed class GameService(
     public async Task EnsureSeededQuestionsAsync(CancellationToken ct)
     {
         var count = await db.Set<GameQuestion>().CountAsync(ct);
-        if (count < 20)
+        if (count < GameQuestionCatalog.CuratedQuestions.Length)
         {
             var now = clock.GetUtcNow();
             var existingTexts = await db.Set<GameQuestion>().Select(q => q.QuestionText).ToListAsync(ct);
@@ -1978,6 +1978,61 @@ public sealed class GameService(
             }
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    private async Task<List<FrozenQuestionDto>> PickQuestionsForRoomAsync(Guid roomId, CancellationToken ct)
+    {
+        await EnsureSeededQuestionsAsync(ct);
+
+        var allQuestions = await db.Set<GameQuestion>()
+            .Where(q => q.IsActive)
+            .ToListAsync(ct);
+
+        if (allQuestions.Count == 0)
+        {
+            return new List<FrozenQuestionDto>();
+        }
+
+        // Collect question IDs already asked in rounds of this room
+        var pastRounds = await db.Set<GameRound>()
+            .Where(r => r.RoomId == roomId && !string.IsNullOrWhiteSpace(r.QuestionsJson) && r.QuestionsJson != "[]")
+            .Select(r => r.QuestionsJson)
+            .ToListAsync(ct);
+
+        var usedQuestionIds = new HashSet<Guid>();
+        foreach (var qJson in pastRounds)
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<FrozenQuestionDto>>(qJson);
+                if (parsed != null)
+                {
+                    foreach (var q in parsed)
+                    {
+                        usedQuestionIds.Add(q.Id);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore parsing failure of legacy json
+            }
+        }
+
+        var candidates = allQuestions.Where(q => !usedQuestionIds.Contains(q.Id)).ToList();
+        if (candidates.Count == 0)
+        {
+            // All active questions used in room; recycle from all active questions
+            candidates = allQuestions;
+        }
+
+        var picked = candidates.OrderBy(_ => RandomNumberGenerator.GetInt32(10000)).Take(1).ToList();
+        return picked.Select(q => new FrozenQuestionDto(
+            q.Id,
+            q.QuestionText,
+            JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
+            q.Category
+        )).ToList();
     }
 
     public async Task<Guid?> SelectNextTurnUserIdAsync(Guid roomId, Guid currentUserId, CancellationToken ct)
@@ -2103,19 +2158,7 @@ public sealed class GameService(
         }
         else
         {
-            await EnsureSeededQuestionsAsync(ct);
-            var allQuestions = await db.Set<GameQuestion>()
-                .Where(q => q.IsActive)
-                .ToListAsync(ct);
-
-            var shuffled = allQuestions.OrderBy(_ => RandomNumberGenerator.GetInt32(10000)).Take(1).ToList();
-            frozen = shuffled.Select(q => new FrozenQuestionDto(
-                q.Id,
-                q.QuestionText,
-                JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
-                q.Category
-            )).ToList();
-
+            frozen = await PickQuestionsForRoomAsync(room.Id, ct);
             round.QuestionsJson = JsonSerializer.Serialize(frozen);
         }
 
@@ -2497,19 +2540,7 @@ public sealed class GameService(
         string questionsJson = "[]";
         if (autoPickTarget)
         {
-            await EnsureSeededQuestionsAsync(ct);
-
-            var allQuestions = await db.Set<GameQuestion>()
-                .Where(q => q.IsActive)
-                .ToListAsync(ct);
-
-            var shuffled = allQuestions.OrderBy(_ => RandomNumberGenerator.GetInt32(10000)).Take(1).ToList();
-            var frozen = shuffled.Select(q => new FrozenQuestionDto(
-                q.Id,
-                q.QuestionText,
-                JsonSerializer.Deserialize<string[]>(q.OptionsJson) ?? Array.Empty<string>(),
-                q.Category
-            )).ToList();
+            var frozen = await PickQuestionsForRoomAsync(roomId, ct);
             questionsJson = JsonSerializer.Serialize(frozen);
         }
 
@@ -2601,6 +2632,10 @@ public sealed class GameService(
         var existingAnswer = await db.Set<GameRoundAnswer>()
             .SingleOrDefaultAsync(a => a.RoundId == roundId && a.QuestionIndex == questionIndex && a.UserId == userId, ct);
 
+        var effectiveKey = string.IsNullOrWhiteSpace(req.IdempotencyKey)
+            ? $"{userId:N}_{Guid.NewGuid():N}"
+            : $"{req.IdempotencyKey}_{userId:N}";
+
         if (existingAnswer == null)
         {
             var answer = new GameRoundAnswer
@@ -2611,7 +2646,7 @@ public sealed class GameService(
                 UserId = userId,
                 SelectedOption = req.IsSkipped ? null : req.SelectedOption,
                 IsSkipped = req.IsSkipped,
-                IdempotencyKey = req.IdempotencyKey,
+                IdempotencyKey = effectiveKey,
                 SubmittedAtUtc = now
             };
             db.Set<GameRoundAnswer>().Add(answer);
@@ -2713,14 +2748,14 @@ public sealed class GameService(
             round.SummaryCommentary = await GenerateRoundSummaryCommentaryAsync(round, ct);
             var nextTurn = await SelectNextTurnUserIdAsync(roomId, round.SpinnerUserId, ct);
             room.CurrentTurnUserId = nextTurn;
-            room.DeadlineUtc = now.AddSeconds(15);
+            room.DeadlineUtc = now.AddSeconds(3);
             room.DeadlineType = "TurnPending";
         }
         else
         {
             round.SummaryCommentary = await GenerateRoundSummaryCommentaryAsync(round, ct);
             round.State = "KissChoice";
-            room.DeadlineUtc = now.AddSeconds(30);
+            room.DeadlineUtc = now.AddSeconds(20);
             room.DeadlineType = "KissChoice";
         }
 
@@ -2798,7 +2833,7 @@ public sealed class GameService(
         if (req.RecipientUserId != expectedRecipient)
             throw new AuthFailure(400, "invalid_recipient");
 
-        if (round.State != "KissChoice" && room.DeadlineType != "KissChoice")
+        if (round.State != "KissChoice" && round.State != "QuestionRevealing" && room.DeadlineType != "KissChoice")
             throw new AuthFailure(400, "not_kiss_phase");
 
         var existingKiss = await db.Set<GameKiss>()
@@ -3002,7 +3037,7 @@ public sealed class GameService(
             {
                 var nextTurn = await SelectNextTurnUserIdAsync(roomId, round.SpinnerUserId, ct);
                 room.CurrentTurnUserId = nextTurn;
-                room.DeadlineUtc = now.AddSeconds(15);
+                room.DeadlineUtc = now.AddSeconds(3);
                 room.DeadlineType = "TurnPending";
                 room.StateVersion++;
             }
@@ -3051,7 +3086,7 @@ public sealed class GameService(
         if (round.SpinnerUserId != userId && round.TargetUserId != userId)
             throw new AuthFailure(403, "not_round_participant");
 
-        if (round.State != "KissChoice" && room.DeadlineType != "KissChoice")
+        if (round.State != "KissChoice" && round.State != "QuestionRevealing" && room.DeadlineType != "KissChoice")
             throw new AuthFailure(400, "not_kiss_phase");
 
         var existingKiss = await db.Set<GameKiss>()
@@ -3107,7 +3142,7 @@ public sealed class GameService(
             {
                 var nextTurn = await SelectNextTurnUserIdAsync(roomId, round.SpinnerUserId, ct);
                 room.CurrentTurnUserId = nextTurn;
-                room.DeadlineUtc = now.AddSeconds(15);
+                room.DeadlineUtc = now.AddSeconds(3);
                 room.DeadlineType = "TurnPending";
                 room.StateVersion++;
             }

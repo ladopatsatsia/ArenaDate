@@ -1015,7 +1015,7 @@ export default function Matches() {
                           {t('matches_sent_like', 'მოგცათ მოწონება!')}
                         </Text>
                         <Text style={styles.blurHintText}>
-                          {t('matches_enable_black_to_unlock', 'ჩართე Arena Black ფოტოს გასახსნელად ან პირდაპირ დაადასტურე')}
+                          {t('matches_enable_black_to_unlock', 'ჩართე Arena Black ფოტოსა და რექუესტის სანახავად')}
                         </Text>
                       </View>
 
@@ -1032,25 +1032,7 @@ export default function Matches() {
                       </View>
                     </View>
                   </Pressable>
-                  <View style={{ gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                      <Button
-                        title={`✕ ${t('request_decline')}`}
-                        disabled={actionBusy === req.userId}
-                        onPress={() => { void handleDecision(req.userId, 'pass'); }}
-                        style={styles.declineBtn}
-                        textStyle={styles.declineBtnText}
-                        testID={`request-locked-decline-${req.userId}`}
-                      />
-                      <Button
-                        variant="primary"
-                        title={`❤️ ${t('request_confirm')}`}
-                        disabled={actionBusy === req.userId}
-                        onPress={() => { void handleDecision(req.userId, 'like'); }}
-                        style={styles.confirmBtn}
-                        testID={`request-locked-confirm-${req.userId}`}
-                      />
-                    </View>
+                  <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
                     <Button
                       title={t('matches_unlock_photo_btn', '🖤 Arena Black — ფოტოს გახსნა')}
                       onPress={() => setPremiumModalVisible(true)}

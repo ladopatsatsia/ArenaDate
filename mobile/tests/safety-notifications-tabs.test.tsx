@@ -67,7 +67,7 @@ describe('Blocked Accounts, Notifications, and Terms Tab Routes', () => {
     expect(redirect.props.children).toBe('/(tabs)/terms');
   });
 
-  test('(tabs)/safety renders Blocked Accounts screen and switches to Terms tab', () => {
+  test('(tabs)/safety renders Blocked Accounts screen with Blocked and Conversations tabs, without Terms tab', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <SafetyTabRoute />
@@ -76,14 +76,14 @@ describe('Blocked Accounts, Notifications, and Terms Tab Routes', () => {
 
     // Header says Blocked Accounts
     expect(screen.getByText('დაბლოკილი ანგარიშები')).toBeTruthy();
-    expect(screen.getByText('დაბლოკილი')).toBeTruthy();
-    expect(screen.getByText('საუბრები')).toBeTruthy();
-    expect(screen.getByText('წესები & პირობები')).toBeTruthy();
+    expect(screen.getByTestId('safety-tab-blocks')).toBeTruthy();
+    expect(screen.getByTestId('safety-tab-prior-conversations')).toBeTruthy();
+    // Terms button was removed from safety screen
+    expect(screen.queryByText(/წესები & პირობები/)).toBeNull();
 
-    // Switch to Terms tab inside Safety
-    fireEvent.press(screen.getByText('წესები & პირობები'));
-    expect(screen.getByText(/ასაკობრივი შეზღუდვა/)).toBeTruthy();
-    expect(screen.getByText(/ურთიერთპატივისცემა/)).toBeTruthy();
+    // Switch between the two tabs
+    fireEvent.press(screen.getByTestId('safety-tab-prior-conversations'));
+    expect(screen.getByTestId('safety-tab-prior-conversations')).toBeTruthy();
   });
 
   test('(tabs)/notifications renders NotificationSettingsScreen with switches and Telegram card', async () => {

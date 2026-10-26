@@ -97,7 +97,7 @@ describe('Incoming Requests Acceptance & Matching Flow', () => {
     queryClient.clear();
   });
 
-  test('free user can accept an incoming request from requests tab to trigger mutual match', async () => {
+  test('free user without premium does not see confirm/decline buttons on locked request, sees unlock Arena Black button', async () => {
     render(
       <QueryClientProvider client={queryClient}>
         <Matches />
@@ -111,24 +111,11 @@ describe('Incoming Requests Acceptance & Matching Flow', () => {
 
     fireEvent.press(screen.getByText(/💌.*\(2\)/));
 
-    // Confirm button should be present for user-suitor-1 even with isBlurred
+    // Confirm and decline buttons must NOT be visible on locked request for free user
     await waitFor(() => {
-      expect(screen.getByTestId('request-locked-confirm-user-suitor-1')).toBeTruthy();
-      expect(screen.getByTestId('request-locked-decline-user-suitor-1')).toBeTruthy();
-    });
-
-    // Press confirm ❤️
-    fireEvent.press(screen.getByTestId('request-locked-confirm-user-suitor-1'));
-
-    await waitFor(() => {
-      expect(mockRequest).toHaveBeenCalledWith(
-        '/api/swipes',
-        expect.objectContaining({
-          targetId: 'user-suitor-1',
-          kind: 'like',
-        }),
-        expect.anything()
-      );
+      expect(screen.queryByTestId('request-locked-confirm-user-suitor-1')).toBeNull();
+      expect(screen.queryByTestId('request-locked-decline-user-suitor-1')).toBeNull();
+      expect(screen.getByTestId('unlock-premium-btn-user-suitor-1')).toBeTruthy();
     });
   });
 

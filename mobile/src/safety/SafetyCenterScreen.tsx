@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, StateMessage, Text } from '../components/UI';
@@ -8,7 +8,6 @@ import { Screen } from '../components/Screen';
 import { theme } from '../components/theme';
 import { SafetyApi } from './api';
 import { SafetyActions } from './SafetyActions';
-import { TermsContent } from '../terms/TermsContent';
 
 function Items({ kind }: { kind: 'blocks' | 'prior-conversations' }) {
   const { api: auth, manager, state } = useAuth();
@@ -93,18 +92,7 @@ function Items({ kind }: { kind: 'blocks' | 'prior-conversations' }) {
 
 export default function SafetyCenterScreen() {
   const { t } = useTranslation();
-  const [kind, setKind] = useState<'blocks' | 'prior-conversations' | 'terms'>('blocks');
-
-  const getTabTitle = (tab: 'blocks' | 'prior-conversations' | 'terms') => {
-    switch (tab) {
-      case 'blocks':
-        return t('safety_blocks_short', 'დაბლოკილი');
-      case 'prior-conversations':
-        return t('safety_prior_short', 'საუბრები');
-      case 'terms':
-        return t('terms_short', 'წესები & პირობები');
-    }
-  };
+  const [kind, setKind] = useState<'blocks' | 'prior-conversations'>('blocks');
 
   return (
     <Screen title={t('blocked_accounts', 'დაბლოკილი ანგარიშები')} scroll={false}>
@@ -118,33 +106,42 @@ export default function SafetyCenterScreen() {
         <Text style={styles.headerSubtitle}>
           {t(
             'blocked_accounts_subtitle',
-            'მართეთ დაბლოკილი მომხმარებლები, წინა საუბრები და გაეცანით წესებს'
+            'მართეთ დაბლოკილი მომხმარებლები და წინა საუბრები'
           )}
         </Text>
       </View>
 
       <View style={styles.tabSelector}>
-        {(['blocks', 'prior-conversations', 'terms'] as const).map((value) => (
-          <View key={value} style={{ flex: value === 'terms' ? 1.3 : 1 }}>
-            <Button
-              selected={kind === value}
-              title={getTabTitle(value)}
+        {(['blocks', 'prior-conversations'] as const).map((value) => {
+          const isActive = kind === value;
+          const label =
+            value === 'blocks'
+              ? `🚫 ${t('safety_blocks_short', 'დაბლოკილი')}`
+              : `💬 ${t('safety_prior_short', 'საუბრები')}`;
+          return (
+            <Pressable
+              key={value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
               onPress={() => setKind(value)}
-            />
-          </View>
-        ))}
+              style={[
+                styles.tabBtn,
+                isActive && styles.tabBtnActive,
+              ]}
+              testID={`safety-tab-${value}`}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {kind === 'terms' ? (
-        <ScrollView
-          contentContainerStyle={styles.termsScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <TermsContent />
-        </ScrollView>
-      ) : (
-        <Items key={kind} kind={kind} />
-      )}
+      <Items key={kind} kind={kind} />
     </Screen>
   );
 }
@@ -177,17 +174,43 @@ const styles = StyleSheet.create({
   tabSelector: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingBottom: 12,
-    gap: 8,
+    paddingBottom: 14,
+    gap: 10,
+  },
+  tabBtn: {
+    flex: 1,
+    minHeight: 46,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 24,
+    backgroundColor: '#1C1527',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBtnActive: {
+    backgroundColor: 'rgba(251, 113, 133, 0.18)',
+    borderColor: '#FB7185',
+    shadowColor: '#FB7185',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.muted,
+  },
+  tabBtnTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 32,
     gap: 12,
-  },
-  termsScrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
   },
   itemCard: {
     backgroundColor: theme.colors.surface,

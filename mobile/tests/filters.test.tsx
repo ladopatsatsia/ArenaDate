@@ -1,8 +1,32 @@
 import React from 'react';
 import i18n from '../src/i18n';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render as tlRender, fireEvent, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Filters } from '../src/discovery/Filters';
 import type { DiscoveryApi, Settings } from '../src/discovery/api';
+
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+
+const render = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  return tlRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
+jest.mock('../src/auth/AuthProvider', () => ({
+  useAuth: () => ({
+    state: { account: { id: 'test-user-id' } },
+    api: {},
+    manager: {
+      snapshot: () => ({ account: { id: 'test-user-id' } }),
+      subscribe: () => () => {},
+    },
+  }),
+}));
 
 const mockSettings: Settings = {
   revision: 1,

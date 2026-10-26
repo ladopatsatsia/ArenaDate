@@ -7,6 +7,17 @@ import { GameApi } from '../src/game/GameApi';
 import type { AuthApi } from '../src/auth/api';
 import type { SessionManager } from '../src/auth/session';
 
+jest.mock('../src/auth/AuthProvider', () => ({
+  useAuth: () => ({
+    state: { account: { id: 'user-me' } },
+    api: {} as AuthApi,
+    manager: {
+      snapshot: () => ({ account: { id: 'user-me' } }),
+      withAccess: async (fn: (t: string) => Promise<unknown>) => fn('token'),
+    } as unknown as SessionManager,
+  }),
+}));
+
 describe('GameTable Room Chat', () => {
   beforeEach(() => {
     void i18n.changeLanguage('ka');

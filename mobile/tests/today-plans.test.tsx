@@ -453,5 +453,51 @@ describe('TodayPlansScreen & Components', () => {
       expect(screen.queryByTestId('today-plan-detail-modal-plan-101')).toBeNull();
     });
   });
+
+  test('filters modal allows typing and selecting a city to filter plans', async () => {
+    const request = jest.fn().mockImplementation((path: string, _opts?: any) => {
+      if (path === '/api/today-plans/limits') return Promise.resolve(mockLimits);
+      return Promise.resolve({ items: [mockPlan], nextCursor: null, totalCount: 1 });
+    });
+
+    setupAuth(request, 'user-visitor');
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TodayPlansScreen />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('open-filters-modal-btn')).toBeTruthy();
+    });
+
+    // Open filter modal
+    fireEvent.press(screen.getByTestId('open-filters-modal-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('filter-city-search-input')).toBeTruthy();
+    });
+
+    // Type a city name in search input
+    fireEvent.changeText(screen.getByTestId('filter-city-search-input'), 'ბათუმი');
+
+    // Select the filtered Batumi chip
+    await waitFor(() => {
+      expect(screen.getByTestId('filter-city-batumi')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId('filter-city-batumi'));
+
+    // Apply the filter
+    fireEvent.press(screen.getByTestId('filter-apply-btn'));
+
+    // Verify plans API was called with city=batumi
+    await waitFor(() => {
+      const calls = request.mock.calls.map(c => c[0] as string);
+      const filteredCall = calls.find(url => url.includes('city=batumi'));
+      expect(filteredCall).toBeTruthy();
+    });
+  });
 });
 

@@ -3,13 +3,14 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../components/theme';
 import { Text, Button } from '../components/UI';
-import { POPULAR_CITIES, formatCityName } from '../components/cities';
+import { CITIES, POPULAR_CITIES, formatCityName } from '../components/cities';
 import { CalendarPicker } from '../components/CalendarPicker';
 import { TODAY_PLAN_ACTIVITIES, formatCustomDateDisplay, getQuickPresetDates } from './utils';
 
@@ -37,14 +38,29 @@ export function TodayPlansFilterModal({
   const { t, i18n } = useTranslation();
 
   const [tempCity, setTempCity] = useState(city);
+  const [cityQuery, setCityQuery] = useState('');
   const [tempActivity, setTempActivity] = useState(activity);
   const [tempDay, setTempDay] = useState<DayFilter>(day);
   const [showCalendar, setShowCalendar] = useState(false);
   const presetDates = useMemo(() => getQuickPresetDates(i18n.language), [i18n.language]);
 
+  const filteredCities = useMemo(() => {
+    const q = cityQuery.trim().toLowerCase();
+    if (!q) return [];
+    return CITIES.filter(
+      (c) =>
+        c.labelKa.toLowerCase().includes(q) ||
+        c.labelEn.toLowerCase().includes(q) ||
+        c.labelRu.toLowerCase().includes(q) ||
+        c.key.toLowerCase().includes(q) ||
+        (c.aliases && c.aliases.some((a) => a.toLowerCase().includes(q)))
+    ).slice(0, 12);
+  }, [cityQuery]);
+
   useEffect(() => {
     if (visible) {
       setTempCity(city);
+      setCityQuery('');
       setTempActivity(activity);
       setTempDay(day);
       setShowCalendar(false);
@@ -117,51 +133,140 @@ export function TodayPlansFilterModal({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {/* 1. City Filter */}
+            {/* 1. City Filter with Search & Typing */}
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>
-                📍 {t('today_plans_filter_city_title')}
-              </Text>
-              <View style={styles.chipsGrid}>
-                <TouchableOpacity
-                  style={[
-                    styles.chip,
-                    tempCity === 'all' && styles.chipSelected,
-                  ]}
-                  onPress={() => setTempCity('all')}
-                  activeOpacity={0.7}
-                  testID="filter-city-all"
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      tempCity === 'all' && styles.chipTextSelected,
-                    ]}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={styles.sectionTitle}>
+                  📍 {t('today_plans_filter_city_title', 'ქალაქი')}
+                </Text>
+                {tempCity !== 'all' && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setTempCity('all');
+                      setCityQuery('');
+                    }}
+                    style={styles.selectedCityBadge}
+                    testID="clear-selected-city-btn"
+                    activeOpacity={0.7}
                   >
-                    {t('today_plans_filter_all_cities')}
-                  </Text>
-                </TouchableOpacity>
-                {POPULAR_CITIES.map(c => {
-                  const isSelected = tempCity === c.key;
-                  return (
+                    <Text style={styles.selectedCityBadgeText}>
+                      📍 {formatCityName(tempCity, i18n.language)} ✕
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* City Search / Type Input */}
+              <View style={styles.citySearchBox}>
+                <Text style={styles.citySearchIcon}>🔍</Text>
+                <TextInput
+                  value={cityQuery}
+                  onChangeText={setCityQuery}
+                  placeholder={t('search_or_type_city', 'ჩაწერეთ ქალაქი...')}
+                  placeholderTextColor={theme.colors.muted}
+                  style={styles.citySearchInput}
+                  testID="filter-city-search-input"
+                  autoCorrect={false}
+                  autoCapitalize="words"
+                />
+                {cityQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setCityQuery('')}
+                    style={styles.citySearchClearBtn}
+                    testID="clear-city-search-btn"
+                  >
+                    <Text style={styles.citySearchClearText}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Matching / Preset Chips */}
+              <View style={styles.chipsGrid}>
+                {cityQuery.trim() === '' ? (
+                  <>
                     <TouchableOpacity
-                      key={c.key}
-                      style={[styles.chip, isSelected && styles.chipSelected]}
-                      onPress={() => setTempCity(isSelected ? 'all' : c.key)}
+                      style={[
+                        styles.chip,
+                        tempCity === 'all' && styles.chipSelected,
+                      ]}
+                      onPress={() => setTempCity('all')}
                       activeOpacity={0.7}
-                      testID={`filter-city-${c.key}`}
+                      testID="filter-city-all"
                     >
                       <Text
                         style={[
                           styles.chipText,
-                          isSelected && styles.chipTextSelected,
+                          tempCity === 'all' && styles.chipTextSelected,
                         ]}
                       >
-                        {formatCityName(c.key, i18n.language)}
+                        🌐 {t('today_plans_filter_all_cities', 'ყველა ქალაქი')}
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
+                    {POPULAR_CITIES.map(c => {
+                      const isSelected = tempCity === c.key;
+                      return (
+                        <TouchableOpacity
+                          key={c.key}
+                          style={[styles.chip, isSelected && styles.chipSelected]}
+                          onPress={() => setTempCity(isSelected ? 'all' : c.key)}
+                          activeOpacity={0.7}
+                          testID={`filter-city-${c.key}`}
+                        >
+                          <Text
+                            style={[
+                              styles.chipText,
+                              isSelected && styles.chipTextSelected,
+                            ]}
+                          >
+                            {formatCityName(c.key, i18n.language)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <>
+                    {filteredCities.map(c => {
+                      const isSelected = tempCity === c.key;
+                      return (
+                        <TouchableOpacity
+                          key={c.key}
+                          style={[styles.chip, isSelected && styles.chipSelected]}
+                          onPress={() => {
+                            setTempCity(c.key);
+                            setCityQuery('');
+                          }}
+                          activeOpacity={0.7}
+                          testID={`filter-city-${c.key}`}
+                        >
+                          <Text
+                            style={[
+                              styles.chipText,
+                              isSelected && styles.chipTextSelected,
+                            ]}
+                          >
+                            {formatCityName(c.key, i18n.language)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    {filteredCities.length === 0 && (
+                      <TouchableOpacity
+                        style={[styles.chip, styles.chipSelected]}
+                        onPress={() => {
+                          setTempCity(cityQuery.trim());
+                          setCityQuery('');
+                        }}
+                        activeOpacity={0.7}
+                        testID="filter-city-custom"
+                      >
+                        <Text style={[styles.chipText, styles.chipTextSelected]}>
+                          ✍️ „{cityQuery.trim()}“-ის არჩევა
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
               </View>
             </View>
 
@@ -430,6 +535,48 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text,
     marginBottom: 4,
+  },
+  selectedCityBadge: {
+    backgroundColor: 'rgba(251, 113, 133, 0.18)',
+    borderColor: '#FB7185',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  selectedCityBadgeText: {
+    fontSize: 12,
+    color: '#FB7185',
+    fontWeight: '700',
+  },
+  citySearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E162A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 8,
+  },
+  citySearchIcon: {
+    fontSize: 14,
+    marginRight: 8,
+  },
+  citySearchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  citySearchClearBtn: {
+    padding: 4,
+  },
+  citySearchClearText: {
+    color: theme.colors.muted,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   chipsGrid: {
     flexDirection: 'row',

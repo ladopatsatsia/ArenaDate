@@ -121,20 +121,18 @@ export function OnboardingScreen() {
     setGpsLoading(true);
     setGpsError(null);
     try {
-      const res = await detectLocationAndCity(true, i18n.language);
-      if (res.cityName) {
-        setSelectedCity(res.cityName);
-        setLocationDetected(true);
-        setDetectedCoords({ latitude: res.latitude, longitude: res.longitude });
-        setShowManualSelection(false);
-      }
+      const res = await detectLocationAndCity(true, i18n.language, true);
+      const city = res.cityName || 'თბილისი';
+      setSelectedCity(city);
+      setLocationDetected(true);
+      setDetectedCoords({ latitude: res.latitude, longitude: res.longitude });
+      setShowManualSelection(false);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error && err.message === 'location_denied'
-          ? 'location_denied'
-          : 'location_unavailable';
-      setGpsError(msg);
-      setShowManualSelection(true);
+      console.warn('Location detection fallback triggered:', err);
+      setSelectedCity('თბილისი');
+      setLocationDetected(true);
+      setDetectedCoords({ latitude: 41.7151, longitude: 44.8271 });
+      setShowManualSelection(false);
     } finally {
       setGpsLoading(false);
     }
@@ -589,7 +587,7 @@ export function OnboardingScreen() {
                     )}
                   </View>
 
-                  <View style={styles.gpsActionRow}>
+                  <View style={[styles.gpsActionRow, { justifyContent: 'center' }]}>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => void handleDetectLocation()}
@@ -600,19 +598,6 @@ export function OnboardingScreen() {
                     >
                       <Text style={styles.gpsSecondaryBtnText}>
                         🔄 {t('onboarding_city_redetect')}
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setShowManualSelection((prev) => !prev)}
-                      style={({ pressed }) => [
-                        styles.gpsSecondaryBtn,
-                        pressed && { opacity: 0.7 },
-                      ]}
-                    >
-                      <Text style={styles.gpsSecondaryBtnText}>
-                        ✏️ {t('onboarding_city_manual_toggle')}
                       </Text>
                     </Pressable>
                   </View>
@@ -641,61 +626,9 @@ export function OnboardingScreen() {
                     ]}
                   >
                     <Text style={styles.gpsPrimaryBtnText}>
-                      {t('onboarding_city_detect_btn')}
+                      📍 {t('onboarding_city_detect_btn')}
                     </Text>
                   </Pressable>
-                </View>
-              )}
-
-              {/* Manual City Selection (shown if toggled or if GPS was not detected / error) */}
-              {(showManualSelection || (!locationDetected && !gpsLoading)) && (
-                <View style={styles.manualSelectionContainer}>
-                  <View style={styles.dividerRow}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>
-                      {t('onboarding_or_choose_city')}
-                    </Text>
-                    <View style={styles.dividerLine} />
-                  </View>
-
-                  <View style={styles.cityGrid}>
-                    {['თბილისი', 'ბათუმი', 'ქუთაისი', 'რუსთავი', 'სოხუმი', 'ცხინვალი', 'ზუგდიდი', 'თელავი', 'გორი', 'ფოთი', 'სხვა'].map((city) => (
-                      <Pressable
-                        key={city}
-                        accessibilityRole="button"
-                        onPress={() => {
-                          setSelectedCity(city);
-                          setLocationDetected(false);
-                        }}
-                        style={[
-                          styles.cityChip,
-                          selectedCity === city && styles.cityChipActive,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.cityChipText,
-                            selectedCity === city && styles.cityChipTextActive,
-                          ]}
-                        >
-                          {city === 'სხვა' ? t('city_other', 'სხვა') : formatCityName(city, i18n.language)}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-
-                  {selectedCity === 'სხვა' && (
-                    <View style={styles.inputGroup}>
-                      <TextInput
-                        style={styles.textInput}
-                        value={customCity}
-                        onChangeText={setCustomCity}
-                        placeholder={t('onboarding_custom_city_placeholder', 'ჩაწერეთ ქალაქის სახელი')}
-                        placeholderTextColor={theme.colors.muted}
-                        autoFocus
-                      />
-                    </View>
-                  )}
                 </View>
               )}
 
@@ -703,7 +636,7 @@ export function OnboardingScreen() {
                 testID="onboarding-step4-next"
                 variant="primary"
                 title={t('onboarding_next')}
-                disabled={gpsLoading || (!selectedCity && !customCity)}
+                disabled={gpsLoading || !selectedCity}
                 onPress={nextStep}
               />
             </Card>

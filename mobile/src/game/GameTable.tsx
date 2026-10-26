@@ -63,6 +63,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
   const isArenaBlack = Boolean(premiumQuery.data?.hasPremium);
 
   const seenKissIdsRef = useRef<Set<string>>(new Set());
+  const seenMatchedKissIdsRef = useRef<Set<string>>(new Set());
   const [tableNotice, setTableNotice] = useState<string | null>(null);
 
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -196,6 +197,19 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
   });
 
   // Spin rotation animation & magnetic emotional attraction pulses
+  const isMountedRef = useRef(true);
+  const roundAnnouncementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (roundAnnouncementTimerRef.current) {
+        clearTimeout(roundAnnouncementTimerRef.current);
+      }
+    };
+  }, []);
+
   const spinAnim = useRef(new Animated.Value(0)).current;
   const kissPulseAnim = useRef(new Animated.Value(1)).current;
   const kissGlowAnim = useRef(new Animated.Value(0.4)).current;
@@ -339,11 +353,22 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
     };
   }, [roomId, gameApi]);
 
-  // Poll room snapshot every 1.5s for real-time game updates
+  // Poll room snapshot every 1.5s, accelerating to 500ms when waiting for partner's action
   const snapshotQuery = useQuery({
     queryKey: ['game', 'snapshot', roomId],
     queryFn: () => gameApi.getSnapshot(roomId),
-    refetchInterval: 1500,
+    refetchInterval: (query) => {
+      const snap = query.state.data as GameRoomSnapshot | undefined;
+      const round = snap?.currentRound;
+      if (
+        round?.callerPendingAnswer !== null ||
+        round?.state === 'KissChoice' ||
+        round?.state === 'QuestionRevealing'
+      ) {
+        return 500;
+      }
+      return 1500;
+    },
   });
 
   const snapshot: GameRoomSnapshot | undefined = snapshotQuery.data;
@@ -432,7 +457,8 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setTimeout(() => {
+      roundAnnouncementTimerRef.current = setTimeout(() => {
+        if (!isMountedRef.current || !Animated?.parallel) return;
         Animated.parallel([
           Animated.timing(roundAnnouncementScale, {
             toValue: 1.15,
@@ -446,7 +472,9 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
             useNativeDriver: true,
           }),
         ]).start(() => {
-          setRoundAnnouncement(null);
+          if (isMountedRef.current) {
+            setRoundAnnouncement(null);
+          }
         });
       }, 1600);
     });
@@ -658,8 +686,22 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
           }, 3500);
         }
       }
+
+      if (k.status === 'Matched' && !seenMatchedKissIdsRef.current.has(k.id)) {
+        seenMatchedKissIdsRef.current.add(k.id);
+        if (k.senderUserId === currentUserId || k.recipientUserId === currentUserId) {
+          gameSound.playKissReceived();
+          const partnerId = k.senderUserId === currentUserId ? k.recipientUserId : k.senderUserId;
+          const peer = snapshot?.members.find((m) => m.userId === partnerId);
+          setMatchedPeerName(peer?.displayName ?? t('game_partner', 'მეწყვილე'));
+          setShowMatchModal(true);
+          cache.invalidateQueries({ queryKey: ['account', currentUserId, 'matches'] });
+          cache.invalidateQueries({ queryKey: ['account', currentUserId, 'requests'] });
+          cache.invalidateQueries({ queryKey: ['matches'] });
+        }
+      }
     }
-  }, [snapshot?.recentKisses, snapshot?.members]);
+  }, [snapshot?.recentKisses, snapshot?.members, currentUserId, cache, t]);
 
   const handleSendGift = async (giftId: string) => {
     if (!selectedMemberId) return;
@@ -718,7 +760,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
         questionId: currentRound?.currentQuestion?.id ?? '00000000-0000-0000-0000-000000000000',
         selectedOption: vars.option,
         isSkipped: false,
-        idempotencyKey: `ans_${vars.roundId}_${vars.qIndex}_${vars.option}`,
+        idempotencyKey: `ans_${vars.roundId}_${vars.qIndex}_${currentUserId}_${vars.option}_${Date.now()}`,
         stateVersion: Number(snapshot?.stateVersion ?? 1),
       }),
     onSuccess: () => {
@@ -727,14 +769,13 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
   });
 
   // Skip question mutation
-  // Skip question mutation
   const skipMutation = useMutation({
     mutationFn: (vars: { roundId: string; qIndex: number }) =>
       gameApi.skipQuestion(
         roomId,
         vars.roundId,
         vars.qIndex,
-        `skip_${vars.roundId}_${vars.qIndex}_${Date.now()}`
+        `skip_${vars.roundId}_${vars.qIndex}_${currentUserId}_${Date.now()}`
       ),
     onSuccess: () => {
       cache.invalidateQueries({ queryKey: ['game', 'snapshot', roomId] });
@@ -746,7 +787,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
     mutationFn: (recipientUserId: string) =>
       gameApi.sendKiss(roomId, currentRound!.roundId, {
         recipientUserId,
-        idempotencyKey: `kiss_${currentRound!.roundId}_${recipientUserId}`,
+        idempotencyKey: `kiss_${currentRound!.roundId}_${currentUserId}_${recipientUserId}_${Date.now()}`,
       }),
     onMutate: () => {
       gameSound.playKissSent();
@@ -758,6 +799,9 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
     },
     onSuccess: (res) => {
       cache.invalidateQueries({ queryKey: ['game', 'snapshot', roomId] });
+      cache.invalidateQueries({ queryKey: ['account', currentUserId, 'matches'] });
+      cache.invalidateQueries({ queryKey: ['account', currentUserId, 'requests'] });
+      cache.invalidateQueries({ queryKey: ['matches'] });
       if (res.status === 'Matched') {
         gameSound.playKissReceived();
         const peer = snapshot?.members.find(m => m.userId === res.recipientUserId);
@@ -770,7 +814,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
   // Skip kiss mutation
   const skipKissMutation = useMutation({
     mutationFn: () =>
-      gameApi.skipKiss(roomId, currentRound!.roundId, `skipkiss_${currentRound!.roundId}_${Date.now()}`),
+      gameApi.skipKiss(roomId, currentRound!.roundId, `skipkiss_${currentRound!.roundId}_${currentUserId}_${Date.now()}`),
     onSuccess: () => {
       cache.invalidateQueries({ queryKey: ['game', 'snapshot', roomId] });
     },

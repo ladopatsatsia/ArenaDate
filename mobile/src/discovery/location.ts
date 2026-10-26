@@ -76,16 +76,82 @@ export async function foregroundFix(consent: boolean): Promise<{ latitude: numbe
   return { latitude: location.coords.latitude, longitude: location.coords.longitude };
 }
 
+export async function getIpFallbackLocation(): Promise<{ latitude: number; longitude: number; cityName?: string } | null> {
+  if (typeof fetch === 'undefined') return null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch('https://ipwho.is/', {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success !== false && data.latitude && data.longitude) {
+        return {
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          cityName: data.city || undefined,
+        };
+      }
+    }
+  } catch {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.latitude && data.longitude) {
+          return {
+            latitude: Number(data.latitude),
+            longitude: Number(data.longitude),
+            cityName: data.city || undefined,
+          };
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
 export async function detectLocationAndCity(
   consent: boolean,
-  lang: string = 'ka'
+  lang: string = 'ka',
+  allowFallback: boolean = false
 ): Promise<{
   latitude: number;
   longitude: number;
   cityName?: string;
   canonicalKey?: string;
 }> {
-  const coords = await foregroundFix(consent);
+  let coords: { latitude: number; longitude: number };
+  try {
+    coords = await foregroundFix(consent);
+  } catch (fixErr) {
+    if (!allowFallback) throw fixErr;
+    const ipLoc = await getIpFallbackLocation();
+    coords = ipLoc
+      ? { latitude: ipLoc.latitude, longitude: ipLoc.longitude }
+      : { latitude: 41.7151, longitude: 44.8271 };
+    if (ipLoc?.cityName) {
+      const matched = findCity(ipLoc.cityName);
+      if (matched) {
+        return {
+          ...coords,
+          cityName:
+            lang === 'en'
+              ? matched.labelEn
+              : lang === 'ru' && matched.labelRu
+              ? matched.labelRu
+              : matched.labelKa,
+          canonicalKey: matched.key,
+        };
+      }
+    }
+  }
 
   // 1. Instant nearest Georgian city matching (0ms, robust across web and native)
   const nearest = findNearestCity(coords.latitude, coords.longitude, 75);

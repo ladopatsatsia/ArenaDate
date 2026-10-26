@@ -1,3 +1,131 @@
+# Status - Arena Bottle Game: Question Variety, Match Creation & Snappy State Transitions
+
+Updated 2026-10-26. Implemented comprehensive fixes for the Arena Bottle Game (ბოთლის თამაში) covering question repetition, match creation, and state progression:
+
+1. **Diverse Questions & No Stuck Rounds ("კითხვა გამოტოვებულია" Root Cause Resolution)**:
+   - **Expanded Question Pool (`GameQuestionCatalog.cs`)**: Expanded `CuratedQuestions` from 20 to 35 rich, culturally authentic Georgian dating/lifestyle questions and updated seed logic in `GameService.EnsureSeededQuestionsAsync`.
+   - **Per-Room Question Tracking (`PickQuestionsForRoomAsync`)**: Added room history analysis that inspects previous rounds' `QuestionsJson` for the room and selects unasked questions. Only recycles questions after all active questions in the catalog have been played in that room.
+   - **PostgreSQL Idempotency Key Collision Fix**: Fixed a critical unique constraint violation (`IX_GameRoundAnswers_RoundId_QuestionIndex_IdempotencyKey`). Previously, both players submitting identical choices sent identical keys (`ans_{roundId}_{qIndex}_{option}`), causing Player 2's answer to fail with a database error 23505. This left the round stuck at 1/2 answers until the 25-second deadline expired and marked the question as skipped ("დრო ამოიწურა. კითხვა გამოტოვებულია"). Scoped idempotency keys with `userId` and timestamps (`ans_{roundId}_{qIndex}_{userId}_{option}_{timestamp}`) on client and server.
+
+2. **Mutual Kiss Match Creation & Immediate Matches Tab Update**:
+   - **Flexible Kiss State Handling (`GameService.cs`)**: Updated `SendKiss` and `SkipKiss` endpoints to allow decisions during both `KissChoice` and `QuestionRevealing` (or when `room.DeadlineType == "KissChoice"`).
+   - **Reactive Client Cache Invalidation (`GameTable.tsx`)**: Updated `GameTable.tsx` to invalidate `['account', currentUserId, 'matches']`, `['account', currentUserId, 'requests']`, and `['matches']` query caches when sending a kiss, and introduced `seenMatchedKissIdsRef` to detect when a mutual kiss creates a match in snapshot polling, immediately updating the Matches tab without requiring a manual refresh.
+
+3. **Immediate Snappy Transitions (Eliminating 25-Second Countdown Delays)**:
+   - **Server-Side Deadline Acceleration (`GameService.cs`)**: In `GameService.cs`, when both players have submitted answers or when both have made their kiss choices (`partnerDecided == true`), shortened the transition delay from 15 seconds to 3 seconds (`now.AddSeconds(3)`).
+   - **Adaptive High-Frequency Client Polling (`GameTable.tsx`)**: Implemented dynamic polling in `GameTable.tsx` that accelerates from standard 1500ms down to 500ms while waiting for partner choices (`callerPendingAnswer !== null || round?.state === 'KissChoice' || round?.state === 'QuestionRevealing'`), delivering snappy UI progression across both devices.
+
+4. **Lifecycle & Contrast Hardening**:
+   - Protected animation timers in `GameTable.tsx` with component mount tracking ref (`isMountedRef`) to prevent async callbacks after teardown.
+   - Adjusted shared palette `primary` to `#7C3AED` to guarantee WCAG AA contrast (5.7:1) with white text.
+   - Added `QueryClientProvider` and `useAuth` mocks in `tests/filters.test.tsx` and updated `tests/game-round-fixes.test.tsx`.
+
+5. **Automated Verification**:
+   - `npx tsc --noEmit` (mobile): 0 TypeScript errors. (PASS)
+   - `npx jest tests/game-round-fixes.test.tsx tests/game-room-chat.test.tsx tests/game-direct-request.test.tsx tests/game-gifts.test.tsx tests/game-sound.test.ts tests/quality.test.tsx tests/health.test.tsx tests/filters.test.tsx --forceExit`: 8 passed, 8 total, 23 passed, 23 total. (PASS)
+
+---
+
+# Status - Blocked Accounts Tabs, Today's Plans City Filter & Onboarding Location Detection
+
+Updated 2026-10-26. Implemented user refinements across safety tabs, plan filters, and registration onboarding:
+
+1. **Blocked Accounts Page UI Refinement (`SafetyCenterScreen.tsx`)**:
+   - Removed the "წესები და პირობები" (Terms) tab button completely from the Blocked Accounts page, as terms are housed in their dedicated tab.
+   - Symmetrically redesigned the two remaining tabs (`blocks` -> `🚫 დაბლოკილი` / `🚫 Блокировки`, and `prior-conversations` -> `💬 საუბრები` / `💬 Разговоры`) into equal 50/50 segmented pills (`flex: 1`, `minHeight: 46`, `paddingHorizontal: 12`, `borderRadius: 24`).
+   - Completely resolved text overlapping, wrapping, and clipping across Georgian and Russian locales.
+
+2. **Today's Plans Location Filter with Search & Typing (`TodayPlansFilterModal.tsx`)**:
+   - Integrated a searchable text input with search icon 🔍, placeholder *„ჩაწერეთ ქალაქი...“*, and clear button (✕) in the City section of the filter modal.
+   - Dynamically filters the comprehensive Georgian cities catalog (`CITIES`) in real time across Georgian, English, Russian names, and regional aliases.
+   - If no catalog city matches, provides a custom city option *„✍️ „{custom}“-ის არჩევა“* so users can select any typed city.
+   - Displays a highlighted badge with quick-clear when a specific city is selected.
+
+3. **Onboarding Registration Location Detection & City Selection (`location.ts` & `OnboardingScreen.tsx`)**:
+   - Hidden and removed the manual city selection grid (*„ან აირჩიეთ ქალაქი სიიდან“*) and manual toggle from Onboarding Step 4, restricting city selection solely to location detection.
+   - Enhanced `foregroundFix` and `detectLocationAndCity` with IP-based geolocation fallback (`ipwho.is` / `ipapi.co`) and resilient Georgian default fallback so location detection never throws an unhandled error or traps users during registration.
+   - Cleaned up the Step 4 interface to show active detection, a highlighted card with the detected city (*„📍 თქვენი ლოკაცია დადგენილია: [ქალაქი]“*), and a re-detect button.
+
+4. **Automated Verification**:
+   - `npx tsc --noEmit`: 0 TypeScript errors. (PASS)
+   - `tests/safety-notifications-tabs.test.tsx`: 6/6 tests passing. (PASS)
+   - `tests/today-plans.test.tsx`: 8/8 tests passing, including typed city filtering. (PASS)
+   - `tests/discovery-location.test.ts`: 3/3 tests passing. (PASS)
+   - `tests/cities.test.ts`: 5/5 tests passing. (PASS)
+
+---
+
+# Status - Locked Request Cards Action Buttons for Non-VIP Users
+
+Updated 2026-10-26. Refined the Requests tab UI behavior for users without active Arena Black (VIP) subscription:
+
+1. **UX & Business Rule Realignment**:
+   - For free users without Arena Black, incoming discovery like requests are blurred/locked.
+   - Removed the "✕ უარყოფა" (Decline) and "❤️ დადასტურება" (Confirm) action buttons from locked request cards, as accepting/declining requests without seeing suitors is reserved for Arena Black subscribers.
+   - Locked cards now exclusively display the "🖤 Arena Black — ფოტოს გახსნა" unlock button and helper text *„ჩართე Arena Black ფოტოსა და რექუესტის სანახავად“*. Tapping the card or button opens the Arena Black VIP upgrade modal.
+   - For VIP users (or unblurred requests such as SuperLikes and Game bottle kisses), the full cards with clear photos, bio, city, and action buttons (`✕ უარყოფა` and `❤️ დადასტურება`) remain fully functional.
+
+2. **Automated Verification**:
+   - `tests/incoming-requests-confirm.test.tsx`: Verified that free users without premium do not see confirm or decline buttons on locked cards, but only the Arena Black unlock button; and verified SuperLikes remain unblurred with action buttons. (PASS)
+   - `tests/premium.test.tsx`: Verified all premium subscription tiers and drawer status badges. (PASS)
+
+---
+
+# Status - 36-Second Promotional Video Advertisement (Voiceover Aligned & Clean Silent Video)
+
+Updated 2026-10-26. Generated the extended **36.0-second vertical promo video** (Full HD 1080x1920, 30fps, 1080 frames) calibrated to the user's complete 36-second voiceover script and authentic in-app design:
+
+1. **Timeline & Narrative Synchronization (36.0s)**:
+   - **0.0 - 6.5s**: „დღეს ვისთან ერთად დალევ ყავას? იქნებ... ჯერ არც კი იცნობ?“ ➔ Atmospheric coffee steam ☕, kinetic typography, smooth zoom into smartphone stage.
+   - **6.5 - 13.5s**: „ეს არის არენა — დეითინგ აპი, სადაც შეგხვდება შენთვის უკვე კარგად ნაცნობი სვაიპი.“ ➔ Real Discovery Swipe deck (Nini, 23, Tbilisi), responsive touch swipe right, and `❤️ LIKE` neon stamp.
+   - **13.5 - 21.5s**: „დამატებით, აქ ნახავ პატარა გასართობ თამაშს, სადაც შეგიძლია დაატრიალო ბოთლი და საუბარი თამაშით დაიწყო!“ ➔ Authentic `GameTable.tsx` circular dark felt table with gold amber border, upper crest, lower `ARENA BOTTLE CLUB` text, 3D emerald glass bottle with gold arrow tip, spin physics, target selection badge `💘 არჩეული`, floating kiss `💋 💖`, and match dialog.
+   - **21.5 - 31.5s**: „„დღეს მინდა“ განყოფილებაში კი დაწერე, რისი გაკეთება გინდა: იქნებ სეირნობა, ყავის დალევა, ან იქნებ კინოს ბილეთები გაქვს და პარტნიორს ეძებ? მიიღე მოთხოვნები შენს საღამოს გეგმაზე, აირჩიე თანამგზავრი და ონლაინ გაცნობა ნამდვილ შეხვედრად აქციე.“ ➔ „დღეს მინდა“ plans feed (☕ ყავა, 🎬 კინო, 🚶‍♀️ სეირნობა), incoming request from Giorgi (25), tap `[თანამგზავრად არჩევა ✓]`, and real meeting confirmation modal.
+   - **31.5 - 36.0s**: „არენა — პირველი სვლა შენია“ ➔ Arena golden emblem, tagline, and **Telegram-only** hero card (`✈️ გახსენი Telegram-ში` • `@ArenaDateBot • ინსტალაციის გარეშე`), strictly omitting Play Store / Google.
+
+2. **Rendered Video Formats & Artifacts**:
+   - `artifacts/arena_promo_36s_silent.mp4`: Clean video-only H.264 stream without audio track, pristine for user voiceover.
+   - `artifacts/arena_promo_36s.webm`: In-browser preview VP9 format.
+
+---
+
+# Status - 20-Second Promotional Video Advertisement (Voiceover Aligned)
+
+Updated 2026-10-26. Generated the extended **20.0-second vertical promo video** (Full HD 1080x1920, 30fps, 600 frames) precisely timed and calibrated to the user's updated 20-second voiceover script:
+
+1. **Timeline & Narrative Synchronization (20.0s)**:
+   - **0.0 - 4.2s**: „დღეს ვისთან ერთად დალევ ყავას? იქნებ... ჯერ არც კი იცნობ.“ ➔ Steaming coffee cup ☕, ambient neon particles, kinetic typography, zoom into iPhone 16 Pro running ARENA.
+   - **4.2 - 8.2s**: „ეს არენაა — დეითინგ აპი კარგად ნაცნობი სვაიპით...“ ➔ Real Discovery Swipe deck with cafe portrait (Nini, 23), swipe right animation, and `❤️ LIKE` neon stamp.
+   - **8.2 - 12.8s**: „...და ბოთლის თამაშით!“ ➔ Authentic Arena Bottle Table (`GameTable.tsx`), dark felt with amber border, upper logo crest, lower `ARENA BOTTLE CLUB` text, authentic 3D bottle with gold pointer tip, physics spin, stopping on partner, `💘 არჩეული` badge, flying kiss bubble `💋 💖`, and `🎉 ორმხრივი კოცნა! MATCH!`.
+   - **12.8 - 17.5s**: „„დღეს მინდა“ განყოფილებაში კი შეგიძლია გააზიარო შენი გეგმა და იპოვო თანამგზავრი ვინც კონკრეტულ აქტივობაში შემოგიერთდება.“ ➔ „დღეს მინდა“ feed, plan cards (☕ ყავა, 🎬 კინო, 🚶‍♀️ სეირნობა), incoming request from Giorgi (25), tapping `[თანამგზავრად არჩევა ✓]`, and confirmed meeting modal.
+   - **17.5 - 20.0s**: „არენა — პირველი სვლა შენია!“ ➔ Arena logo, golden tagline, and **Telegram only** hero badge (`✈️ გახსენი Telegram-ში` • `@ArenaDateBot • ინსტალაციის გარეშე`).
+
+2. **Rendered Video Formats & Artifacts**:
+   - `artifacts/arena_promo_20s_silent.mp4` (3.14 MB, 1080x1920 H.264): Video-only without audio, ready for voiceover.
+   - `artifacts/arena_promo_20s_with_sfx.mp4` (3.26 MB, 1080x1920 H.264 + AAC): Video with synchronized in-game sound effects.
+   - `artifacts/arena_promo_20s.webm` (2.68 MB, 1080x1920 VP9): Optimized for direct in-browser playback.
+
+---
+
+# Status - 15-Second Promotional Video Advertisement (Authentic Table, Bottle & Telegram-Only)
+
+Updated 2026-10-26. Re-rendered the ~15-second vertical promo video (Full HD 1080x1920, 30fps, 450 frames) reflecting exact user feedback:
+
+1. **Authentic Arena Game Table & Bottle (`GameTable.tsx` aligned)**:
+   - Replaced generic elements with the actual in-app dark felt circular table (`#070B14`, `#0F172A`) with amber border (`rgba(217, 119, 6, 0.5)`), inner dashed felt ring (`rgba(245, 158, 11, 0.35)`), upper `logo-mark.png` crest, and lower `ARENA BOTTLE CLUB` gold typography.
+   - Replaced generic bottle with the exact in-app bottle model: gold directional pointer arrow tip `▲` (`#F59E0B`), gold foil capsule (`#D97706` + `#FEF08A`), tapered emerald glass neck and shoulders (`#064E3B`, `#04382A`), dark body (`#022C22`) with specular reflection highlights, luxury gold-bordered label `ARENA VIP`, and spinning glow halo.
+   - Synchronized floating badges (`🎯 შემრჩევი` on chooser, `💘 არჩეული` on target) and flying kiss bubble `💋 💖`.
+
+2. **Telegram-Only Outro & Call to Action**:
+   - Completely removed App Store and Google Play badges as requested.
+   - Features prominent Telegram Mini App branding: `✈️ გახსენი Telegram-ში` (`@ArenaDateBot • ინსტალაციის გარეშე`), Arena logo, and tagline *„პირველი სვლა შენია.“*.
+
+3. **Rendered Video Formats & Artifacts**:
+   - `artifacts/arena_promo_15s_silent.mp4` (2.63 MB, 1080x1920 H.264): Video-only without audio, ready for voiceover.
+   - `artifacts/arena_promo_15s_with_sfx.mp4` (2.74 MB, 1080x1920 H.264 + AAC): Video with subtle in-game sound effects.
+   - `artifacts/arena_promo_15s.webm` (2.37 MB, 1080x1920 VP9): In-browser playback format.
+
+---
+
 # Status - Discovery Swipe Likes Delivery, Suitor Requests & Mutual Matching
 
 Updated 2026-10-26. Fixed issue where swipe likes/match requests sent from Discovery did not reach or appear in the recipient's Requests:
