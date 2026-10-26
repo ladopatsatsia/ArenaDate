@@ -253,8 +253,8 @@ const server = http.createServer((req, res) => {
             border-radius: 1px;
           }
           .arena-label {
-            width: 28px;
-            height: 16px;
+            width: 32px;
+            height: 15px;
             background-color: #18181b;
             border-radius: 3px;
             border: 1px solid #D97706;
@@ -263,24 +263,25 @@ const server = http.createServer((req, res) => {
             justify-content: center;
             box-sizing: border-box;
           }
-          .arena-label-badge {
-            width: 14px;
-            height: 2px;
-            background-color: #F59E0B;
-            border-radius: 1px;
-            box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
+          .arena-label-text {
+            font-size: 7.5px;
+            font-weight: 900;
+            color: #F59E0B;
+            letter-spacing: 1px;
+            line-height: 8px;
+            text-align: center;
           }
           .arena-loader-text {
-            margin-top: 16px;
+            margin-top: 18px;
             display: flex;
             flex-direction: column;
             align-items: center;
           }
           .arena-status-text {
-            font-size: 15px;
-            font-weight: 600;
-            color: #E0E7FF;
-            letter-spacing: 1px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #9CA3AF;
+            letter-spacing: 2.5px;
             animation: arenaTextPulse 1.6s ease-in-out infinite;
           }
           @keyframes arenaBottleSpin {
@@ -301,7 +302,7 @@ const server = http.createServer((req, res) => {
       if (!html.includes('arena-initial-loader') && html.includes('<div id="root">')) {
         html = html.replace(
           '<div id="root">',
-          '<div id="root"><div id="arena-initial-loader" class="arena-loader-wrap"><div class="arena-loader-halo"></div><div class="arena-bottle-box"><div class="arena-bottle"><div class="arena-pointer-tip"></div><div class="arena-foil-cap"><div class="arena-foil-ring"></div></div><div class="arena-neck"></div><div class="arena-shoulders"></div><div class="arena-body"><div class="arena-glass-sheen"></div><div class="arena-glass-secondary"></div><div class="arena-label"><div class="arena-label-badge"></div></div></div></div></div><div class="arena-loader-text"><div class="arena-status-text">ჩატვირთვა...</div></div></div>'
+          '<div id="root"><div id="arena-initial-loader" class="arena-loader-wrap"><div class="arena-loader-halo"></div><div class="arena-bottle-box"><div class="arena-bottle"><div class="arena-pointer-tip"></div><div class="arena-foil-cap"><div class="arena-foil-ring"></div></div><div class="arena-neck"></div><div class="arena-shoulders"></div><div class="arena-body"><div class="arena-glass-sheen"></div><div class="arena-glass-secondary"></div><div class="arena-label"><div class="arena-label-text">ARENA</div></div></div></div></div><div class="arena-loader-text"><div class="arena-status-text">loading....</div></div></div>'
         );
       }
       payload = Buffer.from(html, 'utf-8');

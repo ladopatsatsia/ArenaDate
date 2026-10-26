@@ -7,7 +7,7 @@ interface BottleLoadingScreenProps {
 }
 
 export function BottleLoadingScreen({
-  message = 'ჩატვირთვა...',
+  message = 'loading....',
   subMessage,
 }: BottleLoadingScreenProps) {
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -124,9 +124,9 @@ export function BottleLoadingScreen({
               <View style={styles.glassSpecularSheen} />
               <View style={styles.glassSecondarySheen} />
 
-              {/* Luxury Label without text to prevent raw text flashes */}
+              {/* Luxury Label with ARENA branding */}
               <View style={styles.bottleLabel}>
-                <View style={styles.bottleLabelBadge} />
+                <Text style={styles.bottleLabelText}>ARENA</Text>
               </View>
 
               {/* Base Rim */}
@@ -258,8 +258,8 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
   },
   bottleLabel: {
-    width: 28,
-    height: 16,
+    width: 32,
+    height: 15,
     backgroundColor: '#18181b',
     borderRadius: 3,
     borderWidth: 1,
@@ -267,11 +267,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bottleLabelBadge: {
-    width: 14,
-    height: 2,
-    backgroundColor: '#F59E0B',
-    borderRadius: 1,
+  bottleLabelText: {
+    fontSize: 7.5,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 1,
   },
   bottleBaseRim: {
     position: 'absolute',
@@ -283,13 +283,13 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 18,
   },
   statusMessage: {
-    fontSize: 15,
-    color: '#E0E7FF',
-    fontWeight: '600',
-    letterSpacing: 1,
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '500',
+    letterSpacing: 2.5,
     textAlign: 'center',
   },
   subMessage: {
