@@ -1,3 +1,36 @@
+# Status - Discovery Swipe Likes Delivery, Suitor Requests & Mutual Matching
+
+Updated 2026-10-26. Fixed issue where swipe likes/match requests sent from Discovery did not reach or appear in the recipient's Requests:
+
+1. **Root Cause Analysis**:
+   - `MatchService.Requests`:
+     - Free users received `isBlurred = true` for all Discovery and SuperLike requests, and in `matches.tsx` the entire card was rendered locked with only an Arena Black purchase button without "❤️ დადასტურება" (Confirm) or "✕ უარყოფა" (Decline) buttons.
+     - Prior query strictly required `!db.Set<DiscoveryDecision>().Any(myD => myD.UserId == user && myD.TargetId == d.UserId)`. If User B had previously passed User A in Discovery, User A's subsequent like or superlike was permanently hidden from User B's Requests tab.
+     - Photo query used `State == "approved"`. On non-development instances without an active moderator, uploaded photos remain in `"pending"` moderation state, filtering them out of discovery feeds and suitor lists.
+   - `MatchService.Decide`:
+     - When User B responded to an incoming request by pressing "❤️ Confirm", `eligibility.RequireCurrent(user, input.TargetId)` was called, which evaluated whether User A was in User B's discovery candidate feed (checking distance radius, age range, etc.). If their discovery filters differed, it threw 404 `profile_unavailable`, rejecting the match.
+     - Also threw 409 `decision_final` if User B had an existing "pass" record on User A.
+
+2. **Backend Fixes (`backend/Dating.Api/Features/Matching/MatchService.cs`)**:
+   - **`Requests` Aggregation**: Aggregates all suitors who sent a Discovery like, SuperLike, Game kiss (`GameKiss`), or Direct match request (`GameDirectMatchRequest`). Filters out only actively matched pairs, blocked users, unmatched pairs, or senders already liked back by user.
+   - **Pending Photos Allowed**: Changed photo checks to `State != "rejected"` across `DiscoveryEligibility.cs`, `DiscoveryService.cs`, `MediaAccess.cs`, and `MatchService.cs`.
+   - **Incoming Request Resolution in `Decide`**: If user is responding to an incoming like, superlike, or game request, relaxes discovery candidate filter to safety checks (block, unmatch, active, adult). Allows changing a past "pass" to "like", marks pending game kisses as "Matched", marks direct requests as "Accepted", activates `DatingMatch`, and dispatches push and Telegram notifications.
+   - **`SuperLike` Resiliency**: Allows users to superlike targets even if a previous pass existed, updating the decision to "like".
+
+3. **Frontend Fixes (`mobile/app/(tabs)/matches.tsx`)**:
+   - In requests list, even when teaser photo is blurred for free users, renders "✕ უარყოფა" (Decline), "❤️ დადასტურება" (Confirm / Match), and "🖤 Arena Black — ფოტოს გახსნა" (Reveal photo).
+   - `SuperLike` requests (`req.origin === 'SuperLike'`) are never locked or blurred, displaying the clear avatar, full profile, note quote, and confirm/decline buttons.
+
+4. **Verification**:
+   - TypeScript Typecheck: `npm run typecheck` across `mobile` -> **0 Warnings, 0 Errors**.
+   - Unit Tests:
+     - `npx jest tests/incoming-requests-confirm.test.tsx --forceExit` -> **2/2 Passed (100%)**.
+     - `npx jest tests/swipe-deck.test.tsx tests/account-lifecycle.test.tsx --forceExit` -> **5/5 Passed (100%)**.
+     - `npx jest tests/premium.test.tsx tests/you-viewed-superlike.test.tsx tests/swipe-coordinator.test.ts --forceExit` -> **19/19 Passed (100%)**.
+   - Git Commits: `7163bcd` pushed to both `origin/main` and `origin/master` for Railway deployment.
+
+---
+
 # Status - Unread Messages Red Dot Indicators & Instant Clearance
 
 Updated 2026-10-26. Implemented unread message notifications across the mobile app:
