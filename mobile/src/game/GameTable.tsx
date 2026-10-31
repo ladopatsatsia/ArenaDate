@@ -16,6 +16,7 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 import {
   GameApi,
   type GameRoomSnapshot,
@@ -44,6 +45,7 @@ interface GameTableProps {
 
 export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTableProps) {
   const { t } = useTranslation();
+  const router = useRouter();
   const cache = useQueryClient();
   const { api: authApi, manager } = useAuth();
   const premiumApi = React.useMemo(() => new PremiumApi(authApi, manager), [authApi, manager]);
@@ -361,6 +363,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
       const snap = query.state.data as GameRoomSnapshot | undefined;
       const round = snap?.currentRound;
       if (
+        round?.state === 'QuestionAnswering' ||
         round?.callerPendingAnswer !== null ||
         round?.state === 'KissChoice' ||
         round?.state === 'QuestionRevealing'
@@ -760,11 +763,14 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
         questionId: currentRound?.currentQuestion?.id ?? '00000000-0000-0000-0000-000000000000',
         selectedOption: vars.option,
         isSkipped: false,
-        idempotencyKey: `ans_${vars.roundId}_${vars.qIndex}_${currentUserId}_${vars.option}_${Date.now()}`,
+        idempotencyKey: `ans_${vars.roundId.slice(0, 8)}_${currentUserId}_${Date.now()}`,
         stateVersion: Number(snapshot?.stateVersion ?? 1),
       }),
     onSuccess: () => {
       cache.invalidateQueries({ queryKey: ['game', 'snapshot', roomId] });
+    },
+    onError: (err) => {
+      console.warn('[GameTable] answerQuestion error:', err);
     },
   });
 
@@ -775,10 +781,13 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
         roomId,
         vars.roundId,
         vars.qIndex,
-        `skip_${vars.roundId}_${vars.qIndex}_${currentUserId}_${Date.now()}`
+        `skip_${vars.roundId.slice(0, 8)}_${currentUserId}_${Date.now()}`
       ),
     onSuccess: () => {
       cache.invalidateQueries({ queryKey: ['game', 'snapshot', roomId] });
+    },
+    onError: (err) => {
+      console.warn('[GameTable] skipQuestion error:', err);
     },
   });
 
@@ -787,7 +796,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
     mutationFn: (recipientUserId: string) =>
       gameApi.sendKiss(roomId, currentRound!.roundId, {
         recipientUserId,
-        idempotencyKey: `kiss_${currentRound!.roundId}_${currentUserId}_${recipientUserId}_${Date.now()}`,
+        idempotencyKey: `kiss_${currentRound!.roundId.slice(0, 8)}_${currentUserId}_${Date.now()}`,
       }),
     onMutate: () => {
       gameSound.playKissSent();
@@ -809,14 +818,20 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
         setShowMatchModal(true);
       }
     },
+    onError: (err) => {
+      console.warn('[GameTable] sendKiss error:', err);
+    },
   });
 
   // Skip kiss mutation
   const skipKissMutation = useMutation({
     mutationFn: () =>
-      gameApi.skipKiss(roomId, currentRound!.roundId, `skipkiss_${currentRound!.roundId}_${currentUserId}_${Date.now()}`),
+      gameApi.skipKiss(roomId, currentRound!.roundId, `skipkiss_${currentRound!.roundId.slice(0, 8)}_${currentUserId}_${Date.now()}`),
     onSuccess: () => {
       cache.invalidateQueries({ queryKey: ['game', 'snapshot', roomId] });
+    },
+    onError: (err) => {
+      console.warn('[GameTable] skipKiss error:', err);
     },
   });
 
@@ -847,7 +862,7 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
     mutationFn: (recipientUserId: string) =>
       gameApi.postGameKiss(roomId, {
         recipientUserId,
-        idempotencyKey: `postkiss_${roomId}_${recipientUserId}_${Date.now()}`,
+        idempotencyKey: `pkiss_${roomId.slice(0, 8)}_${recipientUserId.slice(0, 8)}_${Date.now()}`,
       }),
     onMutate: () => {
       gameSound.playKissSent();
@@ -861,6 +876,9 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
         setMatchedPeerName(peer?.displayName ?? t('game_partner', 'მეწყვილე'));
         setShowMatchModal(true);
       }
+    },
+    onError: (err) => {
+      console.warn('[GameTable] postGameKiss error:', err);
     },
   });
 
@@ -2121,13 +2139,26 @@ export function GameTable({ roomId, gameApi, currentUserId, onLeave }: GameTable
             <Text style={styles.matchModalInfo}>
               {t('game_match_saved_note', 'თქვენი კავშირი შეინახა „წყვილები“-ს განყოფილებაში (ჩატის გასახსნელად საჭიროა 25 💎).')}
             </Text>
-            <Button
-              variant="primary"
-              title={t('game_awesome', 'შესანიშნავია ✨')}
-              onPress={() => setShowMatchModal(false)}
-              style={styles.matchModalBtn}
-              testID="close-match-modal-button"
-            />
+            <View style={{ gap: 10, marginTop: 12, width: '100%' }}>
+              <Button
+                variant="primary"
+                title="💎 ჩატებში გადასვლა (25 💎)"
+                onPress={() => {
+                  setShowMatchModal(false);
+                  onLeave?.();
+                  router.push('/(tabs)/matches');
+                }}
+                style={styles.matchModalBtn}
+                testID="go-to-matches-button"
+              />
+              <Button
+                variant="secondary"
+                title="თამაშის გაგრძელება ✨"
+                onPress={() => setShowMatchModal(false)}
+                style={styles.matchModalBtn}
+                testID="close-match-modal-button"
+              />
+            </View>
           </Card>
         </View>
       </Modal>

@@ -732,6 +732,36 @@ export default function Matches() {
           contentContainerStyle={styles.listContent}
           refreshing={refreshing}
           onRefresh={() => { void handleManualRefresh(); }}
+          ListHeaderComponent={
+            lockedGameMatches.length > 0 ? (
+              <View style={{ marginBottom: 12, padding: 14, backgroundColor: '#fdf2f8', borderRadius: 14, borderWidth: 1, borderColor: '#fbcfe8' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={{ fontWeight: 'bold', color: '#db2777', fontSize: 14 }}>
+                    💋 ბოთლის თამაში: {lockedGameMatches.length} ახალი მეჩი
+                  </Text>
+                </View>
+                <Text style={{ color: '#9d174d', fontSize: 12, marginBottom: 8 }}>
+                  ერთმანეთს კოცნა გაუგზავნეთ! ჩატის გასახსნელად საჭიროა 25 კრისტალი.
+                </Text>
+                {lockedGameMatches.map(lm => (
+                  <View key={lm.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderColor: '#fce7f3' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#831843', fontWeight: 'bold', fontSize: 14 }}>
+                        {lm.displayName}, {lm.age}
+                      </Text>
+                    </View>
+                    <Button
+                      variant="primary"
+                      title="💎 25 ჩატი"
+                      onPress={() => setUnlockMatchCandidate(lm)}
+                      style={{ paddingHorizontal: 12, paddingVertical: 6, minWidth: 90 }}
+                      testID={`unlock-header-game-match-${lm.id}`}
+                    />
+                  </View>
+                ))}
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             matches.isPending ? (
               <MatchListSkeleton count={5} />

@@ -2368,6 +2368,8 @@ public sealed class GameService(
         Guid? createdMatchId = null;
         Guid? createdConvId = null;
 
+        var sanitizedKey = SanitizeIdempotencyKey(req.IdempotencyKey, userId);
+
         var kiss = new GameKiss
         {
             Id = Guid.NewGuid(),
@@ -2378,7 +2380,7 @@ public sealed class GameService(
             SenderGeneration = callerMembership.Generation,
             RecipientGeneration = recipientMembership.Generation,
             Status = isMutualMatch ? "Matched" : "Pending",
-            IdempotencyKey = req.IdempotencyKey,
+            IdempotencyKey = sanitizedKey,
             CreatedAtUtc = now,
             MatchedAtUtc = isMutualMatch ? now : null
         };
@@ -2632,9 +2634,10 @@ public sealed class GameService(
         var existingAnswer = await db.Set<GameRoundAnswer>()
             .SingleOrDefaultAsync(a => a.RoundId == roundId && a.QuestionIndex == questionIndex && a.UserId == userId, ct);
 
-        var effectiveKey = string.IsNullOrWhiteSpace(req.IdempotencyKey)
+        var rawEffectiveKey = string.IsNullOrWhiteSpace(req.IdempotencyKey)
             ? $"{userId:N}_{Guid.NewGuid():N}"
             : $"{req.IdempotencyKey}_{userId:N}";
+        var effectiveKey = SanitizeIdempotencyKey(rawEffectiveKey, userId);
 
         if (existingAnswer == null)
         {
@@ -2652,7 +2655,7 @@ public sealed class GameService(
             db.Set<GameRoundAnswer>().Add(answer);
             await db.SaveChangesAsync(ct);
         }
-        else if (existingAnswer.IsSkipped && !req.IsSkipped && req.SelectedOption != null)
+        else if (!req.IsSkipped && req.SelectedOption != null)
         {
             existingAnswer.IsSkipped = false;
             existingAnswer.SelectedOption = req.SelectedOption;
@@ -2836,12 +2839,14 @@ public sealed class GameService(
         if (round.State != "KissChoice" && round.State != "QuestionRevealing" && room.DeadlineType != "KissChoice")
             throw new AuthFailure(400, "not_kiss_phase");
 
+        var sanitizedKey = SanitizeIdempotencyKey(req.IdempotencyKey, userId);
+
         var existingKiss = await db.Set<GameKiss>()
             .SingleOrDefaultAsync(k => k.RoundId == roundId && k.SenderUserId == userId, ct);
 
         if (existingKiss != null)
         {
-            if (existingKiss.IdempotencyKey == req.IdempotencyKey && existingKiss.RecipientUserId == req.RecipientUserId)
+            if ((existingKiss.IdempotencyKey == req.IdempotencyKey || existingKiss.IdempotencyKey == sanitizedKey) && existingKiss.RecipientUserId == req.RecipientUserId)
             {
                 var isMatched = existingKiss.Status == "Matched";
                 Guid? matchId = null;
@@ -2908,7 +2913,7 @@ public sealed class GameService(
             SenderGeneration = senderMembership.Generation,
             RecipientGeneration = recipientMembership.Generation,
             Status = isMutualMatch ? "Matched" : "Pending",
-            IdempotencyKey = req.IdempotencyKey,
+            IdempotencyKey = sanitizedKey,
             CreatedAtUtc = now,
             MatchedAtUtc = isMutualMatch ? now : null
         };
@@ -3105,6 +3110,8 @@ public sealed class GameService(
 
         var now = clock.GetUtcNow();
 
+        var sanitizedKey = SanitizeIdempotencyKey(idempotencyKey, userId);
+
         var skipRecord = new GameKiss
         {
             Id = Guid.NewGuid(),
@@ -3115,7 +3122,7 @@ public sealed class GameService(
             SenderGeneration = senderMembership?.Generation ?? 1,
             RecipientGeneration = partnerMembership?.Generation ?? 1,
             Status = "Skipped",
-            IdempotencyKey = idempotencyKey,
+            IdempotencyKey = sanitizedKey,
             CreatedAtUtc = now
         };
         db.Set<GameKiss>().Add(skipRecord);
@@ -3655,5 +3662,20 @@ public sealed class GameService(
 
         return new RespondDirectMatchRequestResult(directRequest.Id, "Accepted", matchId, convId);
     }
-}
+    private static string SanitizeIdempotencyKey(string? rawKey, Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(rawKey))
+        {
+            return $"{userId:N}_{Guid.NewGuid():N}"[..64];
+        }
 
+        var trimmed = rawKey.Trim();
+        if (trimmed.Length <= 64)
+        {
+            return trimmed;
+        }
+
+        var hashBytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(trimmed));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+}

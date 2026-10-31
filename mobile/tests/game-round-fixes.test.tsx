@@ -7,6 +7,11 @@ import { GameApi } from '../src/game/GameApi';
 import type { AuthApi } from '../src/auth/api';
 import type { SessionManager } from '../src/auth/session';
 
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush, replace: jest.fn() }),
+}));
+
 jest.mock('../src/auth/AuthProvider', () => ({
   useAuth: () => ({
     state: { account: { id: 'user-me' } },
@@ -250,5 +255,96 @@ describe('GameTable Round & Kiss Fixes', () => {
         expect.objectContaining({ queryKey: ['account', currentUserId, 'matches'] })
       );
     });
+  });
+  test('navigates to matches when pressing go-to-matches button in celebration modal', async () => {
+    const roundId = 'round-333';
+    const onLeave = jest.fn();
+    const request = jest.fn(async (path: string) => {
+      if (path === `/api/game/rooms/${roomId}/snapshot`) {
+        return {
+          roomId,
+          title: 'Arena #1',
+          state: 'Playing',
+          capacity: 6,
+          memberCount: 2,
+          currentTurnUserId: currentUserId,
+          currentRoundId: roundId,
+          stateVersion: 9,
+          remainingDeadlineMs: 15000,
+          deadlineUtc: new Date(Date.now() + 15000).toISOString(),
+          deadlineType: 'KissChoice',
+          members: [
+            { userId: currentUserId, displayName: 'Dato', age: 25, gender: 'man', status: 'Active', isSelf: true },
+            { userId: partnerUserId, displayName: 'Nino', age: 23, gender: 'woman', status: 'Active', isSelf: false },
+          ],
+          currentRound: {
+            roundId,
+            roundNumber: 2,
+            spinnerUserId: currentUserId,
+            targetUserId: partnerUserId,
+            angleDegrees: 180,
+            state: 'KissChoice',
+            currentQuestionIndex: 0,
+            currentQuestion: {
+              id: 'q-101',
+              questionText: 'სად?',
+              options: ['A', 'B'],
+              category: 'lifestyle',
+            },
+            callerPendingAnswer: 0,
+            revealedSelections: [],
+            deadlineUtc: new Date(Date.now() + 15000).toISOString(),
+            deadlineType: 'KissChoice',
+            kissRecipientUserId: null,
+            kissSkipped: false,
+            hasPendingKissFromPartner: false,
+            summaryCommentary: null,
+          },
+          recentKisses: [],
+          recentGifts: [],
+        };
+      }
+      if (path === '/api/game/wallet') return { balance: 100 };
+      if (path === '/api/game/store/products') return [];
+      if (path === '/api/game/ai-consent') return { aiConsent: true };
+      if (path.includes('/messages')) return [];
+      if (path.includes('/kiss')) {
+        return {
+          kissId: 'kiss-999',
+          senderUserId: currentUserId,
+          recipientUserId: partnerUserId,
+          status: 'Matched',
+          matchId: 'match-333',
+          conversationId: 'conv-444',
+        };
+      }
+      return {};
+    });
+
+    const gameApi = createMockGameApi(request);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <GameTable
+          roomId={roomId}
+          currentUserId={currentUserId}
+          gameApi={gameApi}
+          onLeave={onLeave}
+        />
+      </QueryClientProvider>
+    );
+
+    const sendKissBtn = await waitFor(() => screen.getByTestId('send-kiss-partner-button'));
+    fireEvent.press(sendKissBtn);
+
+    const goToMatchesBtn = await waitFor(() => screen.getByTestId('go-to-matches-button'));
+    expect(goToMatchesBtn).toBeTruthy();
+
+    fireEvent.press(goToMatchesBtn);
+    expect(onLeave).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/matches');
   });
 });
